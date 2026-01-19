@@ -1,0 +1,13 @@
+export 'src/analyzer/dead_code_analyzer.dart';
+export 'src/analyzer/complexity_analyzer.dart';
+export 'src/config/analyzer_config.dart';
+export 'src/models/analysis_result.dart';
+export 'src/models/code_entity.dart';
+export 'src/models/complexity_metrics.dart';
+export 'src/models/dead_code_report.dart';
+export 'src/reporters/reporter.dart';
+export 'src/reporters/console_reporter.dart';
+export 'src/reporters/json_reporter.dart';
+export 'src/reporters/markdown_reporter.dart';
+export 'src/reporters/html_reporter.dart';
+export 'src/cli/cli_runner.dart';
