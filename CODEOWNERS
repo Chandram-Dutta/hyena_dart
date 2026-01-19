@@ -1,0 +1,18 @@
+# Global owners
+* @Chandram-Dutta
+
+# Specific owners for CI/CD and configuration
+/.github/ @Chandram-Dutta
+/analysis_options.yaml @Chandram-Dutta
+/pubspec.yaml @Chandram-Dutta
+/pubspec.lock @Chandram-Dutta
+
+# Documentation
+/README.md @Chandram-Dutta
+/AGENTS.md @Chandram-Dutta
+/CHANGELOG.md @Chandram-Dutta
+
+# Source code and tests
+/lib/ @Chandram-Dutta
+/bin/ @Chandram-Dutta
+/test/ @Chandram-Dutta
