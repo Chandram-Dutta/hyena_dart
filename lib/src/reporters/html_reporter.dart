@@ -22,9 +22,9 @@ class HtmlReporter implements Reporter {
     buffer.writeln('<body>');
     buffer.writeln('  <div class="container">');
     buffer.writeln('    <header>');
-    buffer.writeln('      <h1>🐺 Hyena Code Analysis Report</h1>');
+    buffer.writeln('      <h1>Hyena Code Analysis Report</h1>');
     buffer.writeln(
-      '      <p class="meta">Target: <code>${result.targetPath}</code> | Duration: ${result.duration.inMilliseconds}ms</p>',
+      '      <p class="meta">Target: <code>${result.targetPath}</code> • Duration: ${result.duration.inMilliseconds}ms</p>',
     );
     buffer.writeln('    </header>');
 
@@ -47,7 +47,7 @@ class HtmlReporter implements Reporter {
     final report = result.deadCodeReport!;
 
     buffer.writeln('    <section class="report-section">');
-    buffer.writeln('      <h2>☠️ Dead Code Report</h2>');
+    buffer.writeln('      <h2>Dead Code Report</h2>');
     buffer.writeln('      <div class="summary-cards">');
     buffer.writeln('        <div class="card">');
     buffer.writeln(
@@ -77,7 +77,7 @@ class HtmlReporter implements Reporter {
 
     if (report.unusedEntities.isEmpty) {
       buffer.writeln(
-        '      <div class="success-message">✅ No dead code detected!</div>',
+        '      <div class="success-message">No dead code detected</div>',
       );
     } else {
       buffer.writeln('      <div class="entity-list">');
@@ -117,7 +117,7 @@ class HtmlReporter implements Reporter {
     final report = result.complexityReport!;
 
     buffer.writeln('    <section class="report-section">');
-    buffer.writeln('      <h2>📊 Complexity Report</h2>');
+    buffer.writeln('      <h2>Complexity Report</h2>');
     buffer.writeln('      <div class="summary-cards">');
     buffer.writeln('        <div class="card">');
     buffer.writeln(
@@ -150,10 +150,10 @@ class HtmlReporter implements Reporter {
     final highComplexity = report.highComplexityFunctions;
     if (highComplexity.isEmpty) {
       buffer.writeln(
-        '      <div class="success-message">✅ No high complexity functions!</div>',
+        '      <div class="success-message">No high complexity functions</div>',
       );
     } else {
-      buffer.writeln('      <h3>⚠️ High Complexity Functions</h3>');
+      buffer.writeln('      <h3>High Complexity Functions</h3>');
       buffer.writeln('      <table>');
       buffer.writeln('        <thead>');
       buffer.writeln(
@@ -216,48 +216,277 @@ class HtmlReporter implements Reporter {
   };
 
   static const _css = '''
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-    header { text-align: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; }
-    header h1 { font-size: 2em; margin-bottom: 10px; }
-    .meta { opacity: 0.9; }
-    .meta code { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; }
-    .report-section { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .report-section h2 { margin-bottom: 20px; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-    .report-section h3 { margin: 20px 0 15px; color: #666; }
-    .summary-cards { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; }
-    .card { flex: 1; min-width: 120px; background: #f8f9fa; border-radius: 8px; padding: 15px; text-align: center; }
-    .card-value { font-size: 2em; font-weight: bold; color: #333; }
-    .card-label { font-size: 0.85em; color: #666; }
-    .card.success { background: #d4edda; }
-    .card.success .card-value { color: #155724; }
-    .card.warning { background: #fff3cd; }
-    .card.warning .card-value { color: #856404; }
-    .card.danger { background: #f8d7da; }
-    .card.danger .card-value { color: #721c24; }
-    .success-message { background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; text-align: center; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
-    th { background: #f8f9fa; font-weight: 600; }
-    td code { background: #f1f3f4; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
-    td small { color: #666; display: block; margin-top: 4px; }
-    td.success { color: #155724; font-weight: bold; }
-    td.warning { color: #856404; font-weight: bold; }
-    td.danger { color: #721c24; font-weight: bold; }
-    details { margin: 10px 0; border: 1px solid #eee; border-radius: 8px; }
-    summary { padding: 10px 15px; cursor: pointer; background: #f8f9fa; border-radius: 8px; }
-    summary:hover { background: #e9ecef; }
-    details[open] summary { border-radius: 8px 8px 0 0; }
-    details table { margin: 0; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 500; }
-    .badge-class { background: #cce5ff; color: #004085; }
-    .badge-mixin { background: #d4edda; color: #155724; }
-    .badge-enum { background: #fff3cd; color: #856404; }
-    .badge-function { background: #e2e3e5; color: #383d41; }
-    .badge-accessor { background: #d1ecf1; color: #0c5460; }
-    .badge-variable { background: #f8d7da; color: #721c24; }
-    .badge-typedef { background: #e7e8ea; color: #5a5a5a; }
-    .badge-import { background: #f5c6cb; color: #721c24; }
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+    }
+    
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
+      background: #fafbfc; 
+      color: #24292f; 
+      line-height: 1.6; 
+      padding: 2rem 1rem; 
+    }
+    
+    .container { 
+      max-width: 1200px; 
+      margin: 0 auto; 
+    }
+    
+    header { 
+      margin-bottom: 2rem; 
+      padding: 2rem 0; 
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    header h1 { 
+      font-size: 1.875rem; 
+      font-weight: 600; 
+      margin-bottom: 0.5rem; 
+      color: #111827;
+    }
+    
+    .meta { 
+      font-size: 0.875rem; 
+      color: #6b7280;
+    }
+    
+    .meta code { 
+      background: #f3f4f6; 
+      padding: 0.125rem 0.375rem; 
+      border-radius: 3px; 
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+      font-size: 0.8125rem;
+      color: #374151;
+    }
+    
+    .report-section { 
+      background: white; 
+      border-radius: 6px; 
+      padding: 1.5rem; 
+      margin-bottom: 1.5rem; 
+      border: 1px solid #e5e7eb;
+    }
+    
+    .report-section h2 { 
+      margin-bottom: 1.25rem; 
+      color: #111827; 
+      font-size: 1.25rem;
+      font-weight: 600;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .report-section h3 { 
+      margin: 1.5rem 0 1rem; 
+      color: #374151; 
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    
+    .summary-cards { 
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem; 
+      margin-bottom: 2rem; 
+    }
+    
+    .card { 
+      background: #fafbfc; 
+      border-radius: 4px; 
+      padding: 1rem; 
+      text-align: center;
+      border: 1px solid #d1d5db;
+    }
+    
+    .card-value { 
+      font-size: 2rem; 
+      font-weight: 600; 
+      color: #111827; 
+      line-height: 1;
+      margin-bottom: 0.375rem;
+    }
+    
+    .card-label { 
+      font-size: 0.8125rem; 
+      color: #6b7280; 
+      font-weight: 500;
+    }
+    
+    .card.success { 
+      background: #f0fdf4; 
+      border-color: #86efac;
+    }
+    
+    .card.success .card-value { 
+      color: #15803d; 
+    }
+    
+    .card.warning { 
+      background: #fffbeb; 
+      border-color: #fcd34d;
+    }
+    
+    .card.warning .card-value { 
+      color: #b45309; 
+    }
+    
+    .card.danger { 
+      background: #fef2f2; 
+      border-color: #fca5a5;
+    }
+    
+    .card.danger .card-value { 
+      color: #dc2626; 
+    }
+    
+    .success-message { 
+      background: #f0fdf4; 
+      color: #15803d; 
+      padding: 0.875rem; 
+      border-radius: 4px; 
+      text-align: center; 
+      font-weight: 500;
+      border: 1px solid #86efac;
+    }
+    
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 1rem; 
+    }
+    
+    th, td { 
+      padding: 0.875rem 1rem; 
+      text-align: left; 
+      border-bottom: 1px solid #e5e7eb; 
+    }
+    
+    th { 
+      background: #fafbfc; 
+      font-weight: 600; 
+      font-size: 0.8125rem;
+      color: #374151;
+    }
+    
+    tbody tr:hover {
+      background: #fafbfc;
+    }
+    
+    td code { 
+      background: #f3f4f6; 
+      padding: 0.25rem 0.5rem; 
+      border-radius: 4px; 
+      font-size: 0.875rem; 
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+      color: #374151;
+      font-weight: 500;
+    }
+    
+    td small { 
+      color: #6b7280; 
+      display: block; 
+      margin-top: 0.375rem; 
+      font-size: 0.8125rem;
+    }
+    
+    td.success { 
+      color: #047857; 
+      font-weight: 600; 
+    }
+    
+    td.warning { 
+      color: #b45309; 
+      font-weight: 600; 
+    }
+    
+    td.danger { 
+      color: #dc2626; 
+      font-weight: 600; 
+    }
+    
+    details { 
+      margin: 0.5rem 0; 
+      border: 1px solid #d1d5db; 
+      border-radius: 4px; 
+      overflow: hidden;
+    }
+    
+    summary { 
+      padding: 0.75rem 1rem; 
+      cursor: pointer; 
+      background: #fafbfc; 
+      font-weight: 500;
+      color: #374151;
+      user-select: none;
+      font-size: 0.875rem;
+    }
+    
+    summary:hover { 
+      background: #f3f4f6; 
+    }
+    
+    details[open] summary { 
+      border-bottom: 1px solid #d1d5db;
+    }
+    
+    details table { 
+      margin: 0; 
+      border-radius: 0;
+    }
+    
+    details table th {
+      background: white;
+    }
+    
+    .badge { 
+      display: inline-block; 
+      padding: 0.1875rem 0.5rem; 
+      border-radius: 3px; 
+      font-size: 0.6875rem; 
+      font-weight: 500;
+    }
+    
+    .badge-class { 
+      background: #dbeafe; 
+      color: #1e40af; 
+    }
+    
+    .badge-mixin { 
+      background: #d1fae5; 
+      color: #047857; 
+    }
+    
+    .badge-enum { 
+      background: #fef3c7; 
+      color: #b45309; 
+    }
+    
+    .badge-function { 
+      background: #e5e7eb; 
+      color: #374151; 
+    }
+    
+    .badge-accessor { 
+      background: #cffafe; 
+      color: #0e7490; 
+    }
+    
+    .badge-variable { 
+      background: #fce7f3; 
+      color: #be185d; 
+    }
+    
+    .badge-typedef { 
+      background: #f3f4f6; 
+      color: #4b5563; 
+    }
+    
+    .badge-import { 
+      background: #ffe4e6; 
+      color: #be123c; 
+    }
   ''';
 }

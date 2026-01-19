@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:glob/glob.dart';
@@ -27,7 +28,10 @@ class DeadCodeAnalyzer {
       if (_shouldExclude(file)) continue;
 
       final content = await File(file).readAsString();
-      final result = parseString(content: content);
+      final result = parseString(
+        content: content,
+        featureSet: FeatureSet.latestLanguageVersion(),
+      );
       final unit = result.unit;
 
       final fileExports = exportedNames[file] ?? <String>{};
@@ -97,7 +101,10 @@ class DeadCodeAnalyzer {
 
     for (final file in files) {
       final content = await File(file).readAsString();
-      final result = parseString(content: content);
+      final result = parseString(
+        content: content,
+        featureSet: FeatureSet.latestLanguageVersion(),
+      );
       final unit = result.unit;
 
       for (final directive in unit.directives) {
