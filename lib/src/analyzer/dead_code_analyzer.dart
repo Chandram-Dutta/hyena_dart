@@ -21,9 +21,9 @@ class DeadCodeAnalyzer {
 
   Future<DeadCodeReport> analyze(String targetPath) async {
     final absTarget = p.absolute(targetPath);
-    final dartFiles = (await _collectDartFiles(absTarget))
-        .map(p.absolute)
-        .toList();
+    final dartFiles = (await _collectDartFiles(
+      absTarget,
+    )).map(p.absolute).toList();
     final collection = AnalysisContextCollection(includedPaths: [absTarget]);
 
     final allDeclarations = <CodeEntity>[];
@@ -202,7 +202,9 @@ class DeadCodeAnalyzer {
   Future<Map<String, String>> _loadPackageRoots(String targetPath) async {
     var dir = Directory(p.absolute(targetPath));
     while (true) {
-      final configFile = File(p.join(dir.path, '.dart_tool', 'package_config.json'));
+      final configFile = File(
+        p.join(dir.path, '.dart_tool', 'package_config.json'),
+      );
       if (await configFile.exists()) {
         try {
           final json = jsonDecode(await configFile.readAsString());

@@ -39,13 +39,17 @@ class DeadCodeReport {
       'unusedCount': unusedCount,
       'deadCodePercentage': deadCodePercentage.toStringAsFixed(2),
     },
-    'unusedEntities': unusedEntities.map((e) => <String, dynamic>{
-      'name': e.fullName,
-      'type': e.typeLabel,
-      'filePath': e.filePath,
-      'line': e.line,
-      'column': e.column,
-      'isPublic': e.isPublic,
-    }).toList(),
+    'unusedEntities': unusedEntities
+        .map(
+          (e) => <String, dynamic>{
+            'name': e.fullName,
+            'type': e.typeLabel,
+            'filePath': e.filePath,
+            'line': e.line,
+            'column': e.column,
+            'isPublic': e.isPublic,
+          },
+        )
+        .toList(),
   };
 }

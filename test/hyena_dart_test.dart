@@ -61,11 +61,10 @@ environment:
   sdk: ^3.10.0
 ''');
       File(p.join(lib.path, 'lib.dart')).writeAsStringSync(libSource);
-      final result = await Process.run(
-        Platform.resolvedExecutable,
-        ['pub', 'get'],
-        workingDirectory: fixture.path,
-      );
+      final result = await Process.run(Platform.resolvedExecutable, [
+        'pub',
+        'get',
+      ], workingDirectory: fixture.path);
       if (result.exitCode != 0) {
         throw StateError('pub get failed: ${result.stderr}');
       }
@@ -149,6 +148,5 @@ void main() {
       expect(names, contains('Holder.unusedSetter'));
       expect(names, isNot(contains('Holder.used')));
     });
-
   });
 }
