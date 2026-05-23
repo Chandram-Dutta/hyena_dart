@@ -246,5 +246,4 @@ class _NestingLevelCounter extends RecursiveAstVisitor<void> {
     super.visitTryStatement(node);
     _decrementLevel();
   }
-
 }

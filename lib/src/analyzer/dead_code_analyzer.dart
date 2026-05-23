@@ -22,17 +22,22 @@ class DeadCodeAnalyzer {
     final dartFiles = await _collectDartFiles(targetPath);
     final allDeclarations = <CodeEntity>[];
     final allReferences = <String>{};
-    final exportedNames = await _collectExportedNames(dartFiles);
+
+    final parsedUnits = <String, CompilationUnit>{};
+    for (final file in dartFiles) {
+      final content = await File(file).readAsString();
+      parsedUnits[file] = parseString(
+        content: content,
+        featureSet: FeatureSet.latestLanguageVersion(),
+      ).unit;
+    }
+
+    final exportedNames = _collectExportedNames(parsedUnits);
 
     for (final file in dartFiles) {
       if (_shouldExclude(file)) continue;
 
-      final content = await File(file).readAsString();
-      final result = parseString(
-        content: content,
-        featureSet: FeatureSet.latestLanguageVersion(),
-      );
-      final unit = result.unit;
+      final unit = parsedUnits[file]!;
 
       final fileExports = exportedNames[file] ?? <String>{};
       final declarationVisitor = DeclarationVisitor(
@@ -97,19 +102,15 @@ class DeadCodeAnalyzer {
     return false;
   }
 
-  Future<Map<String, Set<String>>> _collectExportedNames(
-    List<String> files,
-  ) async {
+  Map<String, Set<String>> _collectExportedNames(
+    Map<String, CompilationUnit> parsedUnits,
+  ) {
     final exportedNames = <String, Set<String>>{};
     final fileExports = <String, List<String>>{};
 
-    for (final file in files) {
-      final content = await File(file).readAsString();
-      final result = parseString(
-        content: content,
-        featureSet: FeatureSet.latestLanguageVersion(),
-      );
-      final unit = result.unit;
+    for (final entry in parsedUnits.entries) {
+      final file = entry.key;
+      final unit = entry.value;
 
       for (final directive in unit.directives) {
         if (directive is ExportDirective) {
