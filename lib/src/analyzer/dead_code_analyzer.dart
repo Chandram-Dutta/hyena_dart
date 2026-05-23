@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:analyzer/dart/analysis/features.dart';
-import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
+import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
@@ -20,26 +20,43 @@ class DeadCodeAnalyzer {
   DeadCodeAnalyzer(this.config);
 
   Future<DeadCodeReport> analyze(String targetPath) async {
-    final dartFiles = await _collectDartFiles(targetPath);
+    final absTarget = p.absolute(targetPath);
+    final dartFiles = (await _collectDartFiles(absTarget))
+        .map(p.absolute)
+        .toList();
+    final collection = AnalysisContextCollection(includedPaths: [absTarget]);
+
     final allDeclarations = <CodeEntity>[];
     final allReferences = <String>{};
+    final elementIdToEntity = <int, CodeEntity>{};
+    final referencedElementIds = <int>{};
 
     final parsedUnits = <String, CompilationUnit>{};
+    var resolvedCount = 0;
     for (final file in dartFiles) {
-      final content = await File(file).readAsString();
-      parsedUnits[file] = parseString(
-        content: content,
-        featureSet: FeatureSet.latestLanguageVersion(),
-      ).unit;
+      final result = await collection
+          .contextFor(file)
+          .currentSession
+          .getResolvedUnit(file);
+      if (result is! ResolvedUnitResult) continue;
+      parsedUnits[file] = result.unit;
+      resolvedCount++;
     }
 
-    final packageRoots = await _loadPackageRoots(targetPath);
+    if (resolvedCount == 0 && dartFiles.isNotEmpty) {
+      throw StateError(
+        'Could not resolve any Dart files under $targetPath. '
+        'Ensure the path is inside a Dart package and `dart pub get` has been run.',
+      );
+    }
+
+    final packageRoots = await _loadPackageRoots(absTarget);
     final exportedNames = _collectExportedNames(parsedUnits, packageRoots);
 
     for (final file in dartFiles) {
       if (_shouldExclude(file)) continue;
-
-      final unit = parsedUnits[file]!;
+      final unit = parsedUnits[file];
+      if (unit == null) continue;
 
       final fileExports = exportedNames[file] ?? <String>{};
       final declarationVisitor = DeclarationVisitor(
@@ -48,13 +65,20 @@ class DeadCodeAnalyzer {
       );
       unit.accept(declarationVisitor);
       allDeclarations.addAll(declarationVisitor.declarations);
+      elementIdToEntity.addAll(declarationVisitor.elementIdToEntity);
 
       final referenceVisitor = ReferenceVisitor();
       unit.accept(referenceVisitor);
       allReferences.addAll(referenceVisitor.allReferences);
+      referencedElementIds.addAll(referenceVisitor.referencedElementIds);
     }
 
-    final unusedEntities = _findUnusedEntities(allDeclarations, allReferences);
+    final unusedEntities = _findUnusedEntities(
+      allDeclarations,
+      allReferences,
+      elementIdToEntity,
+      referencedElementIds,
+    );
 
     return DeadCodeReport(
       unusedEntities: unusedEntities,
@@ -209,23 +233,37 @@ class DeadCodeAnalyzer {
   List<CodeEntity> _findUnusedEntities(
     List<CodeEntity> declarations,
     Set<String> references,
+    Map<int, CodeEntity> elementIdToEntity,
+    Set<int> referencedElementIds,
   ) {
-    final unused = <CodeEntity>[];
-
-    for (final entity in declarations) {
-      if (_isUsed(entity, references)) continue;
-
-      if (config.ignoreExports && entity.isExported) continue;
-
-      if (!entity.isPublic && config.ignorePrivate) continue;
-
-      unused.add(entity);
+    final entityToId = <CodeEntity, int>{};
+    for (final entry in elementIdToEntity.entries) {
+      entityToId[entry.value] = entry.key;
     }
 
+    final unused = <CodeEntity>[];
+    for (final entity in declarations) {
+      if (_isUsed(entity, references, entityToId, referencedElementIds)) {
+        continue;
+      }
+      if (config.ignoreExports && entity.isExported) continue;
+      if (!entity.isPublic && config.ignorePrivate) continue;
+      unused.add(entity);
+    }
     return unused;
   }
 
-  bool _isUsed(CodeEntity entity, Set<String> references) {
+  bool _isUsed(
+    CodeEntity entity,
+    Set<String> references,
+    Map<CodeEntity, int> entityToId,
+    Set<int> referencedElementIds,
+  ) {
+    final id = entityToId[entity];
+    if (id != null) {
+      return referencedElementIds.contains(id);
+    }
+
     if (references.contains(entity.name)) return true;
     if (references.contains(entity.fullName)) return true;
 

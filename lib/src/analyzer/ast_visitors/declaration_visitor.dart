@@ -1,5 +1,6 @@
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
+import 'package:analyzer/dart/element/element2.dart';
 
 import '../../models/code_entity.dart';
 
@@ -7,16 +8,24 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   final String filePath;
   final Set<String> exportedNames;
   final List<CodeEntity> declarations = [];
+  final Map<int, CodeEntity> elementIdToEntity = {};
   String? _currentClass;
 
   DeclarationVisitor(this.filePath, {this.exportedNames = const {}});
 
   bool _isPublic(String name) => !name.startsWith('_');
 
+  void _record(CodeEntity entity, Element2? element) {
+    declarations.add(entity);
+    if (element != null) {
+      elementIdToEntity[element.id] = entity;
+    }
+  }
+
   @override
   void visitClassDeclaration(ClassDeclaration node) {
     final name = node.name.lexeme;
-    declarations.add(
+    _record(
       CodeEntity(
         name: name,
         type: node.abstractKeyword != null
@@ -28,6 +37,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
+      node.declaredFragment?.element,
     );
     _currentClass = name;
     super.visitClassDeclaration(node);
@@ -37,7 +47,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitMixinDeclaration(MixinDeclaration node) {
     final name = node.name.lexeme;
-    declarations.add(
+    _record(
       CodeEntity(
         name: name,
         type: EntityType.mixin,
@@ -47,6 +57,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
+      node.declaredFragment?.element,
     );
     _currentClass = name;
     super.visitMixinDeclaration(node);
@@ -57,7 +68,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   void visitExtensionDeclaration(ExtensionDeclaration node) {
     final name = node.name?.lexeme;
     if (name != null) {
-      declarations.add(
+      _record(
         CodeEntity(
           name: name,
           type: EntityType.extension,
@@ -67,6 +78,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
           isPublic: _isPublic(name),
           isExported: exportedNames.contains(name),
         ),
+        node.declaredFragment?.element,
       );
     }
     _currentClass = name;
@@ -77,7 +89,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitEnumDeclaration(EnumDeclaration node) {
     final name = node.name.lexeme;
-    declarations.add(
+    _record(
       CodeEntity(
         name: name,
         type: EntityType.enum_,
@@ -87,11 +99,12 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
+      node.declaredFragment?.element,
     );
 
     _currentClass = name;
     for (final constant in node.constants) {
-      declarations.add(
+      _record(
         CodeEntity(
           name: constant.name.lexeme,
           type: EntityType.enumValue,
@@ -101,6 +114,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
           parentName: name,
           isPublic: true,
         ),
+        constant.declaredFragment?.element,
       );
     }
     super.visitEnumDeclaration(node);
@@ -124,7 +138,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
       type = EntityType.function;
     }
 
-    declarations.add(
+    _record(
       CodeEntity(
         name: name,
         type: type,
@@ -134,6 +148,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
+      node.declaredFragment?.element,
     );
     super.visitFunctionDeclaration(node);
   }
@@ -155,7 +170,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
       type = EntityType.method;
     }
 
-    declarations.add(
+    _record(
       CodeEntity(
         name: name,
         type: type,
@@ -165,6 +180,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         parentName: _currentClass,
         isPublic: _isPublic(name),
       ),
+      node.declaredFragment?.element,
     );
     super.visitMethodDeclaration(node);
   }
@@ -182,7 +198,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   void visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
     for (final variable in node.variables.variables) {
       final name = variable.name.lexeme;
-      declarations.add(
+      _record(
         CodeEntity(
           name: name,
           type: EntityType.topLevelVariable,
@@ -192,6 +208,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
           isPublic: _isPublic(name),
           isExported: exportedNames.contains(name),
         ),
+        variable.declaredFragment?.element,
       );
     }
     super.visitTopLevelVariableDeclaration(node);
@@ -201,7 +218,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   void visitFieldDeclaration(FieldDeclaration node) {
     for (final variable in node.fields.variables) {
       final name = variable.name.lexeme;
-      declarations.add(
+      _record(
         CodeEntity(
           name: name,
           type: EntityType.field,
@@ -211,6 +228,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
           parentName: _currentClass,
           isPublic: _isPublic(name),
         ),
+        variable.declaredFragment?.element,
       );
     }
     super.visitFieldDeclaration(node);
@@ -219,7 +237,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitFunctionTypeAlias(FunctionTypeAlias node) {
     final name = node.name.lexeme;
-    declarations.add(
+    _record(
       CodeEntity(
         name: name,
         type: EntityType.typedef,
@@ -229,6 +247,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
+      node.declaredFragment?.element,
     );
     super.visitFunctionTypeAlias(node);
   }
@@ -236,7 +255,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitGenericTypeAlias(GenericTypeAlias node) {
     final name = node.name.lexeme;
-    declarations.add(
+    _record(
       CodeEntity(
         name: name,
         type: EntityType.typedef,
@@ -246,6 +265,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
+      node.declaredFragment?.element,
     );
     super.visitGenericTypeAlias(node);
   }

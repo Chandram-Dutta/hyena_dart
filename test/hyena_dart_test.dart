@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:hyena_dart/hyena_dart.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -42,6 +45,58 @@ void main() {
         isPublic: true,
       );
       expect(entity.typeLabel, 'class');
+    });
+  });
+
+  group('DeadCodeAnalyzer (resolved AST)', () {
+    late Directory fixture;
+
+    setUpAll(() async {
+      fixture = await Directory.systemTemp.createTemp('hyena_fixture_');
+      final lib = Directory(p.join(fixture.path, 'lib'))..createSync();
+      File(p.join(fixture.path, 'pubspec.yaml')).writeAsStringSync('''
+name: hyena_fixture
+environment:
+  sdk: ^3.10.0
+''');
+      File(p.join(lib.path, 'lib.dart')).writeAsStringSync('''
+class Used {
+  void hello() => print('used');
+}
+
+class ShouldBeDead {
+  void hello() => print('dead');
+}
+
+void main() {
+  final u = Used();
+  u.hello();
+}
+''');
+      final result = await Process.run(
+        Platform.resolvedExecutable,
+        ['pub', 'get'],
+        workingDirectory: fixture.path,
+      );
+      if (result.exitCode != 0) {
+        throw StateError('pub get failed: ${result.stderr}');
+      }
+    });
+
+    tearDownAll(() async {
+      if (await fixture.exists()) {
+        await fixture.delete(recursive: true);
+      }
+    });
+
+    test('detects same-named method on unused class', () async {
+      final analyzer = DeadCodeAnalyzer(AnalyzerConfig());
+      final report = await analyzer.analyze(p.join(fixture.path, 'lib'));
+      final names = report.unusedEntities.map((e) => e.fullName).toSet();
+      expect(names, contains('ShouldBeDead'));
+      expect(names, contains('ShouldBeDead.hello'));
+      expect(names, isNot(contains('Used')));
+      expect(names, isNot(contains('Used.hello')));
     });
   });
 }
