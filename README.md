@@ -1,6 +1,6 @@
 # Hyena Dart
 
-<img src="hyena_dart_logo.png" width="200" alt="Hyena Logo">
+<img src="https://raw.githubusercontent.com/Chandram-Dutta/hyena_dart/main/hyena_dart_logo.png" width="200" alt="Hyena Logo">
 
 
 A powerful Flutter/Dart codebase analyzer that detects dead code and calculates code complexity metrics. Built using the official Dart `analyzer` package for accurate AST-based analysis.

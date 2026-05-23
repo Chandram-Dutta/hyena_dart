@@ -1,4 +1,4 @@
-## [1.0.0] - 2026-01-19
+## [1.0.0] - 2026-05-23
 
 ### Added
 - Initial release of Hyena Dart codebase analyzer
