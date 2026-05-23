@@ -85,8 +85,12 @@ class DeadCodeAnalyzer {
 
     if (filePath.endsWith('.g.dart') ||
         filePath.endsWith('.freezed.dart') ||
-        filePath.endsWith('.mocks.dart') ||
-        filePath.contains('/generated/')) {
+        filePath.endsWith('.mocks.dart')) {
+      return true;
+    }
+
+    final segments = p.split(filePath);
+    if (segments.contains('generated')) {
       return true;
     }
 
