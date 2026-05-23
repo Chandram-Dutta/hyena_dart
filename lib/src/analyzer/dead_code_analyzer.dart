@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/features.dart';
@@ -32,7 +33,8 @@ class DeadCodeAnalyzer {
       ).unit;
     }
 
-    final exportedNames = _collectExportedNames(parsedUnits);
+    final packageRoots = await _loadPackageRoots(targetPath);
+    final exportedNames = _collectExportedNames(parsedUnits, packageRoots);
 
     for (final file in dartFiles) {
       if (_shouldExclude(file)) continue;
@@ -104,6 +106,7 @@ class DeadCodeAnalyzer {
 
   Map<String, Set<String>> _collectExportedNames(
     Map<String, CompilationUnit> parsedUnits,
+    Map<String, String> packageRoots,
   ) {
     final exportedNames = <String, Set<String>>{};
     final fileExports = <String, List<String>>{};
@@ -116,7 +119,7 @@ class DeadCodeAnalyzer {
         if (directive is ExportDirective) {
           final uri = directive.uri.stringValue;
           if (uri != null) {
-            final exportedFile = _resolveImportUri(file, uri);
+            final exportedFile = _resolveImportUri(file, uri, packageRoots);
             if (exportedFile != null) {
               fileExports.putIfAbsent(file, () => []).add(exportedFile);
 
@@ -150,13 +153,57 @@ class DeadCodeAnalyzer {
     return exportedNames;
   }
 
-  String? _resolveImportUri(String fromFile, String uri) {
-    if (uri.startsWith('dart:') || uri.startsWith('package:')) {
-      return null;
+  String? _resolveImportUri(
+    String fromFile,
+    String uri,
+    Map<String, String> packageRoots,
+  ) {
+    if (uri.startsWith('dart:')) return null;
+
+    if (uri.startsWith('package:')) {
+      final withoutScheme = uri.substring('package:'.length);
+      final slash = withoutScheme.indexOf('/');
+      if (slash < 0) return null;
+      final pkg = withoutScheme.substring(0, slash);
+      final rest = withoutScheme.substring(slash + 1);
+      final root = packageRoots[pkg];
+      if (root == null) return null;
+      return p.normalize(p.join(root, rest));
     }
 
     final fromDir = p.dirname(fromFile);
     return p.normalize(p.join(fromDir, uri));
+  }
+
+  Future<Map<String, String>> _loadPackageRoots(String targetPath) async {
+    var dir = Directory(p.absolute(targetPath));
+    while (true) {
+      final configFile = File(p.join(dir.path, '.dart_tool', 'package_config.json'));
+      if (await configFile.exists()) {
+        try {
+          final json = jsonDecode(await configFile.readAsString());
+          final packages = json['packages'] as List?;
+          if (packages == null) return {};
+          final roots = <String, String>{};
+          for (final entry in packages) {
+            final name = entry['name'] as String?;
+            final rootUri = entry['rootUri'] as String?;
+            final packageUri = entry['packageUri'] as String? ?? 'lib/';
+            if (name == null || rootUri == null) continue;
+            final resolvedRoot = rootUri.startsWith('file://')
+                ? Uri.parse(rootUri).toFilePath()
+                : p.normalize(p.join(configFile.parent.path, rootUri));
+            roots[name] = p.normalize(p.join(resolvedRoot, packageUri));
+          }
+          return roots;
+        } catch (_) {
+          return {};
+        }
+      }
+      final parent = dir.parent;
+      if (parent.path == dir.path) return {};
+      dir = parent;
+    }
   }
 
   List<CodeEntity> _findUnusedEntities(
