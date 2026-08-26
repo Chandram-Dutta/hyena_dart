@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly dart_version="3.10.3"
+readonly dart_install="$HOME/.local/share/dart-sdk-$dart_version"
+readonly local_bin="$HOME/.local/bin"
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+time_step() {
+  local label="$1"
+  shift
+  local started=$SECONDS
+
+  printf '==> %s\n' "$label"
+  "$@"
+  printf '<== %s (%ss)\n' "$label" "$((SECONDS - started))"
+}
+
+missing_packages=()
+command -v curl >/dev/null 2>&1 || missing_packages+=(curl)
+command -v unzip >/dev/null 2>&1 || missing_packages+=(unzip)
+
+if ((${#missing_packages[@]})); then
+  time_step "Refresh apt package metadata" sudo apt-get update
+  time_step "Install system prerequisites" \
+    sudo apt-get install -y --no-install-recommends "${missing_packages[@]}"
+fi
+
+if [[ ! -x "$dart_install/bin/dart" ]]; then
+  archive_url="https://storage.googleapis.com/dart-archive/channels/stable/release/$dart_version/sdk/dartsdk-linux-x64-release.zip"
+  download_dir="$(mktemp -d)"
+  trap 'rm -rf "$download_dir"' EXIT
+
+  time_step "Download Dart SDK $dart_version" \
+    curl --fail --location --retry 3 --output "$download_dir/dart-sdk.zip" "$archive_url"
+  time_step "Extract Dart SDK $dart_version" \
+    unzip -q "$download_dir/dart-sdk.zip" -d "$download_dir"
+
+  mkdir -p "$(dirname "$dart_install")"
+  rm -rf "$dart_install"
+  mv "$download_dir/dart-sdk" "$dart_install"
+fi
+
+mkdir -p "$local_bin"
+ln -sfn "$dart_install/bin/dart" "$local_bin/dart"
+export PATH="$local_bin:$PATH"
+
+printf 'Dart SDK: '
+dart --version
+time_step "Resolve Dart dependencies" dart pub get --enforce-lockfile

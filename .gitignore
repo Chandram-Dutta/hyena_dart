@@ -44,6 +44,9 @@ coverage/
 .test_coverage.dart
 *.lcov
 
+# Amp orb runtime files
+.amp/portals/*
+
 # Temporary files
 *.log
 *.tmp
