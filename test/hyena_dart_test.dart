@@ -196,7 +196,7 @@ void main() {
       ).analyze(libPath);
 
       expect(report.totalDeclarations, 1);
-      expect(report.unusedEntities.single.name, 'main');
+      expect(report.unusedEntities, isEmpty);
     });
 
     test('CLI defaults do not overwrite YAML dead-code settings', () async {
@@ -353,6 +353,68 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('reports declarations reachable only from dead code', () async {
+      final libPath = await makeFixture('''
+void firstDeadFunction() => secondDeadFunction();
+void secondDeadFunction() {}
+
+void main() {}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.name)
+          .toSet();
+
+      expect(
+        unusedNames,
+        containsAll(['firstDeadFunction', 'secondDeadFunction']),
+      );
+    });
+
+    test('keeps transitively reachable declarations alive', () async {
+      final libPath = await makeFixture('''
+void firstLiveFunction() => secondLiveFunction();
+void secondLiveFunction() {}
+
+void main() {
+  firstLiveFunction();
+}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.name)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('firstLiveFunction')));
+      expect(unusedNames, isNot(contains('secondLiveFunction')));
+    });
+
+    test('treats exported APIs as reachability roots', () async {
+      final libPath = await makeFixture(
+        "export 'api.dart';",
+        additionalFiles: {
+          'api.dart': '''
+void publicApi() => _implementation();
+void _implementation() {}
+''',
+        },
+      );
+
+      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.name)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('publicApi')));
+      expect(unusedNames, isNot(contains('_implementation')));
     });
   });
 

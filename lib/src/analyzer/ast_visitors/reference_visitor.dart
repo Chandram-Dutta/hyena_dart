@@ -7,6 +7,26 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   final Set<String> typeReferences = {};
   final Set<String> imports = {};
   final Set<int> referencedElementIds = {};
+  final Map<int, Set<int>> referenceGraph = {};
+  final Set<int> rootElementIds = {};
+  int? _currentDeclarationId;
+
+  void _visitInScope(
+    Element2? element,
+    void Function() visit, {
+    bool isRoot = false,
+  }) {
+    final previousDeclarationId = _currentDeclarationId;
+    if (element != null) {
+      _currentDeclarationId = element.id;
+      if (isRoot) rootElementIds.add(element.id);
+    }
+    visit();
+    _currentDeclarationId = previousDeclarationId;
+  }
+
+  bool _isOverride(MethodDeclaration node) =>
+      node.metadata.any((annotation) => annotation.name.name == 'override');
 
   void _recordElement(Element2? element) {
     if (element == null) return;
@@ -18,13 +38,141 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   }
 
   void _recordElementIdAndExtension(Element2 element) {
-    referencedElementIds.add(element.id);
+    _recordElementId(element.id);
     final enclosing = element.enclosingElement2;
     if (enclosing is ExtensionElement2) {
-      referencedElementIds.add(enclosing.id);
+      _recordElementId(enclosing.id);
     } else if (enclosing is ExtensionTypeElement2) {
-      referencedElementIds.add(enclosing.id);
+      _recordElementId(enclosing.id);
     }
+  }
+
+  void _recordElementId(int elementId) {
+    referencedElementIds.add(elementId);
+    final sourceId = _currentDeclarationId;
+    if (sourceId == null) {
+      rootElementIds.add(elementId);
+    } else {
+      referenceGraph.putIfAbsent(sourceId, () => {}).add(elementId);
+    }
+  }
+
+  @override
+  void visitClassDeclaration(ClassDeclaration node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitClassDeclaration(node),
+    );
+  }
+
+  @override
+  void visitMixinDeclaration(MixinDeclaration node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitMixinDeclaration(node),
+    );
+  }
+
+  @override
+  void visitExtensionDeclaration(ExtensionDeclaration node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitExtensionDeclaration(node),
+    );
+  }
+
+  @override
+  void visitExtensionTypeDeclaration(ExtensionTypeDeclaration node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitExtensionTypeDeclaration(node),
+    );
+  }
+
+  @override
+  void visitEnumDeclaration(EnumDeclaration node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitEnumDeclaration(node),
+    );
+  }
+
+  @override
+  void visitEnumConstantDeclaration(EnumConstantDeclaration node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitEnumConstantDeclaration(node),
+    );
+  }
+
+  @override
+  void visitFunctionDeclaration(FunctionDeclaration node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitFunctionDeclaration(node),
+      isRoot: node.name.lexeme == 'main',
+    );
+  }
+
+  @override
+  void visitMethodDeclaration(MethodDeclaration node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitMethodDeclaration(node),
+      isRoot: _isOverride(node),
+    );
+  }
+
+  @override
+  void visitConstructorDeclaration(ConstructorDeclaration node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitConstructorDeclaration(node),
+    );
+  }
+
+  @override
+  void visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
+    final first = node.variables.variables.firstOrNull;
+    _visitInScope(
+      first?.declaredFragment?.element,
+      () => super.visitTopLevelVariableDeclaration(node),
+    );
+  }
+
+  @override
+  void visitFieldDeclaration(FieldDeclaration node) {
+    final first = node.fields.variables.firstOrNull;
+    _visitInScope(
+      first?.declaredFragment?.element,
+      () => super.visitFieldDeclaration(node),
+    );
+  }
+
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    final element = node.declaredFragment?.element;
+    if (element is FieldElement2 || element is TopLevelVariableElement2) {
+      _visitInScope(element, () => super.visitVariableDeclaration(node));
+    } else {
+      super.visitVariableDeclaration(node);
+    }
+  }
+
+  @override
+  void visitFunctionTypeAlias(FunctionTypeAlias node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitFunctionTypeAlias(node),
+    );
+  }
+
+  @override
+  void visitGenericTypeAlias(GenericTypeAlias node) {
+    _visitInScope(
+      node.declaredFragment?.element,
+      () => super.visitGenericTypeAlias(node),
+    );
   }
 
   @override

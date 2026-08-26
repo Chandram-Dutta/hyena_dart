@@ -31,7 +31,8 @@ class DeadCodeAnalyzer {
     final allDeclarations = <CodeEntity>[];
     final allReferences = <String>{};
     final elementIdToEntity = <int, CodeEntity>{};
-    final referencedElementIds = <int>{};
+    final referenceGraph = <int, Set<int>>{};
+    final rootElementIds = <int>{};
 
     final parsedUnits = <String, CompilationUnit>{};
     final lineInfos = <String, LineInfo>{};
@@ -86,14 +87,18 @@ class DeadCodeAnalyzer {
       final referenceVisitor = ReferenceVisitor();
       unit.accept(referenceVisitor);
       allReferences.addAll(referenceVisitor.allReferences);
-      referencedElementIds.addAll(referenceVisitor.referencedElementIds);
+      rootElementIds.addAll(referenceVisitor.rootElementIds);
+      for (final entry in referenceVisitor.referenceGraph.entries) {
+        referenceGraph.putIfAbsent(entry.key, () => {}).addAll(entry.value);
+      }
     }
 
     final unusedEntities = _findUnusedEntities(
       allDeclarations,
       allReferences,
       elementIdToEntity,
-      referencedElementIds,
+      referenceGraph,
+      rootElementIds,
     );
 
     return DeadCodeReport(
@@ -265,16 +270,29 @@ class DeadCodeAnalyzer {
     List<CodeEntity> declarations,
     Set<String> references,
     Map<int, CodeEntity> elementIdToEntity,
-    Set<int> referencedElementIds,
+    Map<int, Set<int>> referenceGraph,
+    Set<int> rootElementIds,
   ) {
     final entityToId = <CodeEntity, int>{};
     for (final entry in elementIdToEntity.entries) {
       entityToId[entry.value] = entry.key;
     }
 
+    for (final entry in elementIdToEntity.entries) {
+      final entity = entry.value;
+      if ((config.ignoreExports && entity.isExported) ||
+          (config.ignorePrivate && !entity.isPublic)) {
+        rootElementIds.add(entry.key);
+      }
+    }
+    final reachableElementIds = _findReachableElements(
+      referenceGraph,
+      rootElementIds,
+    );
+
     final unused = <CodeEntity>[];
     for (final entity in declarations) {
-      if (_isUsed(entity, references, entityToId, referencedElementIds)) {
+      if (_isUsed(entity, references, entityToId, reachableElementIds)) {
         continue;
       }
       if (config.ignoreExports && entity.isExported) continue;
@@ -284,15 +302,30 @@ class DeadCodeAnalyzer {
     return unused;
   }
 
+  Set<int> _findReachableElements(
+    Map<int, Set<int>> referenceGraph,
+    Set<int> roots,
+  ) {
+    final reachable = <int>{...roots};
+    final pending = roots.toList();
+    while (pending.isNotEmpty) {
+      final source = pending.removeLast();
+      for (final target in referenceGraph[source] ?? const <int>{}) {
+        if (reachable.add(target)) pending.add(target);
+      }
+    }
+    return reachable;
+  }
+
   bool _isUsed(
     CodeEntity entity,
     Set<String> references,
     Map<CodeEntity, int> entityToId,
-    Set<int> referencedElementIds,
+    Set<int> reachableElementIds,
   ) {
     final id = entityToId[entity];
     if (id != null) {
-      return referencedElementIds.contains(id);
+      return reachableElementIds.contains(id);
     }
 
     if (references.contains(entity.name)) return true;
