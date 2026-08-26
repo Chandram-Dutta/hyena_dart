@@ -112,17 +112,24 @@ class ConsoleReporter implements Reporter {
     buffer.writeln('${_dim("Total lines:")} ${report.totalLines}');
     buffer.writeln();
 
-    final highComplexity = report.highComplexityFunctions;
-    if (highComplexity.isEmpty) {
-      buffer.writeln(_green('✓ No high complexity functions detected!'));
+    final violations = report.thresholdViolations;
+    if (violations.isEmpty) {
+      buffer.writeln(_green('✓ No complexity threshold violations detected!'));
       buffer.writeln();
       return;
     }
 
-    buffer.writeln(_yellow('⚠ High complexity functions (> 10):'));
+    buffer.writeln(
+      _yellow(
+        '⚠ Threshold violations '
+        '(cyclomatic > ${report.cyclomaticThreshold}, '
+        'nesting > ${report.maxNestingLevel}, '
+        'parameters > ${report.maxParameters}):',
+      ),
+    );
     buffer.writeln();
 
-    for (final func in highComplexity.take(20)) {
+    for (final func in violations.take(20)) {
       final complexityColor = _getComplexityColor(func.cyclomaticComplexity);
       buffer.writeln('  ${_bold(func.fullName)}');
       buffer.writeln(
@@ -138,11 +145,9 @@ class ConsoleReporter implements Reporter {
       buffer.writeln();
     }
 
-    if (highComplexity.length > 20) {
+    if (violations.length > 20) {
       buffer.writeln(
-        _dim(
-          '... and ${highComplexity.length - 20} more high complexity functions',
-        ),
+        _dim('... and ${violations.length - 20} more threshold violations'),
       );
       buffer.writeln();
     }

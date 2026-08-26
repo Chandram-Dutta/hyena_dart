@@ -62,6 +62,7 @@ class DeadCodeAnalyzer {
       final declarationVisitor = DeclarationVisitor(
         file,
         exportedNames: fileExports,
+        ignoreMain: config.ignoreMain,
       );
       unit.accept(declarationVisitor);
       allDeclarations.addAll(declarationVisitor.declarations);

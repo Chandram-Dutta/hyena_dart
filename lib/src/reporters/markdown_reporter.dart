@@ -77,20 +77,32 @@ class MarkdownReporter implements Reporter {
     buffer.writeln(
       '| High Complexity Functions | ${report.highComplexityFunctions.length} |',
     );
+    buffer.writeln(
+      '| High Nesting Functions | ${report.highNestingFunctions.length} |',
+    );
+    buffer.writeln(
+      '| High Parameter Functions | ${report.highParameterFunctions.length} |',
+    );
     buffer.writeln();
 
-    final highComplexity = report.highComplexityFunctions;
-    if (highComplexity.isEmpty) {
-      buffer.writeln('> ✅ No high complexity functions detected!');
+    final violations = report.thresholdViolations;
+    if (violations.isEmpty) {
+      buffer.writeln('> ✅ No complexity threshold violations detected!');
       buffer.writeln();
       return;
     }
 
-    buffer.writeln('### High Complexity Functions (> 10)');
+    buffer.writeln('### Complexity Threshold Violations');
+    buffer.writeln();
+    buffer.writeln(
+      'Thresholds: cyclomatic > ${report.cyclomaticThreshold}, '
+      'nesting > ${report.maxNestingLevel}, '
+      'parameters > ${report.maxParameters}.',
+    );
     buffer.writeln();
     buffer.writeln('| Function | Cyclomatic | LOC | Nesting | Params | MI |');
     buffer.writeln('|----------|------------|-----|---------|--------|-----|');
-    for (final func in highComplexity) {
+    for (final func in violations) {
       buffer.writeln(
         '| `${func.fullName}` | ${func.cyclomaticComplexity} | ${func.linesOfCode} | ${func.maxNestingLevel} | ${func.parameterCount} | ${func.maintainabilityIndex.toStringAsFixed(1)} |',
       );

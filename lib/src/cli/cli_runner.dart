@@ -157,10 +157,16 @@ class DeadCodeCommand extends BaseAnalysisCommand {
     final targetPath = getTargetPath();
     var config = await AnalyzerConfig.load(argResults!['config'] as String?);
 
-    config = config.copyWith(
-      ignoreExports: argResults!['ignore-exports'] as bool,
-      ignorePrivate: argResults!['ignore-private'] as bool,
-    );
+    if (argResults!.wasParsed('ignore-exports')) {
+      config = config.copyWith(
+        ignoreExports: argResults!['ignore-exports'] as bool,
+      );
+    }
+    if (argResults!.wasParsed('ignore-private')) {
+      config = config.copyWith(
+        ignorePrivate: argResults!['ignore-private'] as bool,
+      );
+    }
 
     final stopwatch = Stopwatch()..start();
     final deadCodeReport = await DeadCodeAnalyzer(config).analyze(targetPath);
@@ -200,8 +206,16 @@ class ComplexityCommand extends BaseAnalysisCommand {
     final targetPath = getTargetPath();
     var config = await AnalyzerConfig.load(argResults!['config'] as String?);
 
-    final threshold = int.tryParse(argResults!['threshold'] as String) ?? 20;
-    config = config.copyWith(cyclomaticThreshold: threshold);
+    if (argResults!.wasParsed('threshold')) {
+      final threshold = int.tryParse(argResults!['threshold'] as String);
+      if (threshold == null || threshold < 0) {
+        throw UsageException(
+          '--threshold must be a non-negative integer.',
+          usage,
+        );
+      }
+      config = config.copyWith(cyclomaticThreshold: threshold);
+    }
 
     final stopwatch = Stopwatch()..start();
     final complexityReport = await ComplexityAnalyzer(

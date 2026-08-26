@@ -138,22 +138,27 @@ class HtmlReporter implements Reporter {
     buffer.writeln('          <div class="card-label">Total Lines</div>');
     buffer.writeln('        </div>');
     buffer.writeln(
-      '        <div class="card ${_getCountClass(report.highComplexityFunctions.length)}">',
+      '        <div class="card ${_getCountClass(report.thresholdViolations.length)}">',
     );
     buffer.writeln(
-      '          <div class="card-value">${report.highComplexityFunctions.length}</div>',
+      '          <div class="card-value">${report.thresholdViolations.length}</div>',
     );
-    buffer.writeln('          <div class="card-label">High Complexity</div>');
+    buffer.writeln(
+      '          <div class="card-label">Threshold Violations</div>',
+    );
     buffer.writeln('        </div>');
     buffer.writeln('      </div>');
 
-    final highComplexity = report.highComplexityFunctions;
-    if (highComplexity.isEmpty) {
+    final violations = report.thresholdViolations;
+    if (violations.isEmpty) {
       buffer.writeln(
-        '      <div class="success-message">No high complexity functions</div>',
+        '      <div class="success-message">No complexity threshold violations</div>',
       );
     } else {
-      buffer.writeln('      <h3>High Complexity Functions</h3>');
+      buffer.writeln('      <h3>Complexity Threshold Violations</h3>');
+      buffer.writeln(
+        '      <p>Cyclomatic &gt; ${report.cyclomaticThreshold}, nesting &gt; ${report.maxNestingLevel}, parameters &gt; ${report.maxParameters}</p>',
+      );
       buffer.writeln('      <table>');
       buffer.writeln('        <thead>');
       buffer.writeln(
@@ -161,7 +166,7 @@ class HtmlReporter implements Reporter {
       );
       buffer.writeln('        </thead>');
       buffer.writeln('        <tbody>');
-      for (final func in highComplexity) {
+      for (final func in violations) {
         buffer.writeln('          <tr>');
         buffer.writeln(
           '            <td><code>${func.fullName}</code><br><small>${func.filePath}</small></td>',

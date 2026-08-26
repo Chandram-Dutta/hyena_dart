@@ -105,10 +105,18 @@ class FileMetrics {
 
 class ComplexityReport {
   final List<FileMetrics> files;
+  final int cyclomaticThreshold;
+  final int maxNestingLevel;
+  final int maxParameters;
   final DateTime analyzedAt;
 
-  ComplexityReport({required this.files, DateTime? analyzedAt})
-    : analyzedAt = analyzedAt ?? DateTime.now();
+  ComplexityReport({
+    required this.files,
+    this.cyclomaticThreshold = 20,
+    this.maxNestingLevel = 5,
+    this.maxParameters = 6,
+    DateTime? analyzedAt,
+  }) : analyzedAt = analyzedAt ?? DateTime.now();
 
   int get totalFiles => files.length;
   int get totalFunctions => files.fold(0, (sum, f) => sum + f.functions.length);
@@ -117,20 +125,54 @@ class ComplexityReport {
   List<FunctionMetrics> get highComplexityFunctions {
     return files
         .expand((f) => f.functions)
-        .where((f) => f.cyclomaticComplexity > 10)
+        .where((f) => f.cyclomaticComplexity > cyclomaticThreshold)
         .toList()
       ..sort(
         (a, b) => b.cyclomaticComplexity.compareTo(a.cyclomaticComplexity),
       );
   }
 
+  List<FunctionMetrics> get highNestingFunctions => files
+      .expand((f) => f.functions)
+      .where((f) => f.maxNestingLevel > maxNestingLevel)
+      .toList();
+
+  List<FunctionMetrics> get highParameterFunctions => files
+      .expand((f) => f.functions)
+      .where((f) => f.parameterCount > maxParameters)
+      .toList();
+
+  List<FunctionMetrics> get thresholdViolations {
+    final violations = files
+        .expand((f) => f.functions)
+        .where(
+          (f) =>
+              f.cyclomaticComplexity > cyclomaticThreshold ||
+              f.maxNestingLevel > maxNestingLevel ||
+              f.parameterCount > maxParameters,
+        )
+        .toList();
+    violations.sort(
+      (a, b) => b.cyclomaticComplexity.compareTo(a.cyclomaticComplexity),
+    );
+    return violations;
+  }
+
   Map<String, dynamic> toJson() => {
     'analyzedAt': analyzedAt.toIso8601String(),
+    'thresholds': {
+      'cyclomaticComplexity': cyclomaticThreshold,
+      'maxNestingLevel': maxNestingLevel,
+      'maxParameters': maxParameters,
+    },
     'summary': {
       'totalFiles': totalFiles,
       'totalFunctions': totalFunctions,
       'totalLines': totalLines,
       'highComplexityFunctions': highComplexityFunctions.length,
+      'highNestingFunctions': highNestingFunctions.length,
+      'highParameterFunctions': highParameterFunctions.length,
+      'thresholdViolations': thresholdViolations.length,
     },
     'files': files.map((f) => f.toJson()).toList(),
   };

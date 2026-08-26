@@ -7,11 +7,16 @@ import '../../models/code_entity.dart';
 class DeclarationVisitor extends RecursiveAstVisitor<void> {
   final String filePath;
   final Set<String> exportedNames;
+  final bool ignoreMain;
   final List<CodeEntity> declarations = [];
   final Map<int, CodeEntity> elementIdToEntity = {};
   String? _currentClass;
 
-  DeclarationVisitor(this.filePath, {this.exportedNames = const {}});
+  DeclarationVisitor(
+    this.filePath, {
+    this.exportedNames = const {},
+    this.ignoreMain = true,
+  });
 
   bool _isPublic(String name) => !name.startsWith('_');
 
@@ -124,7 +129,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitFunctionDeclaration(FunctionDeclaration node) {
     final name = node.name.lexeme;
-    if (name == 'main') {
+    if (ignoreMain && name == 'main') {
       super.visitFunctionDeclaration(node);
       return;
     }

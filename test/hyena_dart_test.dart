@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:hyena_dart/hyena_dart.dart';
@@ -147,6 +149,93 @@ void main() {
       expect(names, contains('Holder.unusedGetter'));
       expect(names, contains('Holder.unusedSetter'));
       expect(names, isNot(contains('Holder.used')));
+    });
+
+    test('honors ignoreMain when it is disabled', () async {
+      final libPath = await makeFixture('void main() {}');
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreMain: false, ignoreExports: false),
+      ).analyze(libPath);
+
+      expect(report.totalDeclarations, 1);
+      expect(report.unusedEntities.single.name, 'main');
+    });
+
+    test('CLI defaults do not overwrite YAML dead-code settings', () async {
+      final libPath = await makeFixture('void _unusedPrivate() {}');
+      final configPath = p.join(p.dirname(libPath), 'hyena.yaml');
+      File(configPath).writeAsStringSync('''
+hyena:
+  dead_code:
+    ignore_private: true
+''');
+      final output = <String>[];
+
+      await runZoned(
+        () => HyenaCommandRunner().run([
+          'dead-code',
+          libPath,
+          '--config=$configPath',
+          '--format=json',
+        ]),
+        zoneSpecification: ZoneSpecification(
+          print: (_, _, _, message) => output.add(message),
+        ),
+      );
+
+      final json = jsonDecode(output.join('\n')) as Map<String, dynamic>;
+      final deadCode = json['deadCode'] as Map<String, dynamic>;
+      final summary = deadCode['summary'] as Map<String, dynamic>;
+      expect(summary['unusedCount'], 0);
+    });
+  });
+
+  group('ComplexityReport thresholds', () {
+    FunctionMetrics metrics({
+      required String name,
+      int cyclomatic = 1,
+      int nesting = 0,
+      int parameters = 0,
+    }) => FunctionMetrics(
+      name: name,
+      filePath: 'test.dart',
+      line: 1,
+      cyclomaticComplexity: cyclomatic,
+      linesOfCode: 1,
+      maxNestingLevel: nesting,
+      parameterCount: parameters,
+    );
+
+    test('applies cyclomatic, nesting, and parameter thresholds', () {
+      final report = ComplexityReport(
+        files: [
+          FileMetrics(
+            filePath: 'test.dart',
+            totalLines: 4,
+            codeLines: 4,
+            commentLines: 0,
+            blankLines: 0,
+            functions: [
+              metrics(name: 'complex', cyclomatic: 4),
+              metrics(name: 'nested', nesting: 3),
+              metrics(name: 'wide', parameters: 3),
+              metrics(name: 'fine'),
+            ],
+          ),
+        ],
+        cyclomaticThreshold: 3,
+        maxNestingLevel: 2,
+        maxParameters: 2,
+      );
+
+      expect(report.highComplexityFunctions.single.name, 'complex');
+      expect(report.highNestingFunctions.single.name, 'nested');
+      expect(report.highParameterFunctions.single.name, 'wide');
+      expect(
+        report.thresholdViolations.map((function) => function.name),
+        containsAll(['complex', 'nested', 'wide']),
+      );
+      expect(report.thresholdViolations, hasLength(3));
     });
   });
 }

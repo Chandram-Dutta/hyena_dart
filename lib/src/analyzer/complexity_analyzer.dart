@@ -27,7 +27,12 @@ class ComplexityAnalyzer {
       }
     }
 
-    return ComplexityReport(files: fileMetrics);
+    return ComplexityReport(
+      files: fileMetrics,
+      cyclomaticThreshold: config.cyclomaticThreshold,
+      maxNestingLevel: config.maxNestingLevel,
+      maxParameters: config.maxParameters,
+    );
   }
 
   Future<List<String>> _collectDartFiles(String targetPath) async {
