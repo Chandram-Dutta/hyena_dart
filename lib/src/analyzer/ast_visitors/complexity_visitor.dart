@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/source/line_info.dart';
@@ -34,6 +36,20 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
   }
 
   @override
+  void visitExtensionTypeDeclaration(ExtensionTypeDeclaration node) {
+    _currentClass = node.name.lexeme;
+    super.visitExtensionTypeDeclaration(node);
+    _currentClass = null;
+  }
+
+  @override
+  void visitEnumDeclaration(EnumDeclaration node) {
+    _currentClass = node.name.lexeme;
+    super.visitEnumDeclaration(node);
+    _currentClass = null;
+  }
+
+  @override
   void visitFunctionDeclaration(FunctionDeclaration node) {
     final body = node.functionExpression.body;
     final params = node.functionExpression.parameters;
@@ -44,7 +60,9 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
         body: body,
         parameters: params,
         offset: node.offset,
-        end: node.end,
+        parentClass: node.parent is FunctionDeclarationStatement
+            ? _currentClass
+            : null,
       ),
     );
 
@@ -62,7 +80,6 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
         body: body,
         parameters: params,
         offset: node.offset,
-        end: node.end,
         parentClass: _currentClass,
       ),
     );
@@ -70,12 +87,44 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     super.visitMethodDeclaration(node);
   }
 
+  @override
+  void visitConstructorDeclaration(ConstructorDeclaration node) {
+    functions.add(
+      _analyzeFunction(
+        name: node.name?.lexeme ?? 'new',
+        body: node.body,
+        parameters: node.parameters,
+        offset: node.name?.offset ?? node.returnType.offset,
+        parentClass: _currentClass,
+      ),
+    );
+
+    super.visitConstructorDeclaration(node);
+  }
+
+  @override
+  void visitFunctionExpression(FunctionExpression node) {
+    if (node.parent is! FunctionDeclaration) {
+      final location = lineInfo.getLocation(node.offset);
+      functions.add(
+        _analyzeFunction(
+          name: '<closure@${location.lineNumber}:${location.columnNumber}>',
+          body: node.body,
+          parameters: node.parameters,
+          offset: node.offset,
+          parentClass: _currentClass,
+        ),
+      );
+    }
+
+    super.visitFunctionExpression(node);
+  }
+
   FunctionMetrics _analyzeFunction({
     required String name,
     required FunctionBody body,
     FormalParameterList? parameters,
     required int offset,
-    required int end,
     String? parentClass,
   }) {
     final complexityCounter = _CyclomaticComplexityCounter();
@@ -102,7 +151,10 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
 
   int _countLinesOfCode(FunctionBody body) {
     final source = body.toSource();
-    return source.split('\n').where((line) => line.trim().isNotEmpty).length;
+    return const LineSplitter()
+        .convert(source)
+        .where((line) => line.trim().isNotEmpty)
+        .length;
   }
 }
 
@@ -122,9 +174,15 @@ class _CyclomaticComplexityCounter extends RecursiveAstVisitor<void> {
   }
 
   @override
-  void visitForEachPartsWithDeclaration(ForEachPartsWithDeclaration node) {
+  void visitForElement(ForElement node) {
     complexity++;
-    super.visitForEachPartsWithDeclaration(node);
+    super.visitForElement(node);
+  }
+
+  @override
+  void visitIfElement(IfElement node) {
+    complexity++;
+    super.visitIfElement(node);
   }
 
   @override
@@ -149,6 +207,12 @@ class _CyclomaticComplexityCounter extends RecursiveAstVisitor<void> {
   void visitSwitchPatternCase(SwitchPatternCase node) {
     complexity++;
     super.visitSwitchPatternCase(node);
+  }
+
+  @override
+  void visitSwitchExpressionCase(SwitchExpressionCase node) {
+    complexity++;
+    super.visitSwitchExpressionCase(node);
   }
 
   @override
@@ -177,6 +241,12 @@ class _CyclomaticComplexityCounter extends RecursiveAstVisitor<void> {
     complexity++;
     super.visitAssertStatement(node);
   }
+
+  @override
+  void visitFunctionDeclaration(FunctionDeclaration node) {}
+
+  @override
+  void visitFunctionExpression(FunctionExpression node) {}
 }
 
 class _NestingLevelCounter extends RecursiveAstVisitor<void> {
@@ -216,6 +286,13 @@ class _NestingLevelCounter extends RecursiveAstVisitor<void> {
   }
 
   @override
+  void visitIfElement(IfElement node) {
+    _incrementLevel();
+    super.visitIfElement(node);
+    _decrementLevel();
+  }
+
+  @override
   void visitWhileStatement(WhileStatement node) {
     _incrementLevel();
     super.visitWhileStatement(node);
@@ -249,4 +326,10 @@ class _NestingLevelCounter extends RecursiveAstVisitor<void> {
     super.visitTryStatement(node);
     _decrementLevel();
   }
+
+  @override
+  void visitFunctionDeclaration(FunctionDeclaration node) {}
+
+  @override
+  void visitFunctionExpression(FunctionExpression node) {}
 }

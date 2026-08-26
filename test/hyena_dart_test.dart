@@ -325,6 +325,65 @@ void target() {}
       expect(metrics.codeLines, 1);
       expect(metrics.blankLines, 0);
     });
+
+    test('analyzes constructors and closures in their own scopes', () async {
+      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+class Example {
+  Example(bool enabled) {
+    if (enabled) print('enabled');
+  }
+}
+
+final callback = (bool enabled) {
+  if (enabled) print('callback');
+};
+
+void outer() {
+  final nested = (bool enabled) {
+    if (enabled) print('nested');
+  };
+  print(nested);
+}
+''');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+      final functions = report.files.single.functions;
+      final constructor = functions.singleWhere(
+        (function) => function.fullName == 'Example.new',
+      );
+      final outer = functions.singleWhere(
+        (function) => function.fullName == 'outer',
+      );
+      final closures = functions.where(
+        (function) => function.name.startsWith('<closure@'),
+      );
+
+      expect(constructor.cyclomaticComplexity, 2);
+      expect(outer.cyclomaticComplexity, 1);
+      expect(closures, hasLength(2));
+      expect(
+        closures.map((function) => function.cyclomaticComplexity),
+        everyElement(2),
+      );
+    });
+
+    test('counts for-in loops once', () async {
+      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+void iterate(List<int> values) {
+  for (final value in values) {
+    print(value);
+  }
+}
+''');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+
+      expect(report.files.single.functions.single.cyclomaticComplexity, 2);
+    });
   });
 
   group('ComplexityReport thresholds', () {
