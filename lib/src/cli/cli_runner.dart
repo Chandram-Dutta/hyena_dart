@@ -102,7 +102,10 @@ class AnalyzeCommand extends BaseAnalysisCommand {
   @override
   Future<void> run() async {
     final targetPath = getTargetPath();
-    final config = await AnalyzerConfig.load(argResults!['config'] as String?);
+    final config = await AnalyzerConfig.load(
+      argResults!['config'] as String?,
+      targetPath: targetPath,
+    );
     final stopwatch = Stopwatch()..start();
 
     final includeDeadCode = argResults!['dead-code'] as bool;
@@ -155,7 +158,10 @@ class DeadCodeCommand extends BaseAnalysisCommand {
   @override
   Future<void> run() async {
     final targetPath = getTargetPath();
-    var config = await AnalyzerConfig.load(argResults!['config'] as String?);
+    var config = await AnalyzerConfig.load(
+      argResults!['config'] as String?,
+      targetPath: targetPath,
+    );
 
     if (argResults!.wasParsed('ignore-exports')) {
       config = config.copyWith(
@@ -204,7 +210,10 @@ class ComplexityCommand extends BaseAnalysisCommand {
   @override
   Future<void> run() async {
     final targetPath = getTargetPath();
-    var config = await AnalyzerConfig.load(argResults!['config'] as String?);
+    var config = await AnalyzerConfig.load(
+      argResults!['config'] as String?,
+      targetPath: targetPath,
+    );
 
     if (argResults!.wasParsed('threshold')) {
       final threshold = int.tryParse(argResults!['threshold'] as String);

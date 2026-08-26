@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 class AnalyzerConfig {
@@ -21,24 +22,43 @@ class AnalyzerConfig {
     this.ignorePrivate = false,
   });
 
-  static Future<AnalyzerConfig> load(String? configPath) async {
-    final paths = [
-      configPath,
-      'hyena.yaml',
-      'analysis_options.yaml',
-    ].whereType<String>();
-
-    for (final path in paths) {
-      final file = File(path);
-      if (await file.exists()) {
-        return _parseConfig(await file.readAsString());
+  static Future<AnalyzerConfig> load(
+    String? configPath, {
+    String? targetPath,
+  }) async {
+    if (configPath != null) {
+      final file = File(configPath);
+      if (!await file.exists()) {
+        throw ArgumentError('Configuration file does not exist: $configPath');
       }
+      return _parseConfig(await file.readAsString(), file.path);
     }
 
+    final file = await _findConfigFile(targetPath ?? Directory.current.path);
+    if (file != null) {
+      return _parseConfig(await file.readAsString(), file.path);
+    }
     return AnalyzerConfig();
   }
 
-  static AnalyzerConfig _parseConfig(String content) {
+  static Future<File?> _findConfigFile(String targetPath) async {
+    final absoluteTarget = p.absolute(targetPath);
+    var directory = await FileSystemEntity.isFile(absoluteTarget)
+        ? File(absoluteTarget).parent
+        : Directory(absoluteTarget);
+
+    while (true) {
+      for (final name in ['hyena.yaml', 'analysis_options.yaml']) {
+        final file = File(p.join(directory.path, name));
+        if (await file.exists()) return file;
+      }
+      final parent = directory.parent;
+      if (parent.path == directory.path) return null;
+      directory = parent;
+    }
+  }
+
+  static AnalyzerConfig _parseConfig(String content, String sourcePath) {
     try {
       final yaml = loadYaml(content) as YamlMap?;
       if (yaml == null) return AnalyzerConfig();
@@ -48,18 +68,24 @@ class AnalyzerConfig {
 
       final excludePatterns = <String>[];
       final exclude = hyena['exclude'];
+      if (exclude != null && exclude is! YamlList) {
+        throw const FormatException('hyena.exclude must be a list');
+      }
       if (exclude is YamlList) {
         for (final pattern in exclude) {
-          if (pattern is String) {
-            excludePatterns.add(pattern);
+          if (pattern is! String) {
+            throw const FormatException(
+              'hyena.exclude entries must be strings',
+            );
           }
+          excludePatterns.add(pattern);
         }
       }
 
       final complexity = hyena['complexity'] as YamlMap?;
       final deadCode = hyena['dead_code'] as YamlMap?;
 
-      return AnalyzerConfig(
+      final config = AnalyzerConfig(
         excludePatterns: excludePatterns,
         cyclomaticThreshold: complexity?['cyclomatic_threshold'] as int? ?? 20,
         maxNestingLevel: complexity?['max_nesting'] as int? ?? 5,
@@ -68,8 +94,16 @@ class AnalyzerConfig {
         ignoreExports: deadCode?['ignore_exports'] as bool? ?? true,
         ignorePrivate: deadCode?['ignore_private'] as bool? ?? false,
       );
-    } catch (e) {
-      return AnalyzerConfig();
+      if (config.cyclomaticThreshold < 0 ||
+          config.maxNestingLevel < 0 ||
+          config.maxParameters < 0) {
+        throw const FormatException('complexity thresholds cannot be negative');
+      }
+      return config;
+    } catch (error) {
+      throw FormatException(
+        'Invalid Hyena configuration in $sourcePath: $error',
+      );
     }
   }
 

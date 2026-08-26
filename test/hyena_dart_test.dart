@@ -21,6 +21,37 @@ void main() {
       expect(copied.cyclomaticThreshold, 15);
       expect(copied.maxNestingLevel, 3);
     });
+
+    test('discovers configuration from the target project', () async {
+      final fixture = await Directory.systemTemp.createTemp('hyena_config_');
+      addTearDown(() => fixture.delete(recursive: true));
+      final lib = Directory(p.join(fixture.path, 'lib'))..createSync();
+      File(p.join(fixture.path, 'hyena.yaml')).writeAsStringSync('''
+hyena:
+  complexity:
+    cyclomatic_threshold: 7
+''');
+
+      final config = await AnalyzerConfig.load(null, targetPath: lib.path);
+
+      expect(config.cyclomaticThreshold, 7);
+    });
+
+    test('rejects malformed and missing explicit configuration', () async {
+      final fixture = await Directory.systemTemp.createTemp('hyena_config_');
+      addTearDown(() => fixture.delete(recursive: true));
+      final invalidPath = p.join(fixture.path, 'invalid.yaml');
+      File(invalidPath).writeAsStringSync('hyena: [not valid for this schema]');
+
+      await expectLater(
+        AnalyzerConfig.load(invalidPath),
+        throwsA(isA<FormatException>()),
+      );
+      await expectLater(
+        AnalyzerConfig.load(p.join(fixture.path, 'missing.yaml')),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
   });
 
   group('CodeEntity', () {
@@ -184,6 +215,28 @@ hyena:
           '--config=$configPath',
           '--format=json',
         ]),
+        zoneSpecification: ZoneSpecification(
+          print: (_, _, _, message) => output.add(message),
+        ),
+      );
+
+      final json = jsonDecode(output.join('\n')) as Map<String, dynamic>;
+      final deadCode = json['deadCode'] as Map<String, dynamic>;
+      final summary = deadCode['summary'] as Map<String, dynamic>;
+      expect(summary['unusedCount'], 0);
+    });
+
+    test('CLI discovers configuration beside the target package', () async {
+      final libPath = await makeFixture('void _unusedPrivate() {}');
+      File(p.join(p.dirname(libPath), 'hyena.yaml')).writeAsStringSync('''
+hyena:
+  dead_code:
+    ignore_private: true
+''');
+      final output = <String>[];
+
+      await runZoned(
+        () => HyenaCommandRunner().run(['dead-code', libPath, '--format=json']),
         zoneSpecification: ZoneSpecification(
           print: (_, _, _, message) => output.add(message),
         ),
