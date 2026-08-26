@@ -86,7 +86,11 @@ class ComplexityAnalyzer {
       throw FormatException('Could not parse $filePath: ${error.message}');
     }
 
-    final complexityVisitor = ComplexityVisitor(filePath, result.lineInfo);
+    final complexityVisitor = ComplexityVisitor(
+      filePath,
+      result.lineInfo,
+      content,
+    );
     result.unit.accept(complexityVisitor);
 
     final lines = const LineSplitter().convert(content);

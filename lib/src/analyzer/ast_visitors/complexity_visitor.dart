@@ -11,10 +11,11 @@ import '../../models/complexity_metrics.dart';
 class ComplexityVisitor extends RecursiveAstVisitor<void> {
   final String filePath;
   final LineInfo lineInfo;
+  final String source;
   final List<FunctionMetrics> functions = [];
   String? _currentClass;
 
-  ComplexityVisitor(this.filePath, this.lineInfo);
+  ComplexityVisitor(this.filePath, this.lineInfo, this.source);
 
   @override
   void visitClassDeclaration(ClassDeclaration node) {
@@ -153,9 +154,19 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
   }
 
   int _countLinesOfCode(FunctionBody body) {
-    final source = body.toSource();
+    final bodySource = source.substring(body.offset, body.end);
+    final sourceUnits = bodySource.codeUnits.toList();
+    for (final nestedBody in _nestedFunctionBodies(body)) {
+      final start = nestedBody.offset - body.offset;
+      final end = nestedBody.end - body.offset;
+      for (var index = start; index < end; index++) {
+        if (sourceUnits[index] != 10 && sourceUnits[index] != 13) {
+          sourceUnits[index] = 32;
+        }
+      }
+    }
     return const LineSplitter()
-        .convert(source)
+        .convert(String.fromCharCodes(sourceUnits))
         .where((line) => line.trim().isNotEmpty)
         .length;
   }
@@ -166,12 +177,16 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     var operatorCount = 0;
     var operandCount = 0;
     var token = body.beginToken;
+    final nestedBodies = _nestedFunctionBodies(body);
 
     while (true) {
-      if (_isOperand(token)) {
+      final belongsToNestedBody = nestedBodies.any(
+        (body) => token.offset >= body.offset && token.offset < body.end,
+      );
+      if (!belongsToNestedBody && _isOperand(token)) {
         uniqueOperands.add(token.lexeme);
         operandCount++;
-      } else if (_isOperator(token)) {
+      } else if (!belongsToNestedBody && _isOperator(token)) {
         uniqueOperators.add(token.lexeme);
         operatorCount++;
       }
@@ -185,6 +200,12 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     final length = operatorCount + operandCount;
     if (vocabulary == 0 || length == 0) return 0;
     return length * (math.log(vocabulary) / math.ln2);
+  }
+
+  List<FunctionBody> _nestedFunctionBodies(FunctionBody body) {
+    final collector = _NestedFunctionBodyCollector();
+    body.accept(collector);
+    return collector.bodies;
   }
 
   bool _isOperand(Token token) {
@@ -212,6 +233,15 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
       return false;
     }
     return token.isOperator || token.type.isKeyword;
+  }
+}
+
+class _NestedFunctionBodyCollector extends RecursiveAstVisitor<void> {
+  final List<FunctionBody> bodies = [];
+
+  @override
+  void visitFunctionExpression(FunctionExpression node) {
+    bodies.add(node.body);
   }
 }
 

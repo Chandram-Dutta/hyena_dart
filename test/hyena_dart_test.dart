@@ -542,6 +542,53 @@ void outer() {
       );
     });
 
+    test('excludes nested closure bodies from outer metrics', () async {
+      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+void withSmallClosure() {
+  final nested = () {
+    print('small');
+  };
+  print(nested);
+}
+
+void withLargeClosure() {
+  final nested = () {
+    var value = 0;
+    value++;
+    value *= 2;
+    print(value);
+  };
+  print(nested);
+}
+''');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+      final functions = report.files.single.functions;
+      final smallOuter = functions.singleWhere(
+        (function) => function.name == 'withSmallClosure',
+      );
+      final largeOuter = functions.singleWhere(
+        (function) => function.name == 'withLargeClosure',
+      );
+      final closures = functions
+          .where((function) => function.name.startsWith('<closure@'))
+          .toList();
+
+      expect(largeOuter.linesOfCode, smallOuter.linesOfCode);
+      expect(largeOuter.halsteadVolume, smallOuter.halsteadVolume);
+      expect(closures, hasLength(2));
+      expect(
+        closures.last.linesOfCode,
+        greaterThan(closures.first.linesOfCode),
+      );
+      expect(
+        closures.last.halsteadVolume,
+        greaterThan(closures.first.halsteadVolume),
+      );
+    });
+
     test('counts for-in loops once', () async {
       File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
 void iterate(List<int> values) {
