@@ -102,7 +102,6 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     if (uri != null) {
       imports.add(uri);
     }
-    super.visitImportDirective(node);
   }
 
   @override
@@ -111,7 +110,6 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     if (uri != null) {
       imports.add(uri);
     }
-    super.visitExportDirective(node);
   }
 
   @override

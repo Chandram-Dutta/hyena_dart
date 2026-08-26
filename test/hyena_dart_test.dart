@@ -53,7 +53,10 @@ void main() {
   group('DeadCodeAnalyzer (resolved AST)', () {
     final created = <Directory>[];
 
-    Future<String> makeFixture(String libSource) async {
+    Future<String> makeFixture(
+      String libSource, {
+      Map<String, String> additionalFiles = const {},
+    }) async {
       final fixture = await Directory.systemTemp.createTemp('hyena_fixture_');
       created.add(fixture);
       final lib = Directory(p.join(fixture.path, 'lib'))..createSync();
@@ -63,6 +66,9 @@ environment:
   sdk: ^3.10.0
 ''');
       File(p.join(lib.path, 'lib.dart')).writeAsStringSync(libSource);
+      for (final entry in additionalFiles.entries) {
+        File(p.join(lib.path, entry.key)).writeAsStringSync(entry.value);
+      }
       final result = await Process.run(Platform.resolvedExecutable, [
         'pub',
         'get',
@@ -198,6 +204,37 @@ hyena:
       final entity = report.unusedEntities.single;
       expect(entity.line, 2);
       expect(entity.column, 8);
+    });
+
+    test('does not flag declarations exported by a barrel file', () async {
+      final libPath = await makeFixture(
+        "export 'api.dart';",
+        additionalFiles: {'api.dart': 'class PublicApi {}'},
+      );
+
+      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+
+      expect(
+        report.unusedEntities.map((entity) => entity.name),
+        isNot(contains('PublicApi')),
+      );
+    });
+
+    test('respects show and hide export combinators', () async {
+      final libPath = await makeFixture(
+        "export 'api.dart' show VisibleApi, HiddenApi hide HiddenApi;",
+        additionalFiles: {
+          'api.dart': 'class VisibleApi {}\nclass HiddenApi {}',
+        },
+      );
+
+      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.name)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('VisibleApi')));
+      expect(unusedNames, contains('HiddenApi'));
     });
   });
 

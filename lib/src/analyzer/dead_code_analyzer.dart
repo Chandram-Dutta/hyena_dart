@@ -138,7 +138,6 @@ class DeadCodeAnalyzer {
     Map<String, String> packageRoots,
   ) {
     final exportedNames = <String, Set<String>>{};
-    final fileExports = <String, List<String>>{};
 
     for (final entry in parsedUnits.entries) {
       final file = entry.key;
@@ -150,36 +149,50 @@ class DeadCodeAnalyzer {
           if (uri != null) {
             final exportedFile = _resolveImportUri(file, uri, packageRoots);
             if (exportedFile != null) {
-              fileExports.putIfAbsent(file, () => []).add(exportedFile);
-
-              final showNames = <String>{};
+              final exportedUnit = parsedUnits[exportedFile];
+              if (exportedUnit == null) continue;
+              final visibleNames = _topLevelDeclarationNames(exportedUnit);
               for (final combinator in directive.combinators) {
                 if (combinator is ShowCombinator) {
-                  for (final name in combinator.shownNames) {
-                    showNames.add(name.name);
-                  }
+                  final shownNames = combinator.shownNames
+                      .map((name) => name.name)
+                      .toSet();
+                  visibleNames.retainAll(shownNames);
+                } else if (combinator is HideCombinator) {
+                  visibleNames.removeAll(
+                    combinator.hiddenNames.map((name) => name.name),
+                  );
                 }
               }
-              if (showNames.isNotEmpty) {
-                exportedNames
-                    .putIfAbsent(exportedFile, () => {})
-                    .addAll(showNames);
-              }
+              exportedNames
+                  .putIfAbsent(exportedFile, () => {})
+                  .addAll(visibleNames);
             }
           }
         }
       }
     }
 
-    for (final entry in fileExports.entries) {
-      for (final exportedFile in entry.value) {
-        if (!exportedNames.containsKey(exportedFile)) {
-          exportedNames[exportedFile] = {'*'};
-        }
+    return exportedNames;
+  }
+
+  Set<String> _topLevelDeclarationNames(CompilationUnit unit) {
+    final names = <String>{};
+    for (final declaration in unit.declarations) {
+      if (declaration is TopLevelVariableDeclaration) {
+        names.addAll(
+          declaration.variables.variables.map(
+            (variable) => variable.name.lexeme,
+          ),
+        );
+      } else if (declaration is ExtensionDeclaration) {
+        final name = declaration.name?.lexeme;
+        if (name != null) names.add(name);
+      } else if (declaration is NamedCompilationUnitMember) {
+        names.add(declaration.name.lexeme);
       }
     }
-
-    return exportedNames;
+    return names.where((name) => !name.startsWith('_')).toSet();
   }
 
   String? _resolveImportUri(
