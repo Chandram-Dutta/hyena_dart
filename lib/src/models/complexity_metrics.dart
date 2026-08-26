@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 class FunctionMetrics {
   final String name;
   final String filePath;
@@ -6,6 +8,7 @@ class FunctionMetrics {
   final int linesOfCode;
   final int maxNestingLevel;
   final int parameterCount;
+  final double halsteadVolume;
   final String? parentClass;
 
   FunctionMetrics({
@@ -16,33 +19,19 @@ class FunctionMetrics {
     required this.linesOfCode,
     required this.maxNestingLevel,
     required this.parameterCount,
+    this.halsteadVolume = 0,
     this.parentClass,
   });
 
   String get fullName => parentClass != null ? '$parentClass.$name' : name;
 
   double get maintainabilityIndex {
-    final halsteadVolume = linesOfCode * 3.0;
-    final mi =
+    final rawIndex =
         171 -
-        5.2 * _log2(halsteadVolume) -
+        5.2 * math.log(math.max(halsteadVolume, 1)) -
         0.23 * cyclomaticComplexity -
-        16.2 * _log2(linesOfCode);
-    return mi.clamp(0, 100);
-  }
-
-  static double _log2(num x) => x > 0 ? _ln(x) / _ln(2) : 0;
-  static double _ln(num x) {
-    if (x <= 0) return 0;
-    double result = 0;
-    double term = (x - 1) / (x + 1);
-    double termSquared = term * term;
-    double currentTerm = term;
-    for (int i = 1; i <= 100; i += 2) {
-      result += currentTerm / i;
-      currentTerm *= termSquared;
-    }
-    return 2 * result;
+        16.2 * math.log(math.max(linesOfCode, 1));
+    return (rawIndex * 100 / 171).clamp(0, 100);
   }
 
   Map<String, dynamic> toJson() => {
@@ -53,6 +42,7 @@ class FunctionMetrics {
     'linesOfCode': linesOfCode,
     'maxNestingLevel': maxNestingLevel,
     'parameterCount': parameterCount,
+    'halsteadVolume': halsteadVolume.toStringAsFixed(2),
     'maintainabilityIndex': maintainabilityIndex.toStringAsFixed(2),
   };
 }

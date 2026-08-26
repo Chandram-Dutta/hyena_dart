@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/source/line_info.dart';
 
@@ -145,6 +147,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
       linesOfCode: loc,
       maxNestingLevel: nestingCounter.maxLevel,
       parameterCount: paramCount,
+      halsteadVolume: _calculateHalsteadVolume(body),
       parentClass: parentClass,
     );
   }
@@ -155,6 +158,60 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
         .convert(source)
         .where((line) => line.trim().isNotEmpty)
         .length;
+  }
+
+  double _calculateHalsteadVolume(FunctionBody body) {
+    final uniqueOperators = <String>{};
+    final uniqueOperands = <String>{};
+    var operatorCount = 0;
+    var operandCount = 0;
+    var token = body.beginToken;
+
+    while (true) {
+      if (_isOperand(token)) {
+        uniqueOperands.add(token.lexeme);
+        operandCount++;
+      } else if (_isOperator(token)) {
+        uniqueOperators.add(token.lexeme);
+        operatorCount++;
+      }
+      if (identical(token, body.endToken)) break;
+      final next = token.next;
+      if (next == null) break;
+      token = next;
+    }
+
+    final vocabulary = uniqueOperators.length + uniqueOperands.length;
+    final length = operatorCount + operandCount;
+    if (vocabulary == 0 || length == 0) return 0;
+    return length * (math.log(vocabulary) / math.ln2);
+  }
+
+  bool _isOperand(Token token) {
+    if (token.isIdentifier ||
+        const {
+          'true',
+          'false',
+          'null',
+          'this',
+          'super',
+        }.contains(token.lexeme)) {
+      return true;
+    }
+    return token.type == TokenType.DOUBLE ||
+        token.type == TokenType.DOUBLE_WITH_SEPARATORS ||
+        token.type == TokenType.HEXADECIMAL ||
+        token.type == TokenType.HEXADECIMAL_WITH_SEPARATORS ||
+        token.type == TokenType.INT ||
+        token.type == TokenType.INT_WITH_SEPARATORS ||
+        token.type == TokenType.STRING;
+  }
+
+  bool _isOperator(Token token) {
+    if (const {'{', '}', '(', ')', '[', ']', ',', ';'}.contains(token.lexeme)) {
+      return false;
+    }
+    return token.isOperator || token.type.isKeyword;
   }
 }
 

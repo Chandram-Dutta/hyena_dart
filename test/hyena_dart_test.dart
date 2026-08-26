@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:hyena_dart/hyena_dart.dart';
 import 'package:path/path.dart' as p;
@@ -435,6 +436,10 @@ void outer() {
         closures.map((function) => function.cyclomaticComplexity),
         everyElement(2),
       );
+      expect(
+        functions.map((function) => function.halsteadVolume),
+        everyElement(greaterThan(0)),
+      );
     });
 
     test('counts for-in loops once', () async {
@@ -516,6 +521,25 @@ void iterate(List<int> values) {
         containsAll(['complex', 'nested', 'wide']),
       );
       expect(report.thresholdViolations, hasLength(3));
+    });
+
+    test('uses measured Halstead volume in the normalized index', () {
+      final metrics = FunctionMetrics(
+        name: 'measured',
+        filePath: 'test.dart',
+        line: 1,
+        cyclomaticComplexity: 2,
+        linesOfCode: 10,
+        maxNestingLevel: 1,
+        parameterCount: 1,
+        halsteadVolume: 100,
+      );
+      final expected =
+          (171 - 5.2 * math.log(100) - 0.23 * 2 - 16.2 * math.log(10)) *
+          100 /
+          171;
+
+      expect(metrics.maintainabilityIndex, closeTo(expected, 0.000001));
     });
   });
 }
