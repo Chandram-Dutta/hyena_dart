@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../models/analysis_result.dart';
 import '../models/code_entity.dart';
 import 'reporter.dart';
@@ -24,7 +26,7 @@ class HtmlReporter implements Reporter {
     buffer.writeln('    <header>');
     buffer.writeln('      <h1>Hyena Code Analysis Report</h1>');
     buffer.writeln(
-      '      <p class="meta">Target: <code>${result.targetPath}</code> • Duration: ${result.duration.inMilliseconds}ms</p>',
+      '      <p class="meta">Target: <code>${_escape(result.targetPath)}</code> • Duration: ${result.duration.inMilliseconds}ms</p>',
     );
     buffer.writeln('    </header>');
 
@@ -85,7 +87,7 @@ class HtmlReporter implements Reporter {
       for (final entry in grouped.entries) {
         buffer.writeln('        <details>');
         buffer.writeln(
-          '          <summary>${entry.key} (${entry.value.length} issues)</summary>',
+          '          <summary>${_escape(entry.key)} (${entry.value.length} issues)</summary>',
         );
         buffer.writeln('          <table>');
         buffer.writeln(
@@ -95,10 +97,10 @@ class HtmlReporter implements Reporter {
         for (final entity in entry.value) {
           buffer.writeln('              <tr>');
           buffer.writeln(
-            '                <td><span class="badge badge-${_getTypeBadgeClass(entity.type)}">${entity.typeLabel}</span></td>',
+            '                <td><span class="badge badge-${_getTypeBadgeClass(entity.type)}">${_escape(entity.typeLabel)}</span></td>',
           );
           buffer.writeln(
-            '                <td><code>${entity.fullName}</code></td>',
+            '                <td><code>${_escape(entity.fullName)}</code></td>',
           );
           buffer.writeln('                <td>${entity.line}</td>');
           buffer.writeln('              </tr>');
@@ -169,7 +171,7 @@ class HtmlReporter implements Reporter {
       for (final func in violations) {
         buffer.writeln('          <tr>');
         buffer.writeln(
-          '            <td><code>${func.fullName}</code><br><small>${func.filePath}</small></td>',
+          '            <td><code>${_escape(func.fullName)}</code><br><small>${_escape(func.filePath)}</small></td>',
         );
         buffer.writeln(
           '            <td class="${_getComplexityClass(func.cyclomaticComplexity)}">${func.cyclomaticComplexity}</td>',
@@ -188,6 +190,8 @@ class HtmlReporter implements Reporter {
 
     buffer.writeln('    </section>');
   }
+
+  String _escape(String value) => const HtmlEscape().convert(value);
 
   String _getCountClass(int count) {
     if (count == 0) return 'success';

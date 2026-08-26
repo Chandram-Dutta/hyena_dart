@@ -542,4 +542,33 @@ void iterate(List<int> values) {
       expect(metrics.maintainabilityIndex, closeTo(expected, 0.000001));
     });
   });
+
+  test('HtmlReporter escapes source-controlled text', () async {
+    final report = DeadCodeReport(
+      unusedEntities: [
+        CodeEntity(
+          name: '<script>alert(1)</script>',
+          type: EntityType.function,
+          filePath: '<img src=x onerror=alert(1)>',
+          line: 1,
+          column: 1,
+          isPublic: true,
+        ),
+      ],
+      totalDeclarations: 1,
+    );
+
+    final html = await HtmlReporter().generate(
+      AnalysisResult(
+        deadCodeReport: report,
+        targetPath: '<script>target</script>',
+        duration: Duration.zero,
+      ),
+    );
+
+    expect(html, isNot(contains('<script>alert(1)</script>')));
+    expect(html, isNot(contains('<img src=x onerror=alert(1)>')));
+    expect(html, contains('&lt;script&gt;target&lt;&#47;script&gt;'));
+    expect(html, contains('&lt;img src=x onerror=alert(1)&gt;'));
+  });
 }
