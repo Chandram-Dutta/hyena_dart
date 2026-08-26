@@ -1,14 +1,16 @@
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
+import 'package:analyzer/source/line_info.dart';
 
 import '../../models/complexity_metrics.dart';
 
 class ComplexityVisitor extends RecursiveAstVisitor<void> {
   final String filePath;
+  final LineInfo lineInfo;
   final List<FunctionMetrics> functions = [];
   String? _currentClass;
 
-  ComplexityVisitor(this.filePath);
+  ComplexityVisitor(this.filePath, this.lineInfo);
 
   @override
   void visitClassDeclaration(ClassDeclaration node) {
@@ -84,11 +86,12 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
 
     final loc = _countLinesOfCode(body);
     final paramCount = parameters?.parameters.length ?? 0;
+    final location = lineInfo.getLocation(offset);
 
     return FunctionMetrics(
       name: name,
       filePath: filePath,
-      line: offset,
+      line: location.lineNumber,
       cyclomaticComplexity: complexityCounter.complexity,
       linesOfCode: loc,
       maxNestingLevel: nestingCounter.maxLevel,

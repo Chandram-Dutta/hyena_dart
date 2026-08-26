@@ -188,6 +188,57 @@ hyena:
       final summary = deadCode['summary'] as Map<String, dynamic>;
       expect(summary['unusedCount'], 0);
     });
+
+    test('reports one-based declaration lines and columns', () async {
+      final libPath = await makeFixture('\n  void unusedFunction() {}\n');
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+
+      final entity = report.unusedEntities.single;
+      expect(entity.line, 2);
+      expect(entity.column, 8);
+    });
+  });
+
+  group('ComplexityAnalyzer source locations', () {
+    late Directory fixture;
+
+    setUp(() async {
+      fixture = await Directory.systemTemp.createTemp('hyena_complexity_');
+    });
+
+    tearDown(() async {
+      await fixture.delete(recursive: true);
+    });
+
+    test('reports function lines instead of offsets', () async {
+      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+
+void target() {}
+''');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+
+      expect(report.files.single.functions.single.line, 2);
+    });
+
+    test('does not count a trailing newline as a blank line', () async {
+      File(
+        p.join(fixture.path, 'sample.dart'),
+      ).writeAsStringSync('void target() {}\n');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+      final metrics = report.files.single;
+
+      expect(metrics.totalLines, 1);
+      expect(metrics.codeLines, 1);
+      expect(metrics.blankLines, 0);
+    });
   });
 
   group('ComplexityReport thresholds', () {

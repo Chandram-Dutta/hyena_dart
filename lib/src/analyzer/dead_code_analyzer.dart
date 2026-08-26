@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/source/line_info.dart';
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
 import 'package:path/path.dart' as p;
@@ -32,6 +33,7 @@ class DeadCodeAnalyzer {
     final referencedElementIds = <int>{};
 
     final parsedUnits = <String, CompilationUnit>{};
+    final lineInfos = <String, LineInfo>{};
     var resolvedCount = 0;
     for (final file in dartFiles) {
       final result = await collection
@@ -40,6 +42,7 @@ class DeadCodeAnalyzer {
           .getResolvedUnit(file);
       if (result is! ResolvedUnitResult) continue;
       parsedUnits[file] = result.unit;
+      lineInfos[file] = result.lineInfo;
       resolvedCount++;
     }
 
@@ -61,6 +64,7 @@ class DeadCodeAnalyzer {
       final fileExports = exportedNames[file] ?? <String>{};
       final declarationVisitor = DeclarationVisitor(
         file,
+        lineInfos[file]!,
         exportedNames: fileExports,
         ignoreMain: config.ignoreMain,
       );

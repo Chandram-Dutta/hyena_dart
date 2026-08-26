@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/utilities.dart';
@@ -83,10 +84,10 @@ class ComplexityAnalyzer {
       final result = parseString(content: content);
       final unit = result.unit;
 
-      final complexityVisitor = ComplexityVisitor(filePath);
+      final complexityVisitor = ComplexityVisitor(filePath, result.lineInfo);
       unit.accept(complexityVisitor);
 
-      final lines = content.split('\n');
+      final lines = const LineSplitter().convert(content);
       final lineStats = _countLines(lines);
 
       return FileMetrics(

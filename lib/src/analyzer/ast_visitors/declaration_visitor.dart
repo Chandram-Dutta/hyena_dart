@@ -1,11 +1,13 @@
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element2.dart';
+import 'package:analyzer/source/line_info.dart';
 
 import '../../models/code_entity.dart';
 
 class DeclarationVisitor extends RecursiveAstVisitor<void> {
   final String filePath;
+  final LineInfo lineInfo;
   final Set<String> exportedNames;
   final bool ignoreMain;
   final List<CodeEntity> declarations = [];
@@ -13,12 +15,34 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   String? _currentClass;
 
   DeclarationVisitor(
-    this.filePath, {
+    this.filePath,
+    this.lineInfo, {
     this.exportedNames = const {},
     this.ignoreMain = true,
   });
 
   bool _isPublic(String name) => !name.startsWith('_');
+
+  CodeEntity _entity({
+    required String name,
+    required EntityType type,
+    required int offset,
+    required bool isPublic,
+    String? parentName,
+    bool isExported = false,
+  }) {
+    final location = lineInfo.getLocation(offset);
+    return CodeEntity(
+      name: name,
+      type: type,
+      filePath: filePath,
+      line: location.lineNumber,
+      column: location.columnNumber,
+      parentName: parentName,
+      isPublic: isPublic,
+      isExported: isExported,
+    );
+  }
 
   void _record(CodeEntity entity, Element2? element) {
     declarations.add(entity);
@@ -31,14 +55,12 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   void visitClassDeclaration(ClassDeclaration node) {
     final name = node.name.lexeme;
     _record(
-      CodeEntity(
+      _entity(
         name: name,
         type: node.abstractKeyword != null
             ? EntityType.abstractClass
             : EntityType.classDecl,
-        filePath: filePath,
-        line: node.name.offset,
-        column: 0,
+        offset: node.name.offset,
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
@@ -53,12 +75,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   void visitMixinDeclaration(MixinDeclaration node) {
     final name = node.name.lexeme;
     _record(
-      CodeEntity(
+      _entity(
         name: name,
         type: EntityType.mixin,
-        filePath: filePath,
-        line: node.name.offset,
-        column: 0,
+        offset: node.name.offset,
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
@@ -74,12 +94,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     final name = node.name?.lexeme;
     if (name != null) {
       _record(
-        CodeEntity(
+        _entity(
           name: name,
           type: EntityType.extension,
-          filePath: filePath,
-          line: node.name!.offset,
-          column: 0,
+          offset: node.name!.offset,
           isPublic: _isPublic(name),
           isExported: exportedNames.contains(name),
         ),
@@ -95,12 +113,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   void visitEnumDeclaration(EnumDeclaration node) {
     final name = node.name.lexeme;
     _record(
-      CodeEntity(
+      _entity(
         name: name,
         type: EntityType.enum_,
-        filePath: filePath,
-        line: node.name.offset,
-        column: 0,
+        offset: node.name.offset,
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
@@ -110,12 +126,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     _currentClass = name;
     for (final constant in node.constants) {
       _record(
-        CodeEntity(
+        _entity(
           name: constant.name.lexeme,
           type: EntityType.enumValue,
-          filePath: filePath,
-          line: constant.name.offset,
-          column: 0,
+          offset: constant.name.offset,
           parentName: name,
           isPublic: true,
         ),
@@ -144,12 +158,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     }
 
     _record(
-      CodeEntity(
+      _entity(
         name: name,
         type: type,
-        filePath: filePath,
-        line: node.name.offset,
-        column: 0,
+        offset: node.name.offset,
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
@@ -176,12 +188,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     }
 
     _record(
-      CodeEntity(
+      _entity(
         name: name,
         type: type,
-        filePath: filePath,
-        line: node.name.offset,
-        column: 0,
+        offset: node.name.offset,
         parentName: _currentClass,
         isPublic: _isPublic(name),
       ),
@@ -204,12 +214,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     for (final variable in node.variables.variables) {
       final name = variable.name.lexeme;
       _record(
-        CodeEntity(
+        _entity(
           name: name,
           type: EntityType.topLevelVariable,
-          filePath: filePath,
-          line: variable.name.offset,
-          column: 0,
+          offset: variable.name.offset,
           isPublic: _isPublic(name),
           isExported: exportedNames.contains(name),
         ),
@@ -224,12 +232,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     for (final variable in node.fields.variables) {
       final name = variable.name.lexeme;
       _record(
-        CodeEntity(
+        _entity(
           name: name,
           type: EntityType.field,
-          filePath: filePath,
-          line: variable.name.offset,
-          column: 0,
+          offset: variable.name.offset,
           parentName: _currentClass,
           isPublic: _isPublic(name),
         ),
@@ -243,12 +249,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   void visitFunctionTypeAlias(FunctionTypeAlias node) {
     final name = node.name.lexeme;
     _record(
-      CodeEntity(
+      _entity(
         name: name,
         type: EntityType.typedef,
-        filePath: filePath,
-        line: node.name.offset,
-        column: 0,
+        offset: node.name.offset,
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
@@ -261,12 +265,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   void visitGenericTypeAlias(GenericTypeAlias node) {
     final name = node.name.lexeme;
     _record(
-      CodeEntity(
+      _entity(
         name: name,
         type: EntityType.typedef,
-        filePath: filePath,
-        line: node.name.offset,
-        column: 0,
+        offset: node.name.offset,
         isPublic: _isPublic(name),
         isExported: exportedNames.contains(name),
       ),
