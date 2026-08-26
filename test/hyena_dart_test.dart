@@ -338,6 +338,21 @@ void main() {
         reason: 'the extension type and its getter should both be collected',
       );
     });
+
+    test('fails instead of silently skipping unresolved source', () async {
+      final libPath = await makeFixture('void broken( {');
+
+      await expectLater(
+        DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('lib.dart'),
+          ),
+        ),
+      );
+    });
   });
 
   group('ComplexityAnalyzer source locations', () {
@@ -436,6 +451,22 @@ void iterate(List<int> values) {
       ).analyze(fixture.path);
 
       expect(report.files.single.functions.single.cyclomaticComplexity, 2);
+    });
+
+    test('fails instead of silently omitting invalid files', () async {
+      final source = File(p.join(fixture.path, 'broken.dart'))
+        ..writeAsStringSync('void broken( {');
+
+      await expectLater(
+        ComplexityAnalyzer(AnalyzerConfig()).analyze(fixture.path),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains(source.path),
+          ),
+        ),
+      );
     });
   });
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
@@ -23,9 +24,7 @@ class ComplexityAnalyzer {
       if (_shouldExclude(file)) continue;
 
       final metrics = await _analyzeFile(file);
-      if (metrics != null) {
-        fileMetrics.add(metrics);
-      }
+      fileMetrics.add(metrics);
     }
 
     return ComplexityReport(
@@ -78,29 +77,29 @@ class ComplexityAnalyzer {
     return false;
   }
 
-  Future<FileMetrics?> _analyzeFile(String filePath) async {
+  Future<FileMetrics> _analyzeFile(String filePath) async {
+    final content = await File(filePath).readAsString();
+    late final ParseStringResult result;
     try {
-      final content = await File(filePath).readAsString();
-      final result = parseString(content: content);
-      final unit = result.unit;
-
-      final complexityVisitor = ComplexityVisitor(filePath, result.lineInfo);
-      unit.accept(complexityVisitor);
-
-      final lines = const LineSplitter().convert(content);
-      final lineStats = _countLines(lines);
-
-      return FileMetrics(
-        filePath: filePath,
-        totalLines: lines.length,
-        codeLines: lineStats.codeLines,
-        commentLines: lineStats.commentLines,
-        blankLines: lineStats.blankLines,
-        functions: complexityVisitor.functions,
-      );
-    } catch (e) {
-      return null;
+      result = parseString(content: content, path: filePath);
+    } on ArgumentError catch (error) {
+      throw FormatException('Could not parse $filePath: ${error.message}');
     }
+
+    final complexityVisitor = ComplexityVisitor(filePath, result.lineInfo);
+    result.unit.accept(complexityVisitor);
+
+    final lines = const LineSplitter().convert(content);
+    final lineStats = _countLines(lines);
+
+    return FileMetrics(
+      filePath: filePath,
+      totalLines: lines.length,
+      codeLines: lineStats.codeLines,
+      commentLines: lineStats.commentLines,
+      blankLines: lineStats.blankLines,
+      functions: complexityVisitor.functions,
+    );
   }
 
   _LineStats _countLines(List<String> lines) {

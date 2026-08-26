@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/error/error.dart';
 import 'package:analyzer/source/line_info.dart';
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
@@ -24,7 +25,7 @@ class DeadCodeAnalyzer {
     final absTarget = p.absolute(targetPath);
     final dartFiles = (await _collectDartFiles(
       absTarget,
-    )).map(p.absolute).toList();
+    )).map(p.absolute).where((file) => !_shouldExclude(file)).toList();
     final collection = AnalysisContextCollection(includedPaths: [absTarget]);
 
     final allDeclarations = <CodeEntity>[];
@@ -34,22 +35,31 @@ class DeadCodeAnalyzer {
 
     final parsedUnits = <String, CompilationUnit>{};
     final lineInfos = <String, LineInfo>{};
-    var resolvedCount = 0;
+    final resolutionFailures = <String>[];
     for (final file in dartFiles) {
       final result = await collection
           .contextFor(file)
           .currentSession
           .getResolvedUnit(file);
-      if (result is! ResolvedUnitResult) continue;
+      if (result is! ResolvedUnitResult) {
+        resolutionFailures.add(file);
+        continue;
+      }
+      final errors = result.errors.where(
+        (error) => error.errorCode.errorSeverity == ErrorSeverity.ERROR,
+      );
+      if (errors.isNotEmpty) {
+        resolutionFailures.add('$file: ${errors.first.message}');
+        continue;
+      }
       parsedUnits[file] = result.unit;
       lineInfos[file] = result.lineInfo;
-      resolvedCount++;
     }
 
-    if (resolvedCount == 0 && dartFiles.isNotEmpty) {
+    if (resolutionFailures.isNotEmpty) {
       throw StateError(
-        'Could not resolve any Dart files under $targetPath. '
-        'Ensure the path is inside a Dart package and `dart pub get` has been run.',
+        'Could not resolve every Dart file under $targetPath:\n'
+        '${resolutionFailures.join('\n')}',
       );
     }
 
@@ -57,9 +67,10 @@ class DeadCodeAnalyzer {
     final exportedNames = _collectExportedNames(parsedUnits, packageRoots);
 
     for (final file in dartFiles) {
-      if (_shouldExclude(file)) continue;
       final unit = parsedUnits[file];
-      if (unit == null) continue;
+      if (unit == null) {
+        throw StateError('Missing resolved unit for $file');
+      }
 
       final fileExports = exportedNames[file] ?? <String>{};
       final declarationVisitor = DeclarationVisitor(
