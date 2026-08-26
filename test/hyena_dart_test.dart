@@ -416,6 +416,44 @@ void _implementation() {}
       expect(unusedNames, isNot(contains('publicApi')));
       expect(unusedNames, isNot(contains('_implementation')));
     });
+
+    test('treats public members of exported types as API roots', () async {
+      final libPath = await makeFixture(
+        "export 'api.dart';",
+        additionalFiles: {
+          'api.dart': '''
+void _methodHelper() {}
+void _constructorHelper() {}
+
+class Api {
+  Api() {
+    _constructorHelper();
+  }
+
+  void call() => _methodHelper();
+  void _privateMethod() {}
+}
+
+extension ApiExtension on String {
+  void callExtension() => _methodHelper();
+  void _privateExtensionMethod() {}
+}
+''',
+        },
+      );
+
+      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('Api.call')));
+      expect(unusedNames, isNot(contains('ApiExtension.callExtension')));
+      expect(unusedNames, isNot(contains('_methodHelper')));
+      expect(unusedNames, isNot(contains('_constructorHelper')));
+      expect(unusedNames, contains('Api._privateMethod'));
+      expect(unusedNames, contains('ApiExtension._privateExtensionMethod'));
+    });
   });
 
   group('ComplexityAnalyzer source locations', () {

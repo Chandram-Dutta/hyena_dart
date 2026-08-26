@@ -12,7 +12,9 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   final bool ignoreMain;
   final List<CodeEntity> declarations = [];
   final Map<int, CodeEntity> elementIdToEntity = {};
+  final Set<int> exportedElementIds = {};
   String? _currentClass;
+  bool _currentContainerExported = false;
 
   DeclarationVisitor(
     this.filePath,
@@ -48,12 +50,24 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     declarations.add(entity);
     if (element != null) {
       elementIdToEntity[element.id] = entity;
+      if (entity.isExported) exportedElementIds.add(element.id);
     }
+  }
+
+  void _visitContainer(String? name, bool isExported, void Function() visit) {
+    final previousClass = _currentClass;
+    final previousExported = _currentContainerExported;
+    _currentClass = name;
+    _currentContainerExported = isExported;
+    visit();
+    _currentClass = previousClass;
+    _currentContainerExported = previousExported;
   }
 
   @override
   void visitClassDeclaration(ClassDeclaration node) {
     final name = node.name.lexeme;
+    final isExported = exportedNames.contains(name);
     _record(
       _entity(
         name: name,
@@ -62,36 +76,34 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
             : EntityType.classDecl,
         offset: node.name.offset,
         isPublic: _isPublic(name),
-        isExported: exportedNames.contains(name),
+        isExported: isExported,
       ),
       node.declaredFragment?.element,
     );
-    _currentClass = name;
-    super.visitClassDeclaration(node);
-    _currentClass = null;
+    _visitContainer(name, isExported, () => super.visitClassDeclaration(node));
   }
 
   @override
   void visitMixinDeclaration(MixinDeclaration node) {
     final name = node.name.lexeme;
+    final isExported = exportedNames.contains(name);
     _record(
       _entity(
         name: name,
         type: EntityType.mixin,
         offset: node.name.offset,
         isPublic: _isPublic(name),
-        isExported: exportedNames.contains(name),
+        isExported: isExported,
       ),
       node.declaredFragment?.element,
     );
-    _currentClass = name;
-    super.visitMixinDeclaration(node);
-    _currentClass = null;
+    _visitContainer(name, isExported, () => super.visitMixinDeclaration(node));
   }
 
   @override
   void visitExtensionDeclaration(ExtensionDeclaration node) {
     final name = node.name?.lexeme;
+    final isExported = name != null && exportedNames.contains(name);
     if (name != null) {
       _record(
         _entity(
@@ -99,63 +111,70 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
           type: EntityType.extension,
           offset: node.name!.offset,
           isPublic: _isPublic(name),
-          isExported: exportedNames.contains(name),
+          isExported: isExported,
         ),
         node.declaredFragment?.element,
       );
     }
-    _currentClass = name;
-    super.visitExtensionDeclaration(node);
-    _currentClass = null;
+    _visitContainer(
+      name,
+      isExported,
+      () => super.visitExtensionDeclaration(node),
+    );
   }
 
   @override
   void visitExtensionTypeDeclaration(ExtensionTypeDeclaration node) {
     final name = node.name.lexeme;
+    final isExported = exportedNames.contains(name);
     _record(
       _entity(
         name: name,
         type: EntityType.extensionType,
         offset: node.name.offset,
         isPublic: _isPublic(name),
-        isExported: exportedNames.contains(name),
+        isExported: isExported,
       ),
       node.declaredFragment?.element,
     );
-    _currentClass = name;
-    super.visitExtensionTypeDeclaration(node);
-    _currentClass = null;
+    _visitContainer(
+      name,
+      isExported,
+      () => super.visitExtensionTypeDeclaration(node),
+    );
   }
 
   @override
   void visitEnumDeclaration(EnumDeclaration node) {
     final name = node.name.lexeme;
+    final isExported = exportedNames.contains(name);
     _record(
       _entity(
         name: name,
         type: EntityType.enum_,
         offset: node.name.offset,
         isPublic: _isPublic(name),
-        isExported: exportedNames.contains(name),
+        isExported: isExported,
       ),
       node.declaredFragment?.element,
     );
 
-    _currentClass = name;
-    for (final constant in node.constants) {
-      _record(
-        _entity(
-          name: constant.name.lexeme,
-          type: EntityType.enumValue,
-          offset: constant.name.offset,
-          parentName: name,
-          isPublic: true,
-        ),
-        constant.declaredFragment?.element,
-      );
-    }
-    super.visitEnumDeclaration(node);
-    _currentClass = null;
+    _visitContainer(name, isExported, () {
+      for (final constant in node.constants) {
+        _record(
+          _entity(
+            name: constant.name.lexeme,
+            type: EntityType.enumValue,
+            offset: constant.name.offset,
+            parentName: name,
+            isPublic: true,
+            isExported: isExported,
+          ),
+          constant.declaredFragment?.element,
+        );
+      }
+      super.visitEnumDeclaration(node);
+    });
   }
 
   @override
@@ -212,6 +231,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         offset: node.name.offset,
         parentName: _currentClass,
         isPublic: _isPublic(name),
+        isExported: _currentContainerExported && _isPublic(name),
       ),
       node.declaredFragment?.element,
     );
@@ -225,6 +245,17 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
       }
     }
     return false;
+  }
+
+  @override
+  void visitConstructorDeclaration(ConstructorDeclaration node) {
+    final name = node.name?.lexeme;
+    final isPublic = name == null || _isPublic(name);
+    final element = node.declaredFragment?.element;
+    if (_currentContainerExported && isPublic && element != null) {
+      exportedElementIds.add(element.id);
+    }
+    super.visitConstructorDeclaration(node);
   }
 
   @override
@@ -256,6 +287,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
           offset: variable.name.offset,
           parentName: _currentClass,
           isPublic: _isPublic(name),
+          isExported: _currentContainerExported && _isPublic(name),
         ),
         variable.declaredFragment?.element,
       );

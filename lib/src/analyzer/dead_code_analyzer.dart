@@ -83,6 +83,9 @@ class DeadCodeAnalyzer {
       unit.accept(declarationVisitor);
       allDeclarations.addAll(declarationVisitor.declarations);
       elementIdToEntity.addAll(declarationVisitor.elementIdToEntity);
+      if (config.ignoreExports) {
+        rootElementIds.addAll(declarationVisitor.exportedElementIds);
+      }
 
       final referenceVisitor = ReferenceVisitor();
       unit.accept(referenceVisitor);
