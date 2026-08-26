@@ -589,6 +589,45 @@ void withLargeClosure() {
       );
     });
 
+    test('includes constructor initializers in constructor metrics', () async {
+      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+class Base {
+  Base(int input);
+}
+
+class Example extends Base {
+  final int value;
+
+  Example(bool enabled, int input)
+      : assert(enabled),
+        value = enabled ? input : 0,
+        super(enabled ? input : 1) {
+    print(value);
+  }
+
+  Example.redirect(bool enabled, int input) : this(enabled, input);
+}
+''');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+      final functions = report.files.single.functions;
+      final constructor = functions.singleWhere(
+        (function) => function.fullName == 'Example.new',
+      );
+      final redirectingConstructor = functions.singleWhere(
+        (function) => function.fullName == 'Example.redirect',
+      );
+
+      expect(constructor.cyclomaticComplexity, 4);
+      expect(constructor.linesOfCode, 5);
+      expect(constructor.halsteadVolume, greaterThan(0));
+      expect(redirectingConstructor.cyclomaticComplexity, 1);
+      expect(redirectingConstructor.linesOfCode, 1);
+      expect(redirectingConstructor.halsteadVolume, greaterThan(0));
+    });
+
     test('counts for-in loops once', () async {
       File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
 void iterate(List<int> values) {

@@ -96,6 +96,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
       _analyzeFunction(
         name: node.name?.lexeme ?? 'new',
         body: node.body,
+        initializers: node.initializers,
         parameters: node.parameters,
         offset: node.name?.offset ?? node.returnType.offset,
         parentClass: _currentClass,
@@ -126,17 +127,23 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
   FunctionMetrics _analyzeFunction({
     required String name,
     required FunctionBody body,
+    List<ConstructorInitializer> initializers = const [],
     FormalParameterList? parameters,
     required int offset,
     String? parentClass,
   }) {
+    final executableNodes = <AstNode>[...initializers, body];
     final complexityCounter = _CyclomaticComplexityCounter();
-    body.accept(complexityCounter);
+    for (final node in executableNodes) {
+      node.accept(complexityCounter);
+    }
 
     final nestingCounter = _NestingLevelCounter();
-    body.accept(nestingCounter);
+    for (final node in executableNodes) {
+      node.accept(nestingCounter);
+    }
 
-    final loc = _countLinesOfCode(body);
+    final loc = _countLinesOfCode(executableNodes);
     final paramCount = parameters?.parameters.length ?? 0;
     final location = lineInfo.getLocation(offset);
 
@@ -148,52 +155,64 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
       linesOfCode: loc,
       maxNestingLevel: nestingCounter.maxLevel,
       parameterCount: paramCount,
-      halsteadVolume: _calculateHalsteadVolume(body),
+      halsteadVolume: _calculateHalsteadVolume(executableNodes),
       parentClass: parentClass,
     );
   }
 
-  int _countLinesOfCode(FunctionBody body) {
-    final bodySource = source.substring(body.offset, body.end);
-    final sourceUnits = bodySource.codeUnits.toList();
-    for (final nestedBody in _nestedFunctionBodies(body)) {
-      final start = nestedBody.offset - body.offset;
-      final end = nestedBody.end - body.offset;
-      for (var index = start; index < end; index++) {
-        if (sourceUnits[index] != 10 && sourceUnits[index] != 13) {
-          sourceUnits[index] = 32;
+  int _countLinesOfCode(List<AstNode> nodes) {
+    final codeLines = <int>{};
+    final nestedBodies = _nestedFunctionBodies(nodes);
+    for (final node in nodes) {
+      final nodeSource = source.substring(node.offset, node.end);
+      final sourceUnits = nodeSource.codeUnits.toList();
+      for (final nestedBody in nestedBodies) {
+        final start = math.max(nestedBody.offset, node.offset) - node.offset;
+        final end = math.min(nestedBody.end, node.end) - node.offset;
+        for (var index = start; index < end; index++) {
+          if (sourceUnits[index] != 10 && sourceUnits[index] != 13) {
+            sourceUnits[index] = 32;
+          }
+        }
+      }
+      final firstLine = lineInfo.getLocation(node.offset).lineNumber;
+      final lines = const LineSplitter().convert(
+        String.fromCharCodes(sourceUnits),
+      );
+      for (var index = 0; index < lines.length; index++) {
+        if (lines[index].trim().isNotEmpty) {
+          codeLines.add(firstLine + index);
         }
       }
     }
-    return const LineSplitter()
-        .convert(String.fromCharCodes(sourceUnits))
-        .where((line) => line.trim().isNotEmpty)
-        .length;
+    return codeLines.length;
   }
 
-  double _calculateHalsteadVolume(FunctionBody body) {
+  double _calculateHalsteadVolume(List<AstNode> nodes) {
     final uniqueOperators = <String>{};
     final uniqueOperands = <String>{};
     var operatorCount = 0;
     var operandCount = 0;
-    var token = body.beginToken;
-    final nestedBodies = _nestedFunctionBodies(body);
+    final nestedBodies = _nestedFunctionBodies(nodes);
 
-    while (true) {
-      final belongsToNestedBody = nestedBodies.any(
-        (body) => token.offset >= body.offset && token.offset < body.end,
-      );
-      if (!belongsToNestedBody && _isOperand(token)) {
-        uniqueOperands.add(token.lexeme);
-        operandCount++;
-      } else if (!belongsToNestedBody && _isOperator(token)) {
-        uniqueOperators.add(token.lexeme);
-        operatorCount++;
+    for (final node in nodes) {
+      var token = node.beginToken;
+      while (true) {
+        final belongsToNestedBody = nestedBodies.any(
+          (body) => token.offset >= body.offset && token.offset < body.end,
+        );
+        if (!belongsToNestedBody && _isOperand(token)) {
+          uniqueOperands.add(token.lexeme);
+          operandCount++;
+        } else if (!belongsToNestedBody && _isOperator(token)) {
+          uniqueOperators.add(token.lexeme);
+          operatorCount++;
+        }
+        if (identical(token, node.endToken)) break;
+        final next = token.next;
+        if (next == null) break;
+        token = next;
       }
-      if (identical(token, body.endToken)) break;
-      final next = token.next;
-      if (next == null) break;
-      token = next;
     }
 
     final vocabulary = uniqueOperators.length + uniqueOperands.length;
@@ -202,9 +221,11 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     return length * (math.log(vocabulary) / math.ln2);
   }
 
-  List<FunctionBody> _nestedFunctionBodies(FunctionBody body) {
+  List<FunctionBody> _nestedFunctionBodies(List<AstNode> nodes) {
     final collector = _NestedFunctionBodyCollector();
-    body.accept(collector);
+    for (final node in nodes) {
+      node.accept(collector);
+    }
     return collector.bodies;
   }
 
@@ -247,6 +268,12 @@ class _NestedFunctionBodyCollector extends RecursiveAstVisitor<void> {
 
 class _CyclomaticComplexityCounter extends RecursiveAstVisitor<void> {
   int complexity = 1;
+
+  @override
+  void visitAssertInitializer(AssertInitializer node) {
+    complexity++;
+    super.visitAssertInitializer(node);
+  }
 
   @override
   void visitIfStatement(IfStatement node) {
