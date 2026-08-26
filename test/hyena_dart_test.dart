@@ -236,6 +236,55 @@ hyena:
       expect(unusedNames, isNot(contains('VisibleApi')));
       expect(unusedNames, contains('HiddenApi'));
     });
+
+    test('keeps an extension alive when one of its members is used', () async {
+      final libPath = await makeFixture('''
+extension UsefulExtension on String {
+  int get doubledLength => length * 2;
+}
+
+void main() {
+  print('hi'.doubledLength);
+}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('UsefulExtension')));
+      expect(unusedNames, isNot(contains('UsefulExtension.doubledLength')));
+    });
+
+    test('detects and tracks extension types', () async {
+      final libPath = await makeFixture('''
+extension type UserId(int value) {
+  bool get isValid => value > 0;
+}
+
+void main() {
+  print(UserId(1).isValid);
+}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('UserId')));
+      expect(unusedNames, isNot(contains('UserId.isValid')));
+      expect(
+        report.totalDeclarations,
+        greaterThanOrEqualTo(2),
+        reason: 'the extension type and its getter should both be collected',
+      );
+    });
   });
 
   group('ComplexityAnalyzer source locations', () {

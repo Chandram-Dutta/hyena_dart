@@ -10,10 +10,20 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   void _recordElement(Element2? element) {
     if (element == null) return;
-    referencedElementIds.add(element.id);
+    _recordElementIdAndExtension(element);
     if (element is PropertyAccessorElement2) {
       final variable = element.variable3;
-      if (variable != null) referencedElementIds.add(variable.id);
+      if (variable != null) _recordElementIdAndExtension(variable);
+    }
+  }
+
+  void _recordElementIdAndExtension(Element2 element) {
+    referencedElementIds.add(element.id);
+    final enclosing = element.enclosingElement2;
+    if (enclosing is ExtensionElement2) {
+      referencedElementIds.add(enclosing.id);
+    } else if (enclosing is ExtensionTypeElement2) {
+      referencedElementIds.add(enclosing.id);
     }
   }
 

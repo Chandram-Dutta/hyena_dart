@@ -110,6 +110,24 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   }
 
   @override
+  void visitExtensionTypeDeclaration(ExtensionTypeDeclaration node) {
+    final name = node.name.lexeme;
+    _record(
+      _entity(
+        name: name,
+        type: EntityType.extensionType,
+        offset: node.name.offset,
+        isPublic: _isPublic(name),
+        isExported: exportedNames.contains(name),
+      ),
+      node.declaredFragment?.element,
+    );
+    _currentClass = name;
+    super.visitExtensionTypeDeclaration(node);
+    _currentClass = null;
+  }
+
+  @override
   void visitEnumDeclaration(EnumDeclaration node) {
     final name = node.name.lexeme;
     _record(
