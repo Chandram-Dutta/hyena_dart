@@ -259,8 +259,11 @@ class _Workspace {
 
     final matches = <String>[];
     if (_containsGlob(entry)) {
+      final globPattern = p.style == p.Style.windows
+          ? entry.replaceAll(r'\', '/')
+          : entry;
       await for (final entity in Glob(
-        entry,
+        globPattern,
       ).list(root: packagePath, followLinks: false)) {
         if (entity is Directory &&
             await File(p.join(entity.path, 'pubspec.yaml')).exists()) {
