@@ -99,7 +99,9 @@ environment:
 ''');
       File(p.join(lib.path, 'lib.dart')).writeAsStringSync(libSource);
       for (final entry in additionalFiles.entries) {
-        File(p.join(lib.path, entry.key)).writeAsStringSync(entry.value);
+        final file = File(p.join(lib.path, entry.key));
+        file.parent.createSync(recursive: true);
+        file.writeAsStringSync(entry.value);
       }
       final result = await Process.run(Platform.resolvedExecutable, [
         'pub',
@@ -134,7 +136,9 @@ void main() {
   u.hello();
 }
 ''');
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
       final names = report.unusedEntities.map((e) => e.fullName).toSet();
       expect(names, contains('ShouldBeDead'));
       expect(names, contains('ShouldBeDead.hello'));
@@ -158,7 +162,9 @@ void main() {
   b.inc();
 }
 ''');
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
       final names = report.unusedEntities.map((e) => e.fullName).toSet();
       expect(names, contains('Foo.counter'));
       expect(names, isNot(contains('Bar.counter')));
@@ -182,7 +188,9 @@ void main() {
   print(h.used);
 }
 ''');
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
       final names = report.unusedEntities.map((e) => e.fullName).toSet();
       expect(names, contains('Holder.unusedGetter'));
       expect(names, contains('Holder.unusedSetter'));
@@ -262,8 +270,8 @@ hyena:
 
     test('does not flag declarations exported by a barrel file', () async {
       final libPath = await makeFixture(
-        "export 'api.dart';",
-        additionalFiles: {'api.dart': 'class PublicApi {}'},
+        "export 'src/api.dart';",
+        additionalFiles: {'src/api.dart': 'class PublicApi {}'},
       );
 
       final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
@@ -276,9 +284,9 @@ hyena:
 
     test('respects show and hide export combinators', () async {
       final libPath = await makeFixture(
-        "export 'api.dart' show VisibleApi, HiddenApi hide HiddenApi;",
+        "export 'src/api.dart' show VisibleApi, HiddenApi hide HiddenApi;",
         additionalFiles: {
-          'api.dart': 'class VisibleApi {}\nclass HiddenApi {}',
+          'src/api.dart': 'class VisibleApi {}\nclass HiddenApi {}',
         },
       );
 
@@ -289,6 +297,74 @@ hyena:
 
       expect(unusedNames, isNot(contains('VisibleApi')));
       expect(unusedNames, contains('HiddenApi'));
+    });
+
+    test('treats directly importable libraries as public APIs', () async {
+      final libPath = await makeFixture('''
+void _helper() {}
+
+class PublicApi {
+  void call() => _helper();
+  void _privateMethod() {}
+}
+''');
+
+      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('PublicApi')));
+      expect(unusedNames, isNot(contains('PublicApi.call')));
+      expect(unusedNames, isNot(contains('_helper')));
+      expect(unusedNames, contains('PublicApi._privateMethod'));
+    });
+
+    test('includes part declarations in a public library API', () async {
+      final libPath = await makeFixture(
+        "part 'src/api_part.dart';",
+        additionalFiles: {
+          'src/api_part.dart': '''
+part of '../lib.dart';
+
+class PartApi {
+  void call() {}
+}
+''',
+        },
+      );
+
+      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('PartApi')));
+      expect(unusedNames, isNot(contains('PartApi.call')));
+    });
+
+    test('includes part declarations from explicitly exported libraries', () async {
+      final libPath = await makeFixture(
+        "export 'src/api.dart';",
+        additionalFiles: {
+          'src/api.dart': "part 'api_part.dart';",
+          'src/api_part.dart': '''
+part of 'api.dart';
+
+class ExportedPartApi {
+  void call() {}
+}
+''',
+        },
+      );
+
+      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('ExportedPartApi')));
+      expect(unusedNames, isNot(contains('ExportedPartApi.call')));
     });
 
     test('keeps an extension alive when one of its members is used', () async {

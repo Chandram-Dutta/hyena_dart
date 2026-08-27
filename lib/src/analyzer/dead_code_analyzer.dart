@@ -165,6 +165,13 @@ class DeadCodeAnalyzer {
     Map<String, String> packageRoots,
   ) {
     final exportedNames = <String, Set<String>>{};
+    final libraryFiles = _collectLibraryFiles(parsedUnits, packageRoots);
+
+    for (final entry in parsedUnits.entries) {
+      if (_isPublicLibrary(entry.key, entry.value, packageRoots.values)) {
+        _addLibraryNames(exportedNames, entry.key, parsedUnits, libraryFiles);
+      }
+    }
 
     for (final entry in parsedUnits.entries) {
       final file = entry.key;
@@ -176,24 +183,13 @@ class DeadCodeAnalyzer {
           if (uri != null) {
             final exportedFile = _resolveImportUri(file, uri, packageRoots);
             if (exportedFile != null) {
-              final exportedUnit = parsedUnits[exportedFile];
-              if (exportedUnit == null) continue;
-              final visibleNames = _topLevelDeclarationNames(exportedUnit);
-              for (final combinator in directive.combinators) {
-                if (combinator is ShowCombinator) {
-                  final shownNames = combinator.shownNames
-                      .map((name) => name.name)
-                      .toSet();
-                  visibleNames.retainAll(shownNames);
-                } else if (combinator is HideCombinator) {
-                  visibleNames.removeAll(
-                    combinator.hiddenNames.map((name) => name.name),
-                  );
-                }
-              }
-              exportedNames
-                  .putIfAbsent(exportedFile, () => {})
-                  .addAll(visibleNames);
+              _addLibraryNames(
+                exportedNames,
+                exportedFile,
+                parsedUnits,
+                libraryFiles,
+                combinators: directive.combinators,
+              );
             }
           }
         }
@@ -201,6 +197,78 @@ class DeadCodeAnalyzer {
     }
 
     return exportedNames;
+  }
+
+  Map<String, Set<String>> _collectLibraryFiles(
+    Map<String, CompilationUnit> parsedUnits,
+    Map<String, String> packageRoots,
+  ) {
+    final libraryFiles = <String, Set<String>>{};
+    for (final entry in parsedUnits.entries) {
+      if (entry.value.directives.any((node) => node is PartOfDirective)) {
+        continue;
+      }
+
+      final files = libraryFiles.putIfAbsent(entry.key, () => {entry.key});
+      for (final directive
+          in entry.value.directives.whereType<PartDirective>()) {
+        final uri = directive.uri.stringValue;
+        if (uri == null) continue;
+        final partFile = _resolveImportUri(entry.key, uri, packageRoots);
+        if (partFile != null && parsedUnits.containsKey(partFile)) {
+          files.add(partFile);
+        }
+      }
+    }
+    return libraryFiles;
+  }
+
+  bool _isPublicLibrary(
+    String file,
+    CompilationUnit unit,
+    Iterable<String> packageRoots,
+  ) {
+    if (unit.directives.any((node) => node is PartOfDirective)) return false;
+
+    for (final root in packageRoots) {
+      if (!p.isWithin(root, file)) continue;
+      final segments = p.split(p.relative(file, from: root));
+      return segments.isNotEmpty && segments.first != 'src';
+    }
+    return false;
+  }
+
+  void _addLibraryNames(
+    Map<String, Set<String>> exportedNames,
+    String definingFile,
+    Map<String, CompilationUnit> parsedUnits,
+    Map<String, Set<String>> libraryFiles, {
+    Iterable<Combinator> combinators = const [],
+  }) {
+    final files = libraryFiles[definingFile] ?? {definingFile};
+    final namesByFile = <String, Set<String>>{};
+    final visibleNames = <String>{};
+    for (final file in files) {
+      final unit = parsedUnits[file];
+      if (unit == null) continue;
+      final names = _topLevelDeclarationNames(unit);
+      namesByFile[file] = names;
+      visibleNames.addAll(names);
+    }
+
+    for (final combinator in combinators) {
+      if (combinator is ShowCombinator) {
+        visibleNames.retainAll(combinator.shownNames.map((name) => name.name));
+      } else if (combinator is HideCombinator) {
+        visibleNames.removeAll(combinator.hiddenNames.map((name) => name.name));
+      }
+    }
+
+    for (final entry in namesByFile.entries) {
+      exportedNames
+          .putIfAbsent(entry.key, () => {})
+          .addAll(entry.value.intersection(visibleNames));
+    }
   }
 
   Set<String> _topLevelDeclarationNames(CompilationUnit unit) {
