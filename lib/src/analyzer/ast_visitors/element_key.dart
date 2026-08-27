@@ -1,6 +1,6 @@
-import 'package:analyzer/dart/element/element2.dart';
+import 'package:analyzer/dart/element/element.dart';
 
-String? elementKey(Element2? element) {
+String? elementKey(Element? element) {
   if (element == null) return null;
   final fragment = element.firstFragment;
   final source = fragment.libraryFragment?.source.fullName;

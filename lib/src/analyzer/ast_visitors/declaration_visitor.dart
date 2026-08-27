@@ -1,6 +1,6 @@
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
-import 'package:analyzer/dart/element/element2.dart';
+import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/source/line_info.dart';
 
 import '../../models/code_entity.dart';
@@ -93,7 +93,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     );
   }
 
-  void _record(CodeEntity entity, Element2? element, {bool isLive = false}) {
+  void _record(CodeEntity entity, Element? element, {bool isLive = false}) {
     declarations.add(entity);
     final key = elementKey(element);
     if (key != null) {
@@ -404,6 +404,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   void visitFieldDeclaration(FieldDeclaration node) {
     for (final variable in node.fields.variables) {
       final name = variable.name.lexeme;
+      if (isOverridingField(node, variable)) continue;
       _record(
         _entity(
           name: name,

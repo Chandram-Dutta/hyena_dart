@@ -99,8 +99,9 @@ class DeadCodeAnalyzer {
         resolutionFailures.add(file);
         continue;
       }
-      final errors = result.errors.where(
-        (error) => error.errorCode.errorSeverity == ErrorSeverity.ERROR,
+      final errors = result.diagnostics.where(
+        (diagnostic) =>
+            diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
       );
       if (errors.isNotEmpty) {
         resolutionFailures.add('$file: ${errors.first.message}');
@@ -225,7 +226,9 @@ class DeadCodeAnalyzer {
     }
 
     final segments = p.split(normalizedPath);
-    if (segments.contains('generated')) {
+    if (segments.contains('.dart_tool') ||
+        segments.contains('build') ||
+        segments.contains('generated')) {
       return true;
     }
 

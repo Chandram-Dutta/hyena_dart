@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/error/error.dart';
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
 import 'package:path/path.dart' as p;
@@ -109,7 +110,9 @@ class ComplexityAnalyzer {
     }
 
     final segments = p.split(normalizedPath);
-    if (segments.contains('generated')) {
+    if (segments.contains('.dart_tool') ||
+        segments.contains('build') ||
+        segments.contains('generated')) {
       return true;
     }
 
@@ -120,9 +123,22 @@ class ComplexityAnalyzer {
     final content = await File(filePath).readAsString();
     late final ParseStringResult result;
     try {
-      result = parseString(content: content, path: filePath);
+      result = parseString(
+        content: content,
+        path: filePath,
+        throwIfDiagnostics: false,
+      );
     } on ArgumentError catch (error) {
       throw FormatException('Could not parse $filePath: ${error.message}');
+    }
+    final errors = result.errors.where(
+      (diagnostic) =>
+          diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
+    );
+    if (errors.isNotEmpty) {
+      throw FormatException(
+        'Could not parse $filePath: ${errors.first.message}',
+      );
     }
 
     final complexityVisitor = ComplexityVisitor(

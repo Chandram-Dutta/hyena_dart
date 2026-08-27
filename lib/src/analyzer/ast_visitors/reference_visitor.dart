@@ -1,6 +1,6 @@
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
-import 'package:analyzer/dart/element/element2.dart';
+import 'package:analyzer/dart/element/element.dart';
 
 import 'element_key.dart';
 import 'member_override.dart';
@@ -15,7 +15,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   String? _currentDeclarationKey;
 
   void _visitInScope(
-    Element2? element,
+    Element? element,
     void Function() visit, {
     bool isRoot = false,
   }) {
@@ -29,21 +29,20 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     _currentDeclarationKey = previousDeclarationKey;
   }
 
-  void _recordElement(Element2? element) {
+  void _recordElement(Element? element) {
     if (element == null) return;
     _recordElementAndExtension(element);
-    if (element is PropertyAccessorElement2) {
-      final variable = element.variable3;
-      if (variable != null) _recordElementAndExtension(variable);
+    if (element is PropertyAccessorElement) {
+      _recordElementAndExtension(element.variable);
     }
   }
 
-  void _recordElementAndExtension(Element2 element) {
+  void _recordElementAndExtension(Element element) {
     _recordElementKey(elementKey(element));
-    final enclosing = element.enclosingElement2;
-    if (enclosing is ExtensionElement2) {
+    final enclosing = element.enclosingElement;
+    if (enclosing is ExtensionElement) {
       _recordElementKey(elementKey(enclosing));
-    } else if (enclosing is ExtensionTypeElement2) {
+    } else if (enclosing is ExtensionTypeElement) {
       _recordElementKey(elementKey(enclosing));
     }
   }
@@ -62,13 +61,13 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     final parent = node.parent;
     if (parent is AssignmentExpression &&
         identical(parent.leftHandSide, node)) {
-      return parent.readElement2 != null || parent.writeElement2 != null;
+      return parent.readElement != null || parent.writeElement != null;
     }
     if (parent is PrefixExpression && identical(parent.operand, node)) {
-      return parent.readElement2 != null || parent.writeElement2 != null;
+      return parent.readElement != null || parent.writeElement != null;
     }
     if (parent is PostfixExpression && identical(parent.operand, node)) {
-      return parent.readElement2 != null || parent.writeElement2 != null;
+      return parent.readElement != null || parent.writeElement != null;
     }
     return false;
   }
@@ -168,8 +167,15 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitVariableDeclaration(VariableDeclaration node) {
     final element = node.declaredFragment?.element;
-    if (element is FieldElement2 || element is TopLevelVariableElement2) {
-      _visitInScope(element, () => super.visitVariableDeclaration(node));
+    if (element is FieldElement || element is TopLevelVariableElement) {
+      final declaration = node.parent?.parent;
+      _visitInScope(
+        element,
+        () => super.visitVariableDeclaration(node),
+        isRoot:
+            declaration is FieldDeclaration &&
+            isOverridingField(declaration, node),
+      );
     } else {
       super.visitVariableDeclaration(node);
     }
@@ -215,21 +221,21 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitNamedType(NamedType node) {
-    typeReferences.add(node.name2.lexeme);
-    _recordElement(node.element2);
+    typeReferences.add(node.name.lexeme);
+    _recordElement(node.element);
     super.visitNamedType(node);
   }
 
   @override
   void visitConstructorName(ConstructorName node) {
-    final typeName = node.type.name2.lexeme;
+    final typeName = node.type.name.lexeme;
     typeReferences.add(typeName);
     references.add(typeName);
     if (node.name != null) {
       references.add('$typeName.${node.name!.name}');
     }
     _recordElement(node.element);
-    _recordElement(node.type.element2);
+    _recordElement(node.type.element);
     super.visitConstructorName(node);
   }
 
@@ -263,22 +269,22 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitAssignmentExpression(AssignmentExpression node) {
-    _recordElement(node.readElement2);
-    _recordElement(node.writeElement2);
+    _recordElement(node.readElement);
+    _recordElement(node.writeElement);
     super.visitAssignmentExpression(node);
   }
 
   @override
   void visitPostfixExpression(PostfixExpression node) {
-    _recordElement(node.readElement2);
-    _recordElement(node.writeElement2);
+    _recordElement(node.readElement);
+    _recordElement(node.writeElement);
     super.visitPostfixExpression(node);
   }
 
   @override
   void visitPrefixExpression(PrefixExpression node) {
-    _recordElement(node.readElement2);
-    _recordElement(node.writeElement2);
+    _recordElement(node.readElement);
+    _recordElement(node.writeElement);
     super.visitPrefixExpression(node);
   }
 
@@ -306,14 +312,14 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitExtendsClause(ExtendsClause node) {
-    typeReferences.add(node.superclass.name2.lexeme);
+    typeReferences.add(node.superclass.name.lexeme);
     super.visitExtendsClause(node);
   }
 
   @override
   void visitImplementsClause(ImplementsClause node) {
     for (final interface in node.interfaces) {
-      typeReferences.add(interface.name2.lexeme);
+      typeReferences.add(interface.name.lexeme);
     }
     super.visitImplementsClause(node);
   }
@@ -321,7 +327,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitWithClause(WithClause node) {
     for (final mixin in node.mixinTypes) {
-      typeReferences.add(mixin.name2.lexeme);
+      typeReferences.add(mixin.name.lexeme);
     }
     super.visitWithClause(node);
   }
@@ -329,7 +335,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitMixinOnClause(MixinOnClause node) {
     for (final constraint in node.superclassConstraints) {
-      typeReferences.add(constraint.name2.lexeme);
+      typeReferences.add(constraint.name.lexeme);
     }
     super.visitMixinOnClause(node);
   }

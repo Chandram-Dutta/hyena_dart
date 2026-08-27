@@ -17,10 +17,8 @@ analyzer:
   exclude:
     - test/fixtures/**
   errors:
-    # We intentionally use the analyzer package's Element2/fragment APIs for
-    # resolved declaration matching. They are marked @experimental in analyzer
-    # 7.x, but are the forward-looking replacement for the deprecated Element
-    # API. Suppress the warning rather than fall back to the legacy API.
+    # Fragment APIs provide stable source identities for resolved declaration
+    # matching, but analyzer 8.x still marks them experimental.
     experimental_member_use: ignore
 
 # Uncomment the following section to specify additional rules.

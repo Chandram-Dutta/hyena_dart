@@ -285,6 +285,39 @@ void main() => invoke(Implementation());
       },
     );
 
+    test('keeps overriding fields and their initializers reachable', () async {
+      final libPath = await makeFixture('''
+abstract interface class Contract {
+  String get name;
+  String get description;
+}
+
+String _buildName() => 'implementation';
+String _buildDescription() => 'description';
+
+class Implementation implements Contract {
+  final String name = _buildName(), description = _buildDescription();
+}
+
+void main() {
+  final Contract value = Implementation();
+  print(value);
+}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('Implementation.name')));
+      expect(unusedNames, isNot(contains('Implementation.description')));
+      expect(unusedNames, isNot(contains('_buildName')));
+      expect(unusedNames, isNot(contains('_buildDescription')));
+    });
+
     test('keeps members invoked through dynamic targets reachable', () async {
       final libPath = await makeFixture('''
 void _dynamicHelper() {}
@@ -934,6 +967,28 @@ void main() {
       );
     });
 
+    test('ignores generated package and build artifacts', () async {
+      final libPath = await makeFixture('''
+void unused() {}
+void main() {}
+''');
+      final root = p.dirname(libPath);
+      for (final relativePath in [
+        p.join('.dart_tool', 'generated', 'invalid.dart'),
+        p.join('build', 'invalid.dart'),
+      ]) {
+        final file = File(p.join(root, relativePath));
+        file.parent.createSync(recursive: true);
+        file.writeAsStringSync('void broken( {');
+      }
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(root);
+
+      expect(report.unusedEntities.map((entity) => entity.name), ['unused']);
+    });
+
     test('reports declarations reachable only from dead code', () async {
       final libPath = await makeFixture('''
 void firstDeadFunction() => secondDeadFunction();
@@ -1281,6 +1336,40 @@ void iterate(List<int> values) {
       ).analyze(fixture.path);
 
       expect(report.files.single.functions.single.cyclomaticComplexity, 2);
+    });
+
+    test('accepts non-error parser diagnostics', () async {
+      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+/// {@example /example/lib/sample.dart#body}
+void documented() {}
+''');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+
+      expect(report.totalFunctions, 1);
+    });
+
+    test('ignores generated package and build artifacts', () async {
+      File(
+        p.join(fixture.path, 'sample.dart'),
+      ).writeAsStringSync('void target() {}');
+      for (final relativePath in [
+        p.join('.dart_tool', 'generated', 'invalid.dart'),
+        p.join('build', 'invalid.dart'),
+      ]) {
+        final file = File(p.join(fixture.path, relativePath));
+        file.parent.createSync(recursive: true);
+        file.writeAsStringSync('void broken( {');
+      }
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+
+      expect(report.totalFiles, 1);
+      expect(report.totalFunctions, 1);
     });
 
     test('fails instead of silently omitting invalid files', () async {
