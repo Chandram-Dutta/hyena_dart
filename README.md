@@ -60,9 +60,12 @@ hyena_dart analyze .
 Hyena supports explicit, nested, and glob workspace entries, subject to the
 workspace syntax supported by the installed Dart SDK. As required by Dart,
 each listed member must declare `resolution: workspace`. Every package is
-analyzed independently. Descendant package directories are excluded from their
-parent package, so source files are never counted twice or analyzed under the
-wrong package boundary.
+reported independently and keeps its own configuration. Dead-code reachability
+is joined across package boundaries, so a declaration used by another workspace
+package stays live while same-named declarations and references from dead callers
+do not. Descendant package directories are excluded from their parent package,
+so source files are never counted twice or analyzed under the wrong package
+boundary.
 
 Configuration is discovered separately for each package. A package-local
 `hyena.yaml` or `analysis_options.yaml` takes precedence; otherwise discovery

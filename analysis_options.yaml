@@ -14,11 +14,13 @@
 include: package:lints/recommended.yaml
 
 analyzer:
+  exclude:
+    - test/fixtures/**
   errors:
-    # We intentionally use the analyzer package's Element2/fragment APIs to do
-    # element-id based reference matching. They are marked @experimental in
-    # analyzer 7.x, but are the forward-looking replacement for the deprecated
-    # Element API. Suppress the warning rather than fall back to the legacy API.
+    # We intentionally use the analyzer package's Element2/fragment APIs for
+    # resolved declaration matching. They are marked @experimental in analyzer
+    # 7.x, but are the forward-looking replacement for the deprecated Element
+    # API. Suppress the warning rather than fall back to the legacy API.
     experimental_member_use: ignore
 
 # Uncomment the following section to specify additional rules.

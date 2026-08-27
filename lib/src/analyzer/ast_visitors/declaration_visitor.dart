@@ -5,6 +5,7 @@ import 'package:analyzer/source/line_info.dart';
 
 import '../../models/code_entity.dart';
 import '../source_suppression.dart';
+import 'element_key.dart';
 import 'member_override.dart';
 
 class DeclarationVisitor extends RecursiveAstVisitor<void> {
@@ -16,11 +17,10 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   final Set<String> entryPoints;
   final Set<String> entryPointAnnotations;
   final List<CodeEntity> declarations = [];
-  final Map<int, CodeEntity> elementIdToEntity = {};
-  final Set<int> exportedElementIds = {};
-  final Set<int> liveElementIds = {};
+  final Map<String, CodeEntity> elementKeyToEntity = {};
+  final Set<String> liveElementKeys = {};
   String? _currentClass;
-  int? _currentContainerElementId;
+  String? _currentContainerElementKey;
   bool _currentContainerExported = false;
   bool _currentContainerLive = false;
 
@@ -95,14 +95,14 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
 
   void _record(CodeEntity entity, Element2? element, {bool isLive = false}) {
     declarations.add(entity);
-    if (element != null) {
-      elementIdToEntity[element.id] = entity;
-      if (entity.isExported) exportedElementIds.add(element.id);
+    final key = elementKey(element);
+    if (key != null) {
+      elementKeyToEntity[key] = entity;
       if (isLive) {
-        liveElementIds.add(element.id);
-        final containerId = _currentContainerElementId;
-        if (entity.parentName != null && containerId != null) {
-          liveElementIds.add(containerId);
+        liveElementKeys.add(key);
+        final containerKey = _currentContainerElementKey;
+        if (entity.parentName != null && containerKey != null) {
+          liveElementKeys.add(containerKey);
         }
       }
     }
@@ -110,22 +110,22 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
 
   void _visitContainer(
     String? name,
-    int? elementId,
+    String? elementKey,
     bool isExported,
     bool isLive,
     void Function() visit,
   ) {
     final previousClass = _currentClass;
-    final previousElementId = _currentContainerElementId;
+    final previousElementKey = _currentContainerElementKey;
     final previousExported = _currentContainerExported;
     final previousLive = _currentContainerLive;
     _currentClass = name;
-    _currentContainerElementId = elementId;
+    _currentContainerElementKey = elementKey;
     _currentContainerExported = isExported;
     _currentContainerLive = isLive;
     visit();
     _currentClass = previousClass;
-    _currentContainerElementId = previousElementId;
+    _currentContainerElementKey = previousElementKey;
     _currentContainerExported = previousExported;
     _currentContainerLive = previousLive;
   }
@@ -151,7 +151,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     );
     _visitContainer(
       name,
-      node.declaredFragment?.element.id,
+      elementKey(node.declaredFragment?.element),
       isExported,
       isLive || isIgnored,
       () => super.visitClassDeclaration(node),
@@ -177,7 +177,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     );
     _visitContainer(
       name,
-      node.declaredFragment?.element.id,
+      elementKey(node.declaredFragment?.element),
       isExported,
       isLive || isIgnored,
       () => super.visitMixinDeclaration(node),
@@ -207,7 +207,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     }
     _visitContainer(
       name,
-      node.declaredFragment?.element.id,
+      elementKey(node.declaredFragment?.element),
       isExported,
       isLive || isIgnored,
       () => super.visitExtensionDeclaration(node),
@@ -233,7 +233,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     );
     _visitContainer(
       name,
-      node.declaredFragment?.element.id,
+      elementKey(node.declaredFragment?.element),
       isExported,
       isLive || isIgnored,
       () => super.visitExtensionTypeDeclaration(node),
@@ -260,7 +260,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
 
     _visitContainer(
       name,
-      node.declaredFragment?.element.id,
+      elementKey(node.declaredFragment?.element),
       isExported,
       isLive || isIgnored,
       () {

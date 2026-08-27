@@ -1,0 +1,5 @@
+hyena:
+  dead_code:
+    ignore_exports: false
+    entry_point_annotations:
+      - RoutePage

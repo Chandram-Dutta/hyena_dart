@@ -2,6 +2,7 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element2.dart';
 
+import 'element_key.dart';
 import 'member_override.dart';
 
 class ReferenceVisitor extends RecursiveAstVisitor<void> {
@@ -9,52 +10,67 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   final Set<String> typeReferences = {};
   final Set<String> imports = {};
   final Set<String> unresolvedMemberNames = {};
-  final Set<int> referencedElementIds = {};
-  final Map<int, Set<int>> referenceGraph = {};
-  final Set<int> rootElementIds = {};
-  int? _currentDeclarationId;
+  final Map<String, Set<String>> referenceGraph = {};
+  final Set<String> rootElementKeys = {};
+  String? _currentDeclarationKey;
 
   void _visitInScope(
     Element2? element,
     void Function() visit, {
     bool isRoot = false,
   }) {
-    final previousDeclarationId = _currentDeclarationId;
-    if (element != null) {
-      _currentDeclarationId = element.id;
-      if (isRoot) rootElementIds.add(element.id);
+    final previousDeclarationKey = _currentDeclarationKey;
+    final key = elementKey(element);
+    if (key != null) {
+      _currentDeclarationKey = key;
+      if (isRoot) rootElementKeys.add(key);
     }
     visit();
-    _currentDeclarationId = previousDeclarationId;
+    _currentDeclarationKey = previousDeclarationKey;
   }
 
   void _recordElement(Element2? element) {
     if (element == null) return;
-    _recordElementIdAndExtension(element);
+    _recordElementAndExtension(element);
     if (element is PropertyAccessorElement2) {
       final variable = element.variable3;
-      if (variable != null) _recordElementIdAndExtension(variable);
+      if (variable != null) _recordElementAndExtension(variable);
     }
   }
 
-  void _recordElementIdAndExtension(Element2 element) {
-    _recordElementId(element.id);
+  void _recordElementAndExtension(Element2 element) {
+    _recordElementKey(elementKey(element));
     final enclosing = element.enclosingElement2;
     if (enclosing is ExtensionElement2) {
-      _recordElementId(enclosing.id);
+      _recordElementKey(elementKey(enclosing));
     } else if (enclosing is ExtensionTypeElement2) {
-      _recordElementId(enclosing.id);
+      _recordElementKey(elementKey(enclosing));
     }
   }
 
-  void _recordElementId(int elementId) {
-    referencedElementIds.add(elementId);
-    final sourceId = _currentDeclarationId;
-    if (sourceId == null) {
-      rootElementIds.add(elementId);
+  void _recordElementKey(String? key) {
+    if (key == null) return;
+    final sourceKey = _currentDeclarationKey;
+    if (sourceKey == null) {
+      rootElementKeys.add(key);
     } else {
-      referenceGraph.putIfAbsent(sourceId, () => {}).add(elementId);
+      referenceGraph.putIfAbsent(sourceKey, () => {}).add(key);
     }
+  }
+
+  bool _isResolvedByCompoundParent(Expression node) {
+    final parent = node.parent;
+    if (parent is AssignmentExpression &&
+        identical(parent.leftHandSide, node)) {
+      return parent.readElement2 != null || parent.writeElement2 != null;
+    }
+    if (parent is PrefixExpression && identical(parent.operand, node)) {
+      return parent.readElement2 != null || parent.writeElement2 != null;
+    }
+    if (parent is PostfixExpression && identical(parent.operand, node)) {
+      return parent.readElement2 != null || parent.writeElement2 != null;
+    }
+    return false;
   }
 
   @override
@@ -189,7 +205,9 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     references.add('${node.prefix.name}.${node.identifier.name}');
     _recordElement(node.prefix.element);
     _recordElement(node.identifier.element);
-    if (node.identifier.element == null && node.prefix.element != null) {
+    if (node.identifier.element == null &&
+        node.prefix.element != null &&
+        !_isResolvedByCompoundParent(node)) {
       unresolvedMemberNames.add(node.identifier.name);
     }
     super.visitPrefixedIdentifier(node);
@@ -235,7 +253,8 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitPropertyAccess(PropertyAccess node) {
     references.add(node.propertyName.name);
-    if (node.propertyName.element == null) {
+    if (node.propertyName.element == null &&
+        !_isResolvedByCompoundParent(node)) {
       unresolvedMemberNames.add(node.propertyName.name);
     }
     _recordElement(node.propertyName.element);

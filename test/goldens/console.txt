@@ -1,0 +1,42 @@
+
+═══════════════════════════════════════════════════════════════
+                    HYENA CODE ANALYSIS REPORT
+═══════════════════════════════════════════════════════════════
+
+Target: /workspace
+Duration: 42ms
+
+Workspace packages: 1
+
+PACKAGE example
+/workspace/packages/example
+
+───────────────────────────────────────────────────────────────
+                         DEAD CODE REPORT
+───────────────────────────────────────────────────────────────
+
+Total declarations: 2
+Unused entities: 1
+Dead code percentage: 50.0%
+
+⚡ 1 unused function:
+  • unusedHelper
+    /workspace/packages/example/lib/example.dart
+
+───────────────────────────────────────────────────────────────
+                      COMPLEXITY REPORT
+───────────────────────────────────────────────────────────────
+
+Files analyzed: 1
+Functions analyzed: 1
+Total lines: 12
+
+⚠ Threshold violations (cyclomatic > 1, nesting > 1, parameters > 1):
+
+  Example.complexThing
+    Cyclomatic Complexity: 3
+    Lines of Code: 4
+    Max Nesting: 2
+    Parameters: 2
+    Maintainability Index: 75.9
+    /workspace/packages/example/lib/example.dart

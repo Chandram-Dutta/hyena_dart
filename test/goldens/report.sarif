@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Hyena Dart",
+          "informationUri": "https://github.com/Chandram-Dutta/hyena_dart",
+          "rules": [
+            {
+              "id": "dead-code",
+              "name": "Dead code",
+              "shortDescription": {
+                "text": "A declaration is not reachable from an analyzed entry point."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "cyclomatic-complexity",
+              "name": "Cyclomatic complexity",
+              "shortDescription": {
+                "text": "A function exceeds the configured cyclomatic complexity threshold."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "max-nesting",
+              "name": "Maximum nesting",
+              "shortDescription": {
+                "text": "A function exceeds the configured nesting threshold."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "max-parameters",
+              "name": "Maximum parameters",
+              "shortDescription": {
+                "text": "A function exceeds the configured parameter count threshold."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "dead-code",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "Unused function unusedHelper"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/example/lib/example.dart"
+                },
+                "region": {
+                  "startLine": 3,
+                  "startColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "hyenaFingerprint/v1": "[\"dead-code\",\"dead-code\",\"packages/example/lib/example.dart\",\"function\",\"unusedHelper\"]"
+          },
+          "properties": {
+            "category": "dead-code",
+            "symbol": "unusedHelper",
+            "symbolType": "function"
+          }
+        },
+        {
+          "ruleId": "cyclomatic-complexity",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "Cyclomatic complexity for Example.complexThing is 3 (threshold: 1)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/example/lib/example.dart"
+                },
+                "region": {
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "hyenaFingerprint/v1": "[\"complexity\",\"cyclomatic-complexity\",\"packages/example/lib/example.dart\",\"function\",\"Example.complexThing\"]"
+          },
+          "properties": {
+            "category": "complexity",
+            "symbol": "Example.complexThing",
+            "symbolType": "function",
+            "value": 3,
+            "threshold": 1
+          }
+        },
+        {
+          "ruleId": "max-nesting",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Nesting level for Example.complexThing is 2 (threshold: 1)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/example/lib/example.dart"
+                },
+                "region": {
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "hyenaFingerprint/v1": "[\"complexity\",\"max-nesting\",\"packages/example/lib/example.dart\",\"function\",\"Example.complexThing\"]"
+          },
+          "properties": {
+            "category": "complexity",
+            "symbol": "Example.complexThing",
+            "symbolType": "function",
+            "value": 2,
+            "threshold": 1
+          }
+        },
+        {
+          "ruleId": "max-parameters",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Parameter count for Example.complexThing is 2 (threshold: 1)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/example/lib/example.dart"
+                },
+                "region": {
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "hyenaFingerprint/v1": "[\"complexity\",\"max-parameters\",\"packages/example/lib/example.dart\",\"function\",\"Example.complexThing\"]"
+          },
+          "properties": {
+            "category": "complexity",
+            "symbol": "Example.complexThing",
+            "symbolType": "function",
+            "value": 2,
+            "threshold": 1
+          }
+        }
+      ]
+    }
+  ]
+}

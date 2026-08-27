@@ -1,0 +1,83 @@
+{
+  "targetPath": "/workspace",
+  "duration": "42ms",
+  "workspace": {
+    "packageCount": 1,
+    "deadCode": {
+      "totalDeclarations": 2,
+      "unusedDeclarations": 1
+    },
+    "complexity": {
+      "files": 1,
+      "functions": 1,
+      "lines": 12,
+      "thresholdViolations": 1
+    }
+  },
+  "packages": [
+    {
+      "targetPath": "/workspace/packages/example",
+      "duration": "7ms",
+      "package": "example",
+      "deadCode": {
+        "analyzedAt": "2026-08-27T12:00:00.000Z",
+        "summary": {
+          "totalDeclarations": 2,
+          "unusedCount": 1,
+          "deadCodePercentage": "50.00"
+        },
+        "unusedEntities": [
+          {
+            "name": "unusedHelper",
+            "type": "function",
+            "filePath": "/workspace/packages/example/lib/example.dart",
+            "line": 3,
+            "column": 1,
+            "isPublic": true
+          }
+        ]
+      },
+      "complexity": {
+        "analyzedAt": "2026-08-27T12:00:00.000Z",
+        "thresholds": {
+          "cyclomaticComplexity": 1,
+          "maxNestingLevel": 1,
+          "maxParameters": 1
+        },
+        "summary": {
+          "totalFiles": 1,
+          "totalFunctions": 1,
+          "totalLines": 12,
+          "highComplexityFunctions": 1,
+          "highNestingFunctions": 1,
+          "highParameterFunctions": 1,
+          "thresholdViolations": 1
+        },
+        "files": [
+          {
+            "filePath": "/workspace/packages/example/lib/example.dart",
+            "totalLines": 12,
+            "codeLines": 9,
+            "commentLines": 1,
+            "blankLines": 2,
+            "averageCyclomaticComplexity": "3.00",
+            "maxCyclomaticComplexity": 3,
+            "functions": [
+              {
+                "name": "Example.complexThing",
+                "filePath": "/workspace/packages/example/lib/example.dart",
+                "line": 10,
+                "cyclomaticComplexity": 3,
+                "linesOfCode": 4,
+                "maxNestingLevel": 2,
+                "parameterCount": 2,
+                "halsteadVolume": "32.00",
+                "maintainabilityIndex": "75.92"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -25,6 +25,41 @@ class DeadCodeAnalyzer {
     String targetPath, {
     Iterable<String> excludedPaths = const [],
   }) async {
+    final analysis = await _analyze(targetPath, excludedPaths: excludedPaths);
+    return _buildReports([analysis]).single;
+  }
+
+  static Future<List<({DeadCodeReport report, Duration duration})>>
+  analyzeWorkspace(
+    List<
+      ({
+        String targetPath,
+        AnalyzerConfig config,
+        Iterable<String> excludedPaths,
+      })
+    >
+    packages,
+  ) async {
+    final analyses = <_DeadCodeAnalysis>[];
+    for (final package in packages) {
+      analyses.add(
+        await DeadCodeAnalyzer(
+          package.config,
+        )._analyze(package.targetPath, excludedPaths: package.excludedPaths),
+      );
+    }
+    final reports = _buildReports(analyses);
+    return [
+      for (var index = 0; index < reports.length; index++)
+        (report: reports[index], duration: analyses[index].duration),
+    ];
+  }
+
+  Future<_DeadCodeAnalysis> _analyze(
+    String targetPath, {
+    required Iterable<String> excludedPaths,
+  }) async {
+    final stopwatch = Stopwatch()..start();
     final absTarget = p.absolute(targetPath);
     final analysisRoot = await FileSystemEntity.isFile(absTarget)
         ? p.dirname(absTarget)
@@ -47,9 +82,9 @@ class DeadCodeAnalyzer {
 
     final allDeclarations = <CodeEntity>[];
     final allReferences = <String>{};
-    final elementIdToEntity = <int, CodeEntity>{};
-    final referenceGraph = <int, Set<int>>{};
-    final rootElementIds = <int>{};
+    final elementKeyToEntity = <String, CodeEntity>{};
+    final referenceGraph = <String, Set<String>>{};
+    final rootElementKeys = <String>{};
     final unresolvedMemberNames = <String>{};
 
     final parsedUnits = <String, CompilationUnit>{};
@@ -107,39 +142,29 @@ class DeadCodeAnalyzer {
       );
       unit.accept(declarationVisitor);
       allDeclarations.addAll(declarationVisitor.declarations);
-      elementIdToEntity.addAll(declarationVisitor.elementIdToEntity);
-      if (config.ignoreExports) {
-        rootElementIds.addAll(declarationVisitor.exportedElementIds);
-      }
-      rootElementIds.addAll(declarationVisitor.liveElementIds);
+      elementKeyToEntity.addAll(declarationVisitor.elementKeyToEntity);
+      rootElementKeys.addAll(declarationVisitor.liveElementKeys);
 
       final referenceVisitor = ReferenceVisitor();
       unit.accept(referenceVisitor);
       allReferences.addAll(referenceVisitor.allReferences);
       unresolvedMemberNames.addAll(referenceVisitor.unresolvedMemberNames);
-      rootElementIds.addAll(referenceVisitor.rootElementIds);
+      rootElementKeys.addAll(referenceVisitor.rootElementKeys);
       for (final entry in referenceVisitor.referenceGraph.entries) {
         referenceGraph.putIfAbsent(entry.key, () => {}).addAll(entry.value);
       }
     }
 
-    for (final entry in elementIdToEntity.entries) {
-      if (unresolvedMemberNames.contains(entry.value.name)) {
-        rootElementIds.add(entry.key);
-      }
-    }
-
-    final unusedEntities = _findUnusedEntities(
-      allDeclarations,
-      allReferences,
-      elementIdToEntity,
-      referenceGraph,
-      rootElementIds,
-    );
-
-    return DeadCodeReport(
-      unusedEntities: unusedEntities,
-      totalDeclarations: allDeclarations.length,
+    stopwatch.stop();
+    return _DeadCodeAnalysis(
+      config: config,
+      declarations: allDeclarations,
+      references: allReferences,
+      elementKeyToEntity: elementKeyToEntity,
+      referenceGraph: referenceGraph,
+      rootElementKeys: rootElementKeys,
+      unresolvedMemberNames: unresolvedMemberNames,
+      duration: stopwatch.elapsed,
     );
   }
 
@@ -426,66 +451,75 @@ class DeadCodeAnalyzer {
     }
   }
 
-  List<CodeEntity> _findUnusedEntities(
-    List<CodeEntity> declarations,
-    Set<String> references,
-    Map<int, CodeEntity> elementIdToEntity,
-    Map<int, Set<int>> referenceGraph,
-    Set<int> rootElementIds,
-  ) {
-    final entityToId = <CodeEntity, int>{};
-    for (final entry in elementIdToEntity.entries) {
-      entityToId[entry.value] = entry.key;
-    }
-
-    for (final entry in elementIdToEntity.entries) {
-      final entity = entry.value;
-      if ((config.ignoreExports && entity.isExported) ||
-          (config.ignorePrivate && !entity.isPublic)) {
-        rootElementIds.add(entry.key);
+  static List<DeadCodeReport> _buildReports(List<_DeadCodeAnalysis> analyses) {
+    final referenceGraph = <String, Set<String>>{};
+    final roots = <String>{};
+    for (final analysis in analyses) {
+      roots.addAll(analysis.rootElementKeys);
+      for (final entry in analysis.referenceGraph.entries) {
+        referenceGraph.putIfAbsent(entry.key, () => {}).addAll(entry.value);
+      }
+      for (final entry in analysis.elementKeyToEntity.entries) {
+        final entity = entry.value;
+        if ((analysis.config.ignoreExports && entity.isExported) ||
+            (analysis.config.ignorePrivate && !entity.isPublic) ||
+            analysis.unresolvedMemberNames.contains(entity.name)) {
+          roots.add(entry.key);
+        }
       }
     }
-    final reachableElementIds = _findReachableElements(
-      referenceGraph,
-      rootElementIds,
-    );
 
-    final unused = <CodeEntity>[];
-    for (final entity in declarations) {
-      if (_isUsed(entity, references, entityToId, reachableElementIds)) {
-        continue;
+    final reachableElementKeys = _findReachableElements(referenceGraph, roots);
+    return analyses.map((analysis) {
+      final entityToKey = <CodeEntity, String>{};
+      for (final entry in analysis.elementKeyToEntity.entries) {
+        entityToKey[entry.value] = entry.key;
       }
-      if (config.ignoreExports && entity.isExported) continue;
-      if (!entity.isPublic && config.ignorePrivate) continue;
-      unused.add(entity);
-    }
-    return unused;
+      final unused = <CodeEntity>[];
+      for (final entity in analysis.declarations) {
+        if (_isUsed(
+          entity,
+          analysis.references,
+          entityToKey,
+          reachableElementKeys,
+        )) {
+          continue;
+        }
+        if (analysis.config.ignoreExports && entity.isExported) continue;
+        if (!entity.isPublic && analysis.config.ignorePrivate) continue;
+        unused.add(entity);
+      }
+      return DeadCodeReport(
+        unusedEntities: unused,
+        totalDeclarations: analysis.declarations.length,
+      );
+    }).toList();
   }
 
-  Set<int> _findReachableElements(
-    Map<int, Set<int>> referenceGraph,
-    Set<int> roots,
+  static Set<String> _findReachableElements(
+    Map<String, Set<String>> referenceGraph,
+    Set<String> roots,
   ) {
-    final reachable = <int>{...roots};
+    final reachable = <String>{...roots};
     final pending = roots.toList();
     while (pending.isNotEmpty) {
       final source = pending.removeLast();
-      for (final target in referenceGraph[source] ?? const <int>{}) {
+      for (final target in referenceGraph[source] ?? const <String>{}) {
         if (reachable.add(target)) pending.add(target);
       }
     }
     return reachable;
   }
 
-  bool _isUsed(
+  static bool _isUsed(
     CodeEntity entity,
     Set<String> references,
-    Map<CodeEntity, int> entityToId,
-    Set<int> reachableElementIds,
+    Map<CodeEntity, String> entityToKey,
+    Set<String> reachableElementKeys,
   ) {
-    final id = entityToId[entity];
-    if (id != null) {
-      return reachableElementIds.contains(id);
+    final key = entityToKey[entity];
+    if (key != null) {
+      return reachableElementKeys.contains(key);
     }
 
     if (references.contains(entity.name)) return true;
@@ -501,4 +535,26 @@ class DeadCodeAnalyzer {
 
     return false;
   }
+}
+
+class _DeadCodeAnalysis {
+  final AnalyzerConfig config;
+  final List<CodeEntity> declarations;
+  final Set<String> references;
+  final Map<String, CodeEntity> elementKeyToEntity;
+  final Map<String, Set<String>> referenceGraph;
+  final Set<String> rootElementKeys;
+  final Set<String> unresolvedMemberNames;
+  final Duration duration;
+
+  const _DeadCodeAnalysis({
+    required this.config,
+    required this.declarations,
+    required this.references,
+    required this.elementKeyToEntity,
+    required this.referenceGraph,
+    required this.rootElementKeys,
+    required this.unresolvedMemberNames,
+    required this.duration,
+  });
 }

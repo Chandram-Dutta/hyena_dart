@@ -157,7 +157,7 @@ name: workspace_root
 environment:
   sdk: ^3.10.0
 workspace:
-  - packages/*
+  - ${p.join('packages', '*')}
 ''');
 
       final result = await const AnalysisRunner().analyze(
@@ -169,6 +169,87 @@ workspace:
         'workspace_root',
         'first_package',
         'second_package',
+      ]);
+    });
+
+    test(
+      'supports recursive globs with deterministically sorted members',
+      () async {
+        final nested = Directory(
+          p.join(workspace.path, 'packages', 'group', 'nested', 'lib'),
+        )..createSync(recursive: true);
+        File(
+          p.join(workspace.path, 'packages', 'group', 'nested', 'pubspec.yaml'),
+        ).writeAsStringSync('''
+name: nested_package
+resolution: workspace
+environment:
+  sdk: ^3.10.0
+''');
+        File(
+          p.join(nested.path, 'nested.dart'),
+        ).writeAsStringSync('void nestedFunction() {}');
+        File(p.join(workspace.path, 'pubspec.yaml')).writeAsStringSync('''
+name: workspace_root
+environment:
+  sdk: ^3.10.0
+workspace:
+  - ${p.join('packages', '**')}
+''');
+
+        final result = await const AnalysisRunner().analyze(
+          workspace.path,
+          includeDeadCode: false,
+        );
+
+        expect(result.packageAnalyses.map((analysis) => analysis.packageName), [
+          'workspace_root',
+          'first_package',
+          'nested_package',
+          'second_package',
+        ]);
+      },
+    );
+
+    test('rejects overlapping explicit and glob workspace entries', () async {
+      File(p.join(workspace.path, 'pubspec.yaml')).writeAsStringSync('''
+name: workspace_root
+environment:
+  sdk: ^3.10.0
+workspace:
+  - ${p.join('packages', '*')}
+  - ${p.join('packages', 'first')}
+''');
+
+      await expectLater(
+        const AnalysisRunner().analyze(workspace.path, includeDeadCode: false),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('more than once'),
+          ),
+        ),
+      );
+    });
+
+    test('accepts native separators in explicit workspace entries', () async {
+      File(p.join(workspace.path, 'pubspec.yaml')).writeAsStringSync('''
+name: workspace_root
+environment:
+  sdk: ^3.10.0
+workspace:
+  - ${p.join('packages', 'first')}
+''');
+
+      final result = await const AnalysisRunner().analyze(
+        workspace.path,
+        includeDeadCode: false,
+      );
+
+      expect(result.packageAnalyses.map((analysis) => analysis.packageName), [
+        'workspace_root',
+        'first_package',
       ]);
     });
 
@@ -209,6 +290,94 @@ workspace:
         expect(
           first.deadCodeReport!.unusedEntities.map((entity) => entity.name),
           isNot(contains('_unusedSecond')),
+        );
+      },
+    );
+
+    test(
+      'tracks resolved reachability across a Flutter-style monorepo',
+      () async {
+        final fixture = await Directory.systemTemp.createTemp(
+          'hyena_flutter_monorepo_',
+        );
+        addTearDown(() => fixture.delete(recursive: true));
+        await _copyDirectory(
+          Directory('test/fixtures/flutter_monorepo'),
+          fixture,
+        );
+        final pubGet = await Process.run(Platform.resolvedExecutable, [
+          'pub',
+          'get',
+        ], workingDirectory: fixture.path);
+        expect(pubGet.exitCode, 0, reason: pubGet.stderr as String);
+
+        final result = await const AnalysisRunner().analyze(
+          fixture.path,
+          includeComplexity: false,
+        );
+        final app = result.packageAnalyses.singleWhere(
+          (analysis) => analysis.packageName == 'storefront',
+        );
+        final core = result.packageAnalyses.singleWhere(
+          (analysis) => analysis.packageName == 'shared_core',
+        );
+        final designSystem = result.packageAnalyses.singleWhere(
+          (analysis) => analysis.packageName == 'design_system',
+        );
+        final appUnused = app.deadCodeReport!.unusedEntities
+            .map((entity) => entity.fullName)
+            .toSet();
+        final coreUnused = core.deadCodeReport!.unusedEntities
+            .map((entity) => entity.fullName)
+            .toSet();
+        final designUnused = designSystem.deadCodeReport!.unusedEntities
+            .map((entity) => entity.fullName)
+            .toSet();
+
+        expect(
+          appUnused,
+          containsAll(<String>['neverRegistered', 'invokeDynamic']),
+        );
+        expect(
+          coreUnused.intersection(<String>{
+            'SessionStore',
+            'SessionStore.production',
+            'SessionStore.token',
+            'SessionStore.refreshCount',
+            'SessionStore.refresh',
+            'SessionStore._token',
+            'SessionStore._persist',
+          }),
+          isEmpty,
+        );
+        expect(
+          coreUnused,
+          containsAll(<String>[
+            'SessionStore.unused',
+            'SessionStore.unusedMethod',
+            'DeferredService',
+            'DeferredService.live',
+            'DeferredService.activate',
+            'DeferredService._dependency',
+          ]),
+        );
+        expect(
+          designUnused,
+          containsAll(<String>[
+            'SessionStore',
+            'SessionStore.production',
+            'SessionStore.token',
+            'SessionStore.refreshCount',
+            'SessionStore.refresh',
+          ]),
+          reason: 'same-named declarations in another package stay dead',
+        );
+        expect(
+          designUnused.intersection(<String>{
+            'PrimaryButton',
+            'PrimaryButton.new',
+          }),
+          isEmpty,
         );
       },
     );
@@ -295,6 +464,70 @@ workspace:
       );
     });
 
+    test('rejects malformed workspace declarations', () async {
+      for (final workspaceYaml in <String>[
+        'workspace: packages/first',
+        'workspace: [packages/first, 7]',
+        'workspace: [""]',
+        'workspace: [${p.join('packages', 'missing', '*')}]',
+      ]) {
+        File(p.join(workspace.path, 'pubspec.yaml')).writeAsStringSync('''
+name: workspace_root
+environment:
+  sdk: ^3.10.0
+$workspaceYaml
+''');
+
+        await expectLater(
+          const AnalysisRunner().analyze(
+            workspace.path,
+            includeDeadCode: false,
+          ),
+          throwsA(isA<FormatException>()),
+          reason: workspaceYaml,
+        );
+      }
+    });
+
+    test('rejects absolute workspace entries', () async {
+      final absoluteMember = p.join(workspace.path, 'packages', 'first');
+      File(p.join(workspace.path, 'pubspec.yaml')).writeAsStringSync('''
+name: workspace_root
+environment:
+  sdk: ^3.10.0
+workspace:
+  - '$absoluteMember'
+''');
+
+      await expectLater(
+        const AnalysisRunner().analyze(workspace.path, includeDeadCode: false),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('relative paths'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects malformed workspace member pubspecs', () async {
+      File(
+        p.join(workspace.path, 'packages', 'first', 'pubspec.yaml'),
+      ).writeAsStringSync('- not\n- a\n- map\n');
+
+      await expectLater(
+        const AnalysisRunner().analyze(workspace.path, includeDeadCode: false),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('must contain a YAML map'),
+          ),
+        ),
+      );
+    });
+
     test('rejects workspace members outside the workspace root', () async {
       File(p.join(workspace.path, 'pubspec.yaml')).writeAsStringSync('''
 name: workspace_root
@@ -333,9 +566,11 @@ resolution: workspace
 environment:
   sdk: ^3.10.0
 ''');
-        await Link(
+        final link = await _createDirectoryLink(
           p.join(workspace.path, 'packages', 'linked'),
-        ).create(outside.path);
+          outside.path,
+        );
+        if (link == null) return;
         File(p.join(workspace.path, 'pubspec.yaml')).writeAsStringSync('''
 name: workspace_root
 environment:
@@ -358,10 +593,34 @@ workspace:
           ),
         );
       },
-      skip: Platform.isWindows
-          ? 'Symlink creation may require privileges'
-          : false,
     );
+
+    test('rejects duplicate members reached through a symlink alias', () async {
+      final link = await _createDirectoryLink(
+        p.join(workspace.path, 'packages', 'first_alias'),
+        p.join(workspace.path, 'packages', 'first'),
+      );
+      if (link == null) return;
+      File(p.join(workspace.path, 'pubspec.yaml')).writeAsStringSync('''
+name: workspace_root
+environment:
+  sdk: ^3.10.0
+workspace:
+  - ${p.join('packages', 'first')}
+  - ${p.join('packages', 'first_alias')}
+''');
+
+      await expectLater(
+        const AnalysisRunner().analyze(workspace.path, includeDeadCode: false),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('more than once'),
+          ),
+        ),
+      );
+    });
   });
 }
 
@@ -412,4 +671,27 @@ hyena:
     cyclomatic_threshold: 1
 ''');
   return workspace;
+}
+
+Future<void> _copyDirectory(Directory source, Directory destination) async {
+  await for (final entity in source.list(recursive: true, followLinks: false)) {
+    final relativePath = p.relative(entity.path, from: source.path);
+    final destinationPath = p.join(destination.path, relativePath);
+    if (entity is Directory) {
+      await Directory(destinationPath).create(recursive: true);
+    } else if (entity is File) {
+      final file = File(destinationPath);
+      await file.parent.create(recursive: true);
+      await entity.copy(file.path);
+    }
+  }
+}
+
+Future<Link?> _createDirectoryLink(String path, String target) async {
+  try {
+    return await Link(path).create(target);
+  } on FileSystemException {
+    if (Platform.isWindows) return null;
+    rethrow;
+  }
 }

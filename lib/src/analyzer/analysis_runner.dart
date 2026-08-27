@@ -7,6 +7,7 @@ import 'package:yaml/yaml.dart';
 
 import '../config/analyzer_config.dart';
 import '../models/analysis_result.dart';
+import '../models/dead_code_report.dart';
 import 'complexity_analyzer.dart';
 import 'dead_code_analyzer.dart';
 
@@ -43,7 +44,14 @@ class AnalysisRunner {
       );
     }
 
-    final packageResults = <AnalysisResult>[];
+    final packages =
+        <
+          ({
+            _WorkspacePackage package,
+            List<String> excludedPaths,
+            AnalyzerConfig config,
+          })
+        >[];
     for (final package in workspace.packages) {
       final excludedPaths = workspace.packages
           .where(
@@ -53,18 +61,56 @@ class AnalysisRunner {
           )
           .map((candidate) => candidate.rootPath)
           .toList();
+      var config = await AnalyzerConfig.load(
+        configPath,
+        targetPath: package.rootPath,
+        searchBoundary:
+            searchBoundary ?? (configPath == null ? workspace.rootPath : null),
+      );
+      if (configure != null) config = configure(config);
+      packages.add((
+        package: package,
+        excludedPaths: excludedPaths,
+        config: config,
+      ));
+    }
+
+    List<DeadCodeReport?> deadCodeReports;
+    List<Duration> deadCodeDurations;
+    if (includeDeadCode) {
+      final analyses = await DeadCodeAnalyzer.analyzeWorkspace([
+        for (final input in packages)
+          (
+            targetPath: input.package.rootPath,
+            config: input.config,
+            excludedPaths: input.excludedPaths,
+          ),
+      ]);
+      deadCodeReports = [for (final analysis in analyses) analysis.report];
+      deadCodeDurations = [for (final analysis in analyses) analysis.duration];
+    } else {
+      deadCodeReports = List.filled(packages.length, null);
+      deadCodeDurations = List.filled(packages.length, Duration.zero);
+    }
+
+    final packageResults = <AnalysisResult>[];
+    for (var index = 0; index < packages.length; index++) {
+      final input = packages[index];
+      final complexityStopwatch = Stopwatch()..start();
+      final complexityReport = includeComplexity
+          ? await ComplexityAnalyzer(input.config).analyze(
+              input.package.rootPath,
+              excludedPaths: input.excludedPaths,
+            )
+          : null;
+      complexityStopwatch.stop();
       packageResults.add(
-        await _analyzePackage(
-          targetPath: package.rootPath,
-          packageName: package.name,
-          excludedPaths: excludedPaths,
-          configPath: configPath,
-          searchBoundary:
-              searchBoundary ??
-              (configPath == null ? workspace.rootPath : null),
-          includeDeadCode: includeDeadCode,
-          includeComplexity: includeComplexity,
-          configure: configure,
+        AnalysisResult(
+          deadCodeReport: deadCodeReports[index],
+          complexityReport: complexityReport,
+          targetPath: input.package.rootPath,
+          duration: deadCodeDurations[index] + complexityStopwatch.elapsed,
+          packageName: input.package.name,
         ),
       );
     }

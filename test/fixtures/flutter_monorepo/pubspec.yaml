@@ -1,0 +1,9 @@
+name: flutter_monorepo_fixture
+publish_to: none
+environment:
+  sdk: ^3.10.0
+workspace:
+  - apps/storefront
+  - packages/design_system
+  - packages/flutter
+  - packages/shared_core

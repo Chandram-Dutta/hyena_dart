@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hyena Code Analysis Report</title>
+  <style>
+[report stylesheet]
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Hyena Code Analysis Report</h1>
+      <p class="meta">Target: <code>&#47;workspace</code> • Duration: 42ms</p>
+    </header>
+    <section class="report-section">
+      <h2>Package <code>example</code></h2>
+      <p class="meta">&#47;workspace&#47;packages&#47;example</p>
+    </section>
+    <section class="report-section">
+      <h2>Dead Code Report</h2>
+      <div class="summary-cards">
+        <div class="card">
+          <div class="card-value">2</div>
+          <div class="card-label">Total Declarations</div>
+        </div>
+        <div class="card warning">
+          <div class="card-value">1</div>
+          <div class="card-label">Unused Entities</div>
+        </div>
+        <div class="card danger">
+          <div class="card-value">50.0%</div>
+          <div class="card-label">Dead Code</div>
+        </div>
+      </div>
+      <div class="entity-list">
+        <details>
+          <summary>&#47;workspace&#47;packages&#47;example&#47;lib&#47;example.dart (1 issues)</summary>
+          <table>
+            <thead><tr><th>Type</th><th>Name</th><th>Line</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="badge badge-function">function</span></td>
+                <td><code>unusedHelper</code></td>
+                <td>3</td>
+              </tr>
+            </tbody>
+          </table>
+        </details>
+      </div>
+    </section>
+    <section class="report-section">
+      <h2>Complexity Report</h2>
+      <div class="summary-cards">
+        <div class="card">
+          <div class="card-value">1</div>
+          <div class="card-label">Files</div>
+        </div>
+        <div class="card">
+          <div class="card-value">1</div>
+          <div class="card-label">Functions</div>
+        </div>
+        <div class="card">
+          <div class="card-value">12</div>
+          <div class="card-label">Total Lines</div>
+        </div>
+        <div class="card warning">
+          <div class="card-value">1</div>
+          <div class="card-label">Threshold Violations</div>
+        </div>
+      </div>
+      <h3>Complexity Threshold Violations</h3>
+      <p>Cyclomatic &gt; 1, nesting &gt; 1, parameters &gt; 1</p>
+      <table>
+        <thead>
+          <tr><th>Function</th><th>Cyclomatic</th><th>LOC</th><th>Nesting</th><th>Params</th><th>MI</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Example.complexThing</code><br><small>&#47;workspace&#47;packages&#47;example&#47;lib&#47;example.dart</small></td>
+            <td class="success">3</td>
+            <td>4</td>
+            <td>2</td>
+            <td>2</td>
+            <td>75.9</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>
