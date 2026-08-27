@@ -1,3 +1,9 @@
+## Unreleased
+
+### Added
+- Add a stdio-only, workspace-confined MCP server with one read-only analysis tool
+- Add an agent skill for safe Hyena MCP and JSON CLI workflows
+
 ## [1.1.1] - 2026-08-27
 
 ### Fixed

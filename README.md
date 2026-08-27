@@ -45,6 +45,59 @@ hyena_dart dead-code lib
 hyena_dart complexity lib
 ```
 
+## AI Assistant Integration
+
+Hyena includes a read-only MCP server and a repository-local agent skill. The
+MCP server exposes one tool, `hyena_analyze`, for dead-code and complexity
+analysis with structured results.
+
+After globally activating Hyena, configure an MCP client to launch the server
+over standard input/output:
+
+```json
+{
+  "mcpServers": {
+    "hyena": {
+      "command": "hyena_mcp",
+      "args": ["--root", "/absolute/path/to/dart-project"]
+    }
+  }
+}
+```
+
+The workspace root is a startup argument chosen by the user, not a tool
+argument chosen by the model. Tool calls accept only a relative `path` and a
+`checks` value of `both`, `dead-code`, or `complexity`.
+
+Each request is limited to 10,000 Dart files and 50 MiB of Dart source, returns
+at most 200 findings with bounded text fields, and is terminated after two
+minutes. The server processes only one analysis at a time; narrow the target
+path if a result is truncated.
+
+Per-request cancellation is not supported because `dart_mcp` 0.5.x does not
+expose JSON-RPC request IDs to tool handlers. Disconnecting the client stops
+the worker immediately; otherwise the two-minute limit still applies.
+
+Security properties of the MCP interface:
+
+- stdio transport only; it does not open a local or remote network server
+- no shell execution, target-code execution, file writes, or baseline changes
+- canonical workspace checks that reject traversal and existing symlink escapes
+- bounded source size, file count, result count, runtime, and concurrency
+- configuration discovery stops at the configured workspace root
+
+The server still runs with the operating-system permissions of the MCP client.
+Dart analysis may read the installed SDK, package-resolution metadata, and
+resolved dependencies outside the workspace root, but it does not execute them.
+Because application-level checks are not an OS sandbox, another process that
+can mutate the workspace could race validation by replacing a checked path.
+For stronger isolation, launch the server in a sandbox or container with the
+workspace and dependency cache mounted read-only and networking disabled.
+
+Contributors using an Agent Skills-compatible client can load
+[`.agents/skills/analyzing-dart-code`](.agents/skills/analyzing-dart-code/SKILL.md).
+The skill prefers the constrained MCP tool and documents a JSON CLI fallback.
+
 ## CLI Reference
 
 ### Commands
