@@ -2,8 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/Chandram-Dutta/hyena_dart/main/hyena_dart_logo.png" width="200" alt="Hyena Logo">
 
-
-A powerful Flutter/Dart codebase analyzer that detects dead code and calculates code complexity metrics. Built using the official Dart `analyzer` package for accurate AST-based analysis.
+A Dart and Flutter codebase analyzer for finding unused declarations and measuring code complexity. Hyena uses the official Dart `analyzer` package for AST-based analysis.
 
 ## Features
 
@@ -47,9 +46,9 @@ hyena_dart complexity lib
 
 ## AI Assistant Integration
 
-Hyena includes a read-only MCP server and a repository-local agent skill. The
-MCP server exposes one tool, `hyena_analyze`, for dead-code and complexity
-analysis with structured results.
+Hyena includes a read-only MCP server. The source repository also provides an
+agent skill. The MCP server exposes one tool, `hyena_analyze`, for dead-code
+and complexity analysis with structured results.
 
 After globally activating Hyena, configure an MCP client to launch the server
 over standard input/output:
@@ -94,9 +93,9 @@ can mutate the workspace could race validation by replacing a checked path.
 For stronger isolation, launch the server in a sandbox or container with the
 workspace and dependency cache mounted read-only and networking disabled.
 
-Contributors using an Agent Skills-compatible client can load
-[`.agents/skills/analyzing-dart-code`](.agents/skills/analyzing-dart-code/SKILL.md).
-The skill prefers the constrained MCP tool and documents a JSON CLI fallback.
+Contributors using an Agent Skills-compatible client can load the
+[`analyzing-dart-code` repository skill](https://github.com/Chandram-Dutta/hyena_dart/blob/main/.agents/skills/analyzing-dart-code/SKILL.md).
+It prefers the constrained MCP tool and documents a JSON CLI fallback.
 
 ## CLI Reference
 
@@ -392,25 +391,6 @@ void main() async {
   print(json);
 }
 ```
-
-## Releasing
-
-Releases tagged as `vX.Y.Z` are verified and published to pub.dev through
-GitHub Actions using short-lived OIDC credentials. The tag version must match
-the `version` in `pubspec.yaml`.
-
-Before using the workflow for the first time, configure the package's
-**Automated publishing** settings at
-[`pub.dev/packages/hyena_dart/admin`](https://pub.dev/packages/hyena_dart/admin):
-
-- Repository: `Chandram-Dutta/hyena_dart`
-- Tag pattern: `v{{version}}`
-- Required GitHub Actions environment: `pub.dev`
-
-Then bump `pubspec.yaml`, update `CHANGELOG.md`, merge those changes to `main`,
-and create a matching GitHub release. The publishing workflow runs formatting,
-analysis, and tests before the official Dart publishing workflow uploads the
-package.
 
 ## License
 
