@@ -10,6 +10,8 @@ A Dart and Flutter codebase analyzer for finding unused declarations and measuri
 - **Complexity Metrics** - Cyclomatic complexity, lines of code, nesting levels, parameter count, maintainability index
 - **Multiple Output Formats** - Console (colored), JSON, Markdown, HTML, and SARIF 2.1
 - **Configurable** - Exclude patterns, thresholds, and analysis options via YAML config
+- **Workspace Aware** - Analyze Dart workspaces package by package without double-counting files
+- **Framework Aware** - Keep configured routes, registrations, callbacks, and annotated declarations reachable
 - **CI/CD Ready** - Finding-based exit codes, baselines, source suppressions, and SARIF output
 
 ## Installation
@@ -19,6 +21,7 @@ Install the CLI from pub.dev:
 ```bash
 dart pub global activate hyena_dart
 hyena_dart --help
+hyena_dart --version
 ```
 
 Or add Hyena to a project as a dev dependency:
@@ -43,6 +46,30 @@ hyena_dart dead-code lib
 # Complexity analysis only
 hyena_dart complexity lib
 ```
+
+### Dart Workspaces and Monorepos
+
+Point Hyena at a directory whose `pubspec.yaml` declares a Dart workspace to
+analyze the root package and every workspace member:
+
+```bash
+dart pub get
+hyena_dart analyze .
+```
+
+Hyena supports explicit, nested, and glob workspace entries, subject to the
+workspace syntax supported by the installed Dart SDK. As required by Dart,
+each listed member must declare `resolution: workspace`. Every package is
+analyzed independently. Descendant package directories are excluded from their
+parent package, so source files are never counted twice or analyzed under the
+wrong package boundary.
+
+Configuration is discovered separately for each package. A package-local
+`hyena.yaml` or `analysis_options.yaml` takes precedence; otherwise discovery
+continues up to the workspace root. An explicit `--config` file applies to all
+packages. Console, JSON, Markdown, and HTML reports contain package sections,
+while SARIF locations and baseline fingerprints remain relative to the common
+workspace root.
 
 ## AI Assistant Integration
 
@@ -209,7 +236,32 @@ hyena:
     ignore_main: true
     ignore_exports: true
     ignore_private: false
+
+    # Declarations retained as framework or generated-code roots
+    entry_points:
+      - AppRoutes
+      - ServiceRegistry.register
+      - generatedCallbacks
+
+    # Annotations whose declarations are retained as roots
+    entry_point_annotations:
+      - RoutePage
+      - injectable
+      - riverpod.Riverpod
 ```
+
+Entry points use exact declaration names. A simple name such as `register`
+matches declarations with that simple name; a qualified name such as
+`ServiceRegistry.register` targets one member. Annotation names can omit a
+leading `@`. Simple annotation names match the final component regardless of
+an import prefix, while qualified names match the exact lexical prefix and
+name.
+
+Configured declarations become dead-code reachability roots, so declarations
+they call or reference are retained too. Configured classes and other type
+containers also retain their public members. The lists are empty by default;
+add only entry points actually used by a framework, generator, serializer,
+router, dependency-injection system, or plugin runtime.
 
 You can also add the configuration to your existing `analysis_options.yaml`:
 
@@ -363,6 +415,10 @@ You can also use Hyena as a library:
 import 'package:hyena_dart/hyena_dart.dart';
 
 void main() async {
+  // AnalysisRunner automatically handles single packages and Dart workspaces.
+  final workspaceResult = await const AnalysisRunner().analyze('.');
+  print('Packages: ${workspaceResult.packageAnalyses.length}');
+
   final config = AnalyzerConfig(
     cyclomaticThreshold: 15,
     ignoreExports: true,

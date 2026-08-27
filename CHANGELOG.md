@@ -1,5 +1,14 @@
 ## Unreleased
 
+### Added
+- Add `--version` to both executables and enforce runtime/package version consistency in CI and publishing
+- Analyze Dart workspaces package by package with nested/glob discovery, per-package configuration, package-scoped reports, and workspace-relative findings
+- Add configurable dead-code entry points and entry-point annotations for routes, generated callbacks, serializers, dependency injection, and plugin registrations
+
+### Fixed
+- Keep workspace members out of parent scans so files are not double-counted or analyzed with the wrong package configuration
+- Preserve baselines, SARIF locations, and MCP summaries across package-scoped workspace results
+
 ## [1.1.2] - 2026-08-27
 
 ### Added

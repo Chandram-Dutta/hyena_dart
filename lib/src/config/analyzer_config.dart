@@ -11,6 +11,8 @@ class AnalyzerConfig {
   final bool ignoreMain;
   final bool ignoreExports;
   final bool ignorePrivate;
+  final List<String> entryPoints;
+  final List<String> entryPointAnnotations;
 
   AnalyzerConfig({
     this.excludePatterns = const [],
@@ -20,6 +22,8 @@ class AnalyzerConfig {
     this.ignoreMain = true,
     this.ignoreExports = true,
     this.ignorePrivate = false,
+    this.entryPoints = const [],
+    this.entryPointAnnotations = const [],
   });
 
   static Future<AnalyzerConfig> load(
@@ -139,6 +143,15 @@ class AnalyzerConfig {
 
       final complexity = hyena['complexity'] as YamlMap?;
       final deadCode = hyena['dead_code'] as YamlMap?;
+      final entryPoints = _stringList(
+        deadCode?['entry_points'],
+        'hyena.dead_code.entry_points',
+      );
+      final entryPointAnnotations = _stringList(
+        deadCode?['entry_point_annotations'],
+        'hyena.dead_code.entry_point_annotations',
+        stripLeadingAt: true,
+      );
 
       final config = AnalyzerConfig(
         excludePatterns: excludePatterns,
@@ -148,6 +161,8 @@ class AnalyzerConfig {
         ignoreMain: deadCode?['ignore_main'] as bool? ?? true,
         ignoreExports: deadCode?['ignore_exports'] as bool? ?? true,
         ignorePrivate: deadCode?['ignore_private'] as bool? ?? false,
+        entryPoints: entryPoints,
+        entryPointAnnotations: entryPointAnnotations,
       );
       if (config.cyclomaticThreshold < 0 ||
           config.maxNestingLevel < 0 ||
@@ -162,6 +177,30 @@ class AnalyzerConfig {
     }
   }
 
+  static List<String> _stringList(
+    Object? value,
+    String fieldName, {
+    bool stripLeadingAt = false,
+  }) {
+    if (value == null) return const [];
+    if (value is! YamlList) {
+      throw FormatException('$fieldName must be a list');
+    }
+    return value.map((entry) {
+      if (entry is! String) {
+        throw FormatException('$fieldName entries must be strings');
+      }
+      var normalized = entry.trim();
+      if (stripLeadingAt && normalized.startsWith('@')) {
+        normalized = normalized.substring(1);
+      }
+      if (normalized.isEmpty) {
+        throw FormatException('$fieldName entries cannot be empty');
+      }
+      return normalized;
+    }).toList();
+  }
+
   AnalyzerConfig copyWith({
     List<String>? excludePatterns,
     int? cyclomaticThreshold,
@@ -170,6 +209,8 @@ class AnalyzerConfig {
     bool? ignoreMain,
     bool? ignoreExports,
     bool? ignorePrivate,
+    List<String>? entryPoints,
+    List<String>? entryPointAnnotations,
   }) {
     return AnalyzerConfig(
       excludePatterns: excludePatterns ?? this.excludePatterns,
@@ -179,6 +220,9 @@ class AnalyzerConfig {
       ignoreMain: ignoreMain ?? this.ignoreMain,
       ignoreExports: ignoreExports ?? this.ignoreExports,
       ignorePrivate: ignorePrivate ?? this.ignorePrivate,
+      entryPoints: entryPoints ?? this.entryPoints,
+      entryPointAnnotations:
+          entryPointAnnotations ?? this.entryPointAnnotations,
     );
   }
 }

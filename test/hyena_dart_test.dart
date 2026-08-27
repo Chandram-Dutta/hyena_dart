@@ -17,10 +17,16 @@ void main() {
     });
 
     test('copyWith preserves values', () {
-      final config = AnalyzerConfig(cyclomaticThreshold: 15);
+      final config = AnalyzerConfig(
+        cyclomaticThreshold: 15,
+        entryPoints: const ['AppRoutes'],
+        entryPointAnnotations: const ['RoutePage'],
+      );
       final copied = config.copyWith(maxNestingLevel: 3);
       expect(copied.cyclomaticThreshold, 15);
       expect(copied.maxNestingLevel, 3);
+      expect(copied.entryPoints, ['AppRoutes']);
+      expect(copied.entryPointAnnotations, ['RoutePage']);
     });
 
     test('discovers configuration from the target project', () async {
@@ -51,6 +57,52 @@ hyena:
       await expectLater(
         AnalyzerConfig.load(p.join(fixture.path, 'missing.yaml')),
         throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('loads and validates configured dead-code entry points', () async {
+      final fixture = await Directory.systemTemp.createTemp('hyena_config_');
+      addTearDown(() => fixture.delete(recursive: true));
+      final configPath = p.join(fixture.path, 'hyena.yaml');
+      final configFile = File(configPath)
+        ..writeAsStringSync('''
+hyena:
+  dead_code:
+    entry_points:
+      - AppRoutes
+      - ServiceRegistry.register
+    entry_point_annotations:
+      - RoutePage
+      - "@injectable"
+      - riverpod.Riverpod
+''');
+
+      final config = await AnalyzerConfig.load(configPath);
+
+      expect(config.entryPoints, ['AppRoutes', 'ServiceRegistry.register']);
+      expect(config.entryPointAnnotations, [
+        'RoutePage',
+        'injectable',
+        'riverpod.Riverpod',
+      ]);
+
+      configFile.writeAsStringSync('''
+hyena:
+  dead_code:
+    entry_points: AppRoutes
+''');
+      await expectLater(
+        AnalyzerConfig.load(configPath),
+        throwsA(isA<FormatException>()),
+      );
+      configFile.writeAsStringSync('''
+hyena:
+  dead_code:
+    entry_point_annotations: [RoutePage, 7]
+''');
+      await expectLater(
+        AnalyzerConfig.load(configPath),
+        throwsA(isA<FormatException>()),
       );
     });
   });
@@ -307,6 +359,292 @@ void main() {}
       expect(unusedNames, isNot(contains('intentionallyUnused')));
       expect(unusedNames, isNot(contains('_intentionalDependency')));
     });
+
+    test('keeps configured framework entry points and dependencies', () async {
+      final libPath = await makeFixture('''
+void _routeDependency() {}
+void _serviceDependency() {}
+void _callbackDependency() {}
+void _serializerDependency() {}
+
+class AppRoutes {
+  static void configure() => _routeDependency();
+  static void generatedRoute() {}
+}
+
+class ServiceRegistry {
+  static void register() => _serviceDependency();
+  static void accidentalMethod() {}
+}
+
+class OtherRegistry {
+  static void register() {}
+}
+
+class JsonAdapter {
+  static Map<String, Object?> fromJson(Map<String, Object?> json) {
+    _serializerDependency();
+    return json;
+  }
+
+  static void unusedAdapter() {}
+}
+
+final callbacks = <void Function()>[_registeredCallback];
+void _registeredCallback() => _callbackDependency();
+typedef _Serializer = Map<String, Object?> Function(Map<String, Object?>);
+
+void unrelatedFunction() {}
+void main() {}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(
+          ignoreExports: false,
+          entryPoints: const [
+            'AppRoutes',
+            'ServiceRegistry.register',
+            'JsonAdapter.fromJson',
+            'callbacks',
+            '_Serializer',
+          ],
+        ),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(
+        unusedNames.intersection({
+          'AppRoutes',
+          'AppRoutes.configure',
+          'AppRoutes.generatedRoute',
+          '_routeDependency',
+          'ServiceRegistry',
+          'ServiceRegistry.register',
+          '_serviceDependency',
+          'JsonAdapter',
+          'JsonAdapter.fromJson',
+          '_serializerDependency',
+          'callbacks',
+          '_registeredCallback',
+          '_callbackDependency',
+          '_Serializer',
+        }),
+        isEmpty,
+      );
+      expect(
+        unusedNames,
+        containsAll([
+          'ServiceRegistry.accidentalMethod',
+          'OtherRegistry',
+          'OtherRegistry.register',
+          'JsonAdapter.unusedAdapter',
+          'unrelatedFunction',
+        ]),
+      );
+    });
+
+    test('recognizes short and prefixed entry-point annotations', () async {
+      final libPath = await makeFixture(
+        '''
+import 'annotations.dart' as framework;
+import 'annotations.dart' as riverpod;
+
+void _routeDependency() {}
+void _serviceDependency() {}
+void _providerDependency() {}
+void _pluginDependency() {}
+
+@framework.RoutePage()
+class GeneratedRoute {
+  void build() => _routeDependency();
+  void generatedCallback() {}
+}
+
+@framework.injectable
+void registerService() => _serviceDependency();
+
+@riverpod.Riverpod()
+int generatedProvider() {
+  _providerDependency();
+  return 0;
+}
+
+@framework.PluginEntry()
+void registerPlugin() => _pluginDependency();
+
+@framework.Riverpod()
+void wrongPrefix() {}
+
+void unrelatedFunction() {}
+void main() {}
+''',
+        additionalFiles: {
+          'annotations.dart': '''
+class RoutePage {
+  const RoutePage();
+}
+
+class Riverpod {
+  const Riverpod();
+}
+
+class PluginEntry {
+  const PluginEntry();
+}
+
+class Injectable {
+  const Injectable();
+}
+
+const injectable = Injectable();
+''',
+        },
+      );
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(
+          ignoreExports: false,
+          entryPointAnnotations: const [
+            'RoutePage',
+            '@injectable',
+            'riverpod.Riverpod',
+            'PluginEntry',
+          ],
+        ),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(
+        unusedNames.intersection({
+          'GeneratedRoute',
+          'GeneratedRoute.build',
+          'GeneratedRoute.generatedCallback',
+          '_routeDependency',
+          'registerService',
+          '_serviceDependency',
+          'generatedProvider',
+          '_providerDependency',
+          'registerPlugin',
+          '_pluginDependency',
+        }),
+        isEmpty,
+      );
+      expect(unusedNames, containsAll(['wrongPrefix', 'unrelatedFunction']));
+    });
+
+    test(
+      'applies annotations to constructors, fields, aliases, and enums',
+      () async {
+        final libPath = await makeFixture('''
+class FrameworkEntry {
+  const FrameworkEntry();
+}
+
+void _constructorDependency() {}
+void _fieldDependency() {}
+void _aliasDependency(FrameworkCallback callback) => callback();
+void _enumDependency() {}
+
+class FrameworkHooks {
+  @FrameworkEntry()
+  FrameworkHooks.generated() {
+    _constructorDependency();
+  }
+
+  @FrameworkEntry()
+  static final callback = _fieldDependency;
+
+  static void unusedHook() {}
+}
+
+@FrameworkEntry()
+typedef FrameworkCallback = void Function();
+
+enum GeneratedMode {
+  @FrameworkEntry()
+  generated,
+  unused;
+
+  void run() => _enumDependency();
+}
+
+void unrelatedFunction() {}
+void main() {}
+''');
+
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(
+            ignoreExports: false,
+            entryPointAnnotations: const ['FrameworkEntry'],
+          ),
+        ).analyze(libPath);
+        final unusedNames = report.unusedEntities
+            .map((entity) => entity.fullName)
+            .toSet();
+
+        expect(
+          unusedNames.intersection({
+            'FrameworkHooks',
+            'FrameworkHooks.generated',
+            'FrameworkHooks.callback',
+            '_constructorDependency',
+            '_fieldDependency',
+            'FrameworkCallback',
+            'GeneratedMode',
+            'GeneratedMode.generated',
+          }),
+          isEmpty,
+        );
+        expect(
+          unusedNames,
+          containsAll([
+            'FrameworkHooks.unusedHook',
+            'GeneratedMode.unused',
+            'GeneratedMode.run',
+            '_aliasDependency',
+            '_enumDependency',
+            'unrelatedFunction',
+          ]),
+        );
+      },
+    );
+
+    test(
+      'CLI applies entry points loaded from project configuration',
+      () async {
+        final libPath = await makeFixture('''
+void _generatedDependency() {}
+void generatedCallback() => _generatedDependency();
+void unrelatedFunction() {}
+void main() {}
+''');
+        File(p.join(p.dirname(libPath), 'hyena.yaml')).writeAsStringSync('''
+hyena:
+  dead_code:
+    ignore_exports: false
+    entry_points:
+      - generatedCallback
+''');
+        final output = <String>[];
+
+        await runZoned(
+          () =>
+              HyenaCommandRunner().run(['dead-code', libPath, '--format=json']),
+          zoneSpecification: ZoneSpecification(
+            print: (_, _, _, message) => output.add(message),
+          ),
+        );
+
+        final json = jsonDecode(output.join('\n')) as Map<String, dynamic>;
+        final deadCode = json['deadCode'] as Map<String, dynamic>;
+        final entities = (deadCode['unusedEntities'] as List).cast<Map>();
+        expect(entities.map((entity) => entity['name']), ['unrelatedFunction']);
+      },
+    );
 
     test('honors ignoreMain when it is disabled', () async {
       final libPath = await makeFixture('void main() {}');

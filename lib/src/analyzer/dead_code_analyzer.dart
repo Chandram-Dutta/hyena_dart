@@ -102,6 +102,8 @@ class DeadCodeAnalyzer {
         exportedNames: fileExports,
         liveNames: conditionallyLiveNames[file] ?? const {},
         ignoreMain: config.ignoreMain,
+        entryPoints: config.entryPoints,
+        entryPointAnnotations: config.entryPointAnnotations,
       );
       unit.accept(declarationVisitor);
       allDeclarations.addAll(declarationVisitor.declarations);
