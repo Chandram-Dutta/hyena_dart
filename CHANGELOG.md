@@ -1,5 +1,7 @@
 ## Unreleased
 
+## [1.2.0] - 2026-08-27
+
 ### Added
 - Add `--version` to both executables and enforce runtime/package version consistency in CI and publishing
 - Analyze Dart workspaces package by package with nested/glob discovery, per-package configuration, package-scoped reports, and workspace-relative findings
