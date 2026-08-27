@@ -4,11 +4,10 @@ import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 
-import '../analyzer/complexity_analyzer.dart';
-import '../analyzer/dead_code_analyzer.dart';
-import '../config/analyzer_config.dart';
+import '../analyzer/analysis_runner.dart';
 import '../models/analysis_finding.dart';
-import '../models/analysis_result.dart';
+import '../models/complexity_metrics.dart';
+import '../models/dead_code_report.dart';
 
 const _maxPathLength = 4096;
 const _maxOutputTextLength = 4096;
@@ -306,29 +305,27 @@ Future<Map<String, Object?>> _performAnalysis({
   required String checks,
   required int maxFindings,
 }) async {
-  final config = await AnalyzerConfig.load(
-    null,
-    targetPath: targetPath,
-    searchBoundary: rootPath,
-  );
   final stopwatch = Stopwatch()..start();
 
   final includeDeadCode = checks == 'both' || checks == 'dead-code';
   final includeComplexity = checks == 'both' || checks == 'complexity';
-  final deadCodeReport = includeDeadCode
-      ? await DeadCodeAnalyzer(config).analyze(targetPath)
-      : null;
-  final complexityReport = includeComplexity
-      ? await ComplexityAnalyzer(config).analyze(targetPath)
-      : null;
+  final analysisResult = await const AnalysisRunner().analyze(
+    targetPath,
+    searchBoundary: rootPath,
+    includeDeadCode: includeDeadCode,
+    includeComplexity: includeComplexity,
+  );
   stopwatch.stop();
 
-  final analysisResult = AnalysisResult(
-    deadCodeReport: deadCodeReport,
-    complexityReport: complexityReport,
-    targetPath: targetPath,
-    duration: stopwatch.elapsed,
-  );
+  final packageAnalyses = analysisResult.packageAnalyses.toList();
+  final deadCodeReports = packageAnalyses
+      .map((result) => result.deadCodeReport)
+      .whereType<DeadCodeReport>()
+      .toList();
+  final complexityReports = packageAnalyses
+      .map((result) => result.complexityReport)
+      .whereType<ComplexityReport>()
+      .toList();
   final findings =
       AnalysisFinding.fromResult(analysisResult, rootPath: rootPath)
         ..sort((left, right) {
@@ -344,19 +341,43 @@ Future<Map<String, Object?>> _performAnalysis({
     'totalFindings': findings.length,
     'returnedFindings': returnedFindings.length,
     'truncated': findings.length > returnedFindings.length,
-    if (deadCodeReport != null)
+    if (includeDeadCode)
       'deadCode': <String, Object?>{
-        'totalDeclarations': deadCodeReport.totalDeclarations,
-        'unusedDeclarations': deadCodeReport.unusedCount,
+        'totalDeclarations': deadCodeReports.fold<int>(
+          0,
+          (sum, report) => sum + report.totalDeclarations,
+        ),
+        'unusedDeclarations': deadCodeReports.fold<int>(
+          0,
+          (sum, report) => sum + report.unusedCount,
+        ),
       },
-    if (complexityReport != null)
+    if (includeComplexity)
       'complexity': <String, Object?>{
-        'files': complexityReport.totalFiles,
-        'functions': complexityReport.totalFunctions,
-        'lines': complexityReport.totalLines,
-        'cyclomaticFindings': complexityReport.highComplexityFunctions.length,
-        'nestingFindings': complexityReport.highNestingFunctions.length,
-        'parameterFindings': complexityReport.highParameterFunctions.length,
+        'files': complexityReports.fold<int>(
+          0,
+          (sum, report) => sum + report.totalFiles,
+        ),
+        'functions': complexityReports.fold<int>(
+          0,
+          (sum, report) => sum + report.totalFunctions,
+        ),
+        'lines': complexityReports.fold<int>(
+          0,
+          (sum, report) => sum + report.totalLines,
+        ),
+        'cyclomaticFindings': complexityReports.fold<int>(
+          0,
+          (sum, report) => sum + report.highComplexityFunctions.length,
+        ),
+        'nestingFindings': complexityReports.fold<int>(
+          0,
+          (sum, report) => sum + report.highNestingFunctions.length,
+        ),
+        'parameterFindings': complexityReports.fold<int>(
+          0,
+          (sum, report) => sum + report.highParameterFunctions.length,
+        ),
       },
   };
 

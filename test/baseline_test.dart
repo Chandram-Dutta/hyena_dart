@@ -241,6 +241,49 @@ $secondExtension''');
     expect(artifact['uri'], 'lib/sample.dart');
     expect(deadCode['partialFingerprints'], isNotEmpty);
   });
+
+  test(
+    'workspace baselines and SARIF use workspace-relative findings',
+    () async {
+      final packagePath = p.join(fixture.path, 'packages', 'example');
+      final packageResult = _result(packagePath);
+      final workspaceResult = AnalysisResult(
+        targetPath: fixture.path,
+        duration: Duration.zero,
+        packageResults: [
+          AnalysisResult(
+            targetPath: packageResult.targetPath,
+            duration: packageResult.duration,
+            packageName: 'example',
+            deadCodeReport: packageResult.deadCodeReport,
+            complexityReport: packageResult.complexityReport,
+          ),
+        ],
+      );
+
+      final filtered = FindingBaseline.fromResult(
+        workspaceResult,
+      ).apply(workspaceResult);
+      final filteredPackage = filtered.packageAnalyses.single;
+      expect(filteredPackage.deadCodeReport!.unusedEntities, isEmpty);
+      expect(filteredPackage.complexityReport!.thresholdViolations, isEmpty);
+
+      final sarif =
+          jsonDecode(await SarifReporter().generate(workspaceResult))
+              as Map<String, dynamic>;
+      final runs = sarif['runs'] as List;
+      final run = runs.single as Map<String, dynamic>;
+      final results = run['results'] as List;
+      final first = results.first as Map<String, dynamic>;
+      final locations = first['locations'] as List;
+      final location = locations.single as Map<String, dynamic>;
+      final physicalLocation =
+          location['physicalLocation'] as Map<String, dynamic>;
+      final artifact =
+          physicalLocation['artifactLocation'] as Map<String, dynamic>;
+      expect(artifact['uri'], 'packages/example/lib/sample.dart');
+    },
+  );
 }
 
 Future<({String output, int exitCode})> _runCli(List<String> arguments) async {

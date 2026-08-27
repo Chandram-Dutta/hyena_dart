@@ -16,12 +16,29 @@ class ComplexityAnalyzer {
 
   ComplexityAnalyzer(this.config);
 
-  Future<ComplexityReport> analyze(String targetPath) async {
-    final dartFiles = await _collectDartFiles(targetPath);
+  Future<ComplexityReport> analyze(
+    String targetPath, {
+    Iterable<String> excludedPaths = const [],
+  }) async {
+    final absoluteTarget = p.absolute(targetPath);
+    final analysisRoot = await FileSystemEntity.isFile(absoluteTarget)
+        ? p.dirname(absoluteTarget)
+        : absoluteTarget;
+    final normalizedExcludedPaths = excludedPaths
+        .map((path) => p.normalize(p.absolute(path)))
+        .toList();
+    final dartFiles = await _collectDartFiles(absoluteTarget)
+      ..sort();
     final fileMetrics = <FileMetrics>[];
 
     for (final file in dartFiles) {
-      if (_shouldExclude(file)) continue;
+      if (_shouldExclude(
+        file,
+        analysisRoot: analysisRoot,
+        excludedPaths: normalizedExcludedPaths,
+      )) {
+        continue;
+      }
 
       final metrics = await _analyzeFile(file);
       fileMetrics.add(metrics);
@@ -61,23 +78,37 @@ class ComplexityAnalyzer {
     return files;
   }
 
-  bool _shouldExclude(String filePath) {
-    final relativePath = p.relative(filePath);
+  bool _shouldExclude(
+    String filePath, {
+    required String analysisRoot,
+    required List<String> excludedPaths,
+  }) {
+    final normalizedPath = p.normalize(p.absolute(filePath));
+    if (excludedPaths.any(
+      (root) =>
+          p.equals(root, normalizedPath) || p.isWithin(root, normalizedPath),
+    )) {
+      return true;
+    }
+    final relativePath = p.posix.joinAll(
+      p.split(p.relative(normalizedPath, from: analysisRoot)),
+    );
+    final absolutePath = p.posix.joinAll(p.split(normalizedPath));
 
     for (final pattern in config.excludePatterns) {
       final glob = Glob(pattern);
-      if (glob.matches(relativePath) || glob.matches(filePath)) {
+      if (glob.matches(relativePath) || glob.matches(absolutePath)) {
         return true;
       }
     }
 
-    if (filePath.endsWith('.g.dart') ||
-        filePath.endsWith('.freezed.dart') ||
-        filePath.endsWith('.mocks.dart')) {
+    if (normalizedPath.endsWith('.g.dart') ||
+        normalizedPath.endsWith('.freezed.dart') ||
+        normalizedPath.endsWith('.mocks.dart')) {
       return true;
     }
 
-    final segments = p.split(filePath);
+    final segments = p.split(normalizedPath);
     if (segments.contains('generated')) {
       return true;
     }

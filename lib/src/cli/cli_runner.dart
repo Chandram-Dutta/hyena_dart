@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 
-import '../analyzer/complexity_analyzer.dart';
-import '../analyzer/dead_code_analyzer.dart';
-import '../config/analyzer_config.dart';
+import '../analyzer/analysis_runner.dart';
 import '../models/analysis_finding.dart';
 import '../models/analysis_result.dart';
 import '../models/finding_baseline.dart';
@@ -166,30 +164,11 @@ class AnalyzeCommand extends BaseAnalysisCommand {
   @override
   Future<int> run() async {
     final targetPath = getTargetPath();
-    final config = await AnalyzerConfig.load(
-      argResults!['config'] as String?,
-      targetPath: targetPath,
-    );
-    final stopwatch = Stopwatch()..start();
-
-    final includeDeadCode = argResults!['dead-code'] as bool;
-    final includeComplexity = argResults!['complexity'] as bool;
-
-    final deadCodeReport = includeDeadCode
-        ? await DeadCodeAnalyzer(config).analyze(targetPath)
-        : null;
-
-    final complexityReport = includeComplexity
-        ? await ComplexityAnalyzer(config).analyze(targetPath)
-        : null;
-
-    stopwatch.stop();
-
-    var result = AnalysisResult(
-      deadCodeReport: deadCodeReport,
-      complexityReport: complexityReport,
-      targetPath: targetPath,
-      duration: stopwatch.elapsed,
+    var result = await const AnalysisRunner().analyze(
+      targetPath,
+      configPath: argResults!['config'] as String?,
+      includeDeadCode: argResults!['dead-code'] as bool,
+      includeComplexity: argResults!['complexity'] as bool,
     );
     result = await applyBaselineOptions(result, argResults!);
 
@@ -224,30 +203,23 @@ class DeadCodeCommand extends BaseAnalysisCommand {
   @override
   Future<int> run() async {
     final targetPath = getTargetPath();
-    var config = await AnalyzerConfig.load(
-      argResults!['config'] as String?,
-      targetPath: targetPath,
-    );
-
-    if (argResults!.wasParsed('ignore-exports')) {
-      config = config.copyWith(
-        ignoreExports: argResults!['ignore-exports'] as bool,
-      );
-    }
-    if (argResults!.wasParsed('ignore-private')) {
-      config = config.copyWith(
-        ignorePrivate: argResults!['ignore-private'] as bool,
-      );
-    }
-
-    final stopwatch = Stopwatch()..start();
-    final deadCodeReport = await DeadCodeAnalyzer(config).analyze(targetPath);
-    stopwatch.stop();
-
-    var result = AnalysisResult(
-      deadCodeReport: deadCodeReport,
-      targetPath: targetPath,
-      duration: stopwatch.elapsed,
+    var result = await const AnalysisRunner().analyze(
+      targetPath,
+      configPath: argResults!['config'] as String?,
+      includeComplexity: false,
+      configure: (config) {
+        if (argResults!.wasParsed('ignore-exports')) {
+          config = config.copyWith(
+            ignoreExports: argResults!['ignore-exports'] as bool,
+          );
+        }
+        if (argResults!.wasParsed('ignore-private')) {
+          config = config.copyWith(
+            ignorePrivate: argResults!['ignore-private'] as bool,
+          );
+        }
+        return config;
+      },
     );
     result = await applyBaselineOptions(result, argResults!);
 
@@ -278,32 +250,23 @@ class ComplexityCommand extends BaseAnalysisCommand {
   @override
   Future<int> run() async {
     final targetPath = getTargetPath();
-    var config = await AnalyzerConfig.load(
-      argResults!['config'] as String?,
-      targetPath: targetPath,
-    );
-
-    if (argResults!.wasParsed('threshold')) {
-      final threshold = int.tryParse(argResults!['threshold'] as String);
-      if (threshold == null || threshold < 0) {
-        throw UsageException(
-          '--threshold must be a non-negative integer.',
-          usage,
-        );
-      }
-      config = config.copyWith(cyclomaticThreshold: threshold);
-    }
-
-    final stopwatch = Stopwatch()..start();
-    final complexityReport = await ComplexityAnalyzer(
-      config,
-    ).analyze(targetPath);
-    stopwatch.stop();
-
-    var result = AnalysisResult(
-      complexityReport: complexityReport,
-      targetPath: targetPath,
-      duration: stopwatch.elapsed,
+    var result = await const AnalysisRunner().analyze(
+      targetPath,
+      configPath: argResults!['config'] as String?,
+      includeDeadCode: false,
+      configure: (config) {
+        if (argResults!.wasParsed('threshold')) {
+          final threshold = int.tryParse(argResults!['threshold'] as String);
+          if (threshold == null || threshold < 0) {
+            throw UsageException(
+              '--threshold must be a non-negative integer.',
+              usage,
+            );
+          }
+          return config.copyWith(cyclomaticThreshold: threshold);
+        }
+        return config;
+      },
     );
     result = await applyBaselineOptions(result, argResults!);
 

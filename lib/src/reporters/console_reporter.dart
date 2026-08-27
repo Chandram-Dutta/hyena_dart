@@ -32,6 +32,29 @@ class ConsoleReporter implements Reporter {
     buffer.writeln('${_dim("Duration:")} ${result.duration.inMilliseconds}ms');
     buffer.writeln();
 
+    if (result.isWorkspace) {
+      buffer.writeln(
+        '${_dim("Workspace packages:")} ${result.packageAnalyses.length}',
+      );
+      for (final packageResult in result.packageAnalyses) {
+        buffer.writeln();
+        buffer.writeln(
+          _bold(
+            'PACKAGE ${packageResult.packageName ?? packageResult.targetPath}',
+          ),
+        );
+        buffer.writeln(_dim(packageResult.targetPath));
+        buffer.writeln();
+        if (packageResult.deadCodeReport != null) {
+          _writeDeadCodeSection(buffer, packageResult);
+        }
+        if (packageResult.complexityReport != null) {
+          _writeComplexitySection(buffer, packageResult);
+        }
+      }
+      return buffer.toString();
+    }
+
     if (result.deadCodeReport != null) {
       _writeDeadCodeSection(buffer, result);
     }

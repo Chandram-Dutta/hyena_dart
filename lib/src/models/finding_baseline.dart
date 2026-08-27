@@ -54,6 +54,20 @@ class FindingBaseline {
 
   AnalysisResult apply(AnalysisResult result) {
     final rootPath = analysisRootForTarget(result.targetPath);
+    return _apply(result, rootPath);
+  }
+
+  AnalysisResult _apply(AnalysisResult result, String rootPath) {
+    if (result.isWorkspace) {
+      return AnalysisResult(
+        targetPath: result.targetPath,
+        duration: result.duration,
+        packageName: result.packageName,
+        packageResults: result.packageResults
+            .map((packageResult) => _apply(packageResult, rootPath))
+            .toList(),
+      );
+    }
     final deadCodeReport = result.deadCodeReport;
     final filteredDeadCode = deadCodeReport == null
         ? null
@@ -82,6 +96,7 @@ class FindingBaseline {
       complexityReport: filteredComplexity,
       targetPath: result.targetPath,
       duration: result.duration,
+      packageName: result.packageName,
     );
   }
 

@@ -30,12 +30,30 @@ class HtmlReporter implements Reporter {
     );
     buffer.writeln('    </header>');
 
-    if (result.deadCodeReport != null) {
-      _writeDeadCodeSection(buffer, result);
-    }
-
-    if (result.complexityReport != null) {
-      _writeComplexitySection(buffer, result);
+    if (result.isWorkspace) {
+      for (final packageResult in result.packageAnalyses) {
+        buffer.writeln('    <section class="report-section">');
+        buffer.writeln(
+          '      <h2>Package <code>${_escape(packageResult.packageName ?? packageResult.targetPath)}</code></h2>',
+        );
+        buffer.writeln(
+          '      <p class="meta">${_escape(packageResult.targetPath)}</p>',
+        );
+        buffer.writeln('    </section>');
+        if (packageResult.deadCodeReport != null) {
+          _writeDeadCodeSection(buffer, packageResult);
+        }
+        if (packageResult.complexityReport != null) {
+          _writeComplexitySection(buffer, packageResult);
+        }
+      }
+    } else {
+      if (result.deadCodeReport != null) {
+        _writeDeadCodeSection(buffer, result);
+      }
+      if (result.complexityReport != null) {
+        _writeComplexitySection(buffer, result);
+      }
     }
 
     buffer.writeln('  </div>');

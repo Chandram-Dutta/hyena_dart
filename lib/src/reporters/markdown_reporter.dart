@@ -15,6 +15,28 @@ class MarkdownReporter implements Reporter {
     );
     buffer.writeln();
 
+    if (result.isWorkspace) {
+      buffer.writeln(
+        '**Workspace packages:** ${result.packageAnalyses.length}',
+      );
+      buffer.writeln();
+      for (final packageResult in result.packageAnalyses) {
+        buffer.writeln(
+          '## Package `${packageResult.packageName ?? packageResult.targetPath}`',
+        );
+        buffer.writeln();
+        buffer.writeln('**Path:** `${packageResult.targetPath}`');
+        buffer.writeln();
+        if (packageResult.deadCodeReport != null) {
+          _writeDeadCodeSection(buffer, packageResult);
+        }
+        if (packageResult.complexityReport != null) {
+          _writeComplexitySection(buffer, packageResult);
+        }
+      }
+      return buffer.toString();
+    }
+
     if (result.deadCodeReport != null) {
       _writeDeadCodeSection(buffer, result);
     }

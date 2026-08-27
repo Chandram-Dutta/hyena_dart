@@ -1,5 +1,6 @@
 export 'src/analyzer/dead_code_analyzer.dart';
 export 'src/analyzer/complexity_analyzer.dart';
+export 'src/analyzer/analysis_runner.dart';
 export 'src/config/analyzer_config.dart';
 export 'src/models/analysis_result.dart';
 export 'src/models/analysis_finding.dart';

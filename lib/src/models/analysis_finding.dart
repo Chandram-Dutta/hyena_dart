@@ -54,6 +54,14 @@ class AnalysisFinding {
     String? rootPath,
   }) {
     final analysisRoot = rootPath ?? analysisRootForTarget(result.targetPath);
+    if (result.isWorkspace) {
+      return result.packageResults
+          .expand(
+            (packageResult) =>
+                fromResult(packageResult, rootPath: analysisRoot),
+          )
+          .toList();
+    }
     final findings = <AnalysisFinding>[];
     final deadCodeReport = result.deadCodeReport;
     if (deadCodeReport != null) {

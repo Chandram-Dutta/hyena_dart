@@ -34,6 +34,34 @@ void main() {
       expect(jsonEncode(result), isNot(contains(project.path)));
     });
 
+    test(
+      'aggregates workspace packages with workspace-relative paths',
+      () async {
+        final workspace = await _createWorkspaceProject();
+        addTearDown(() => workspace.delete(recursive: true));
+        final service = await McpAnalysisService.create(workspace.path);
+
+        final result = await service.analyze(
+          targetPath: '.',
+          checks: 'complexity',
+        );
+
+        final summary = result['summary'] as Map<String, Object?>;
+        final complexity = summary['complexity'] as Map<String, Object?>;
+        expect(complexity['files'], 3);
+        final findings = (result['findings'] as List).cast<Map>();
+        expect(
+          findings.map((finding) => finding['path']),
+          containsAll([
+            'root.dart',
+            'packages/first/lib/first.dart',
+            'packages/second/lib/second.dart',
+          ]),
+        );
+        expect(jsonEncode(result), isNot(contains(workspace.path)));
+      },
+    );
+
     test('enforces source file limits before analysis', () async {
       final project = await _createProject();
       addTearDown(() => project.delete(recursive: true));
@@ -367,4 +395,41 @@ int calculate(bool first, bool second) {
 }
 ''');
   return project;
+}
+
+Future<Directory> _createWorkspaceProject() async {
+  final workspace = await Directory.systemTemp.createTemp(
+    'hyena_mcp_workspace_',
+  );
+  File(p.join(workspace.path, 'pubspec.yaml')).writeAsStringSync('''
+name: mcp_workspace
+environment:
+  sdk: ^3.10.0
+workspace:
+  - packages/first
+  - packages/second
+''');
+  File(p.join(workspace.path, 'hyena.yaml')).writeAsStringSync('''
+hyena:
+  complexity:
+    cyclomatic_threshold: 0
+''');
+  File(
+    p.join(workspace.path, 'root.dart'),
+  ).writeAsStringSync('void rootFunction() {}');
+  for (final name in ['first', 'second']) {
+    final package = Directory(p.join(workspace.path, 'packages', name));
+    final lib = Directory(p.join(package.path, 'lib'))
+      ..createSync(recursive: true);
+    File(p.join(package.path, 'pubspec.yaml')).writeAsStringSync('''
+name: ${name}_package
+resolution: workspace
+environment:
+  sdk: ^3.10.0
+''');
+    File(
+      p.join(lib.path, '$name.dart'),
+    ).writeAsStringSync('void ${name}Function() {}');
+  }
+  return workspace;
 }

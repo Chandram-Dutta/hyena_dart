@@ -21,12 +21,29 @@ class DeadCodeAnalyzer {
 
   DeadCodeAnalyzer(this.config);
 
-  Future<DeadCodeReport> analyze(String targetPath) async {
+  Future<DeadCodeReport> analyze(
+    String targetPath, {
+    Iterable<String> excludedPaths = const [],
+  }) async {
     final absTarget = p.absolute(targetPath);
-    final dartFiles = (await _collectDartFiles(
-      absTarget,
-    )).map(p.absolute).where((file) => !_shouldExclude(file)).toList();
-    final collection = AnalysisContextCollection(includedPaths: [absTarget]);
+    final analysisRoot = await FileSystemEntity.isFile(absTarget)
+        ? p.dirname(absTarget)
+        : absTarget;
+    final normalizedExcludedPaths = excludedPaths
+        .map((path) => p.normalize(p.absolute(path)))
+        .toList();
+    final dartFiles =
+        (await _collectDartFiles(absTarget)).map(p.absolute).where((file) {
+          return !_shouldExclude(
+            file,
+            analysisRoot: analysisRoot,
+            excludedPaths: normalizedExcludedPaths,
+          );
+        }).toList()..sort();
+    final collection = AnalysisContextCollection(
+      includedPaths: [absTarget],
+      excludedPaths: normalizedExcludedPaths,
+    );
 
     final allDeclarations = <CodeEntity>[];
     final allReferences = <String>{};
@@ -150,23 +167,37 @@ class DeadCodeAnalyzer {
     return files;
   }
 
-  bool _shouldExclude(String filePath) {
-    final relativePath = p.relative(filePath);
+  bool _shouldExclude(
+    String filePath, {
+    required String analysisRoot,
+    required List<String> excludedPaths,
+  }) {
+    final normalizedPath = p.normalize(p.absolute(filePath));
+    if (excludedPaths.any(
+      (root) =>
+          p.equals(root, normalizedPath) || p.isWithin(root, normalizedPath),
+    )) {
+      return true;
+    }
+    final relativePath = p.posix.joinAll(
+      p.split(p.relative(normalizedPath, from: analysisRoot)),
+    );
+    final absolutePath = p.posix.joinAll(p.split(normalizedPath));
 
     for (final pattern in config.excludePatterns) {
       final glob = Glob(pattern);
-      if (glob.matches(relativePath) || glob.matches(filePath)) {
+      if (glob.matches(relativePath) || glob.matches(absolutePath)) {
         return true;
       }
     }
 
-    if (filePath.endsWith('.g.dart') ||
-        filePath.endsWith('.freezed.dart') ||
-        filePath.endsWith('.mocks.dart')) {
+    if (normalizedPath.endsWith('.g.dart') ||
+        normalizedPath.endsWith('.freezed.dart') ||
+        normalizedPath.endsWith('.mocks.dart')) {
       return true;
     }
 
-    final segments = p.split(filePath);
+    final segments = p.split(normalizedPath);
     if (segments.contains('generated')) {
       return true;
     }
