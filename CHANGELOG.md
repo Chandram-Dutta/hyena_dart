@@ -1,5 +1,14 @@
 ## Unreleased
 
+## [1.2.1] - 2026-08-27
+
+### Added
+- Add a Flutter-style workspace fixture plus Windows-native path, recursive glob, symlink-alias, and malformed-workspace regressions
+- Add normalized golden compatibility coverage for console, JSON, Markdown, HTML, and SARIF reports
+
+### Fixed
+- Preserve resolved dead-code reachability across workspace package boundaries without conflating same-named declarations or references from unreachable callers
+
 ## [1.2.0] - 2026-08-27
 
 ### Added
