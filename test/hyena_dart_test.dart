@@ -253,7 +253,7 @@ hyena:
       final libPath = await makeFixture('\n  void unusedFunction() {}\n');
       final report = await DeadCodeAnalyzer(
         AnalyzerConfig(ignoreExports: false),
-      ).analyze(libPath);
+      ).analyze(p.join(libPath, 'lib.dart'));
 
       final entity = report.unusedEntities.single;
       expect(entity.line, 2);
@@ -468,14 +468,15 @@ extension ApiExtension on String {
     });
 
     test('reports function lines instead of offsets', () async {
-      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+      final source = File(p.join(fixture.path, 'sample.dart'))
+        ..writeAsStringSync('''
 
 void target() {}
 ''');
 
       final report = await ComplexityAnalyzer(
         AnalyzerConfig(),
-      ).analyze(fixture.path);
+      ).analyze(source.path);
 
       expect(report.files.single.functions.single.line, 2);
     });

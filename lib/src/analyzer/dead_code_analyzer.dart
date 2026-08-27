@@ -111,6 +111,14 @@ class DeadCodeAnalyzer {
   }
 
   Future<List<String>> _collectDartFiles(String targetPath) async {
+    final file = File(targetPath);
+    if (await file.exists()) {
+      if (!file.path.endsWith('.dart')) {
+        throw ArgumentError('Target file is not a Dart source: $targetPath');
+      }
+      return [file.path];
+    }
+
     final target = Directory(targetPath);
     if (!await target.exists()) {
       throw ArgumentError('Target path does not exist: $targetPath');
