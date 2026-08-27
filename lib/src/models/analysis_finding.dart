@@ -24,6 +24,7 @@ class AnalysisFinding {
   final int? column;
   final String symbol;
   final String symbolType;
+  final String? fingerprintSymbol;
   final Map<String, Object> properties;
 
   AnalysisFinding({
@@ -36,11 +37,17 @@ class AnalysisFinding {
     this.column,
     required this.symbol,
     required this.symbolType,
+    this.fingerprintSymbol,
     this.properties = const {},
   });
 
-  String get fingerprint =>
-      jsonEncode([category, ruleId, relativePath, symbolType, symbol]);
+  String get fingerprint => jsonEncode([
+    category,
+    ruleId,
+    relativePath,
+    symbolType,
+    fingerprintSymbol ?? symbol,
+  ]);
 
   static List<AnalysisFinding> fromResult(AnalysisResult result) {
     final rootPath = analysisRootForTarget(result.targetPath);
@@ -133,6 +140,7 @@ class AnalysisFinding {
       line: metrics.line,
       symbol: metrics.fullName,
       symbolType: 'function',
+      fingerprintSymbol: metrics.fingerprintName,
       properties: {'value': value, 'threshold': threshold},
     );
   }

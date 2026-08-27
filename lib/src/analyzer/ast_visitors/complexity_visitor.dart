@@ -15,6 +15,8 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
   final String source;
   final List<FunctionMetrics> functions = [];
   String? _currentClass;
+  String? _currentExecutableFingerprint;
+  final Map<String, int> _closureCounts = {};
 
   ComplexityVisitor(this.filePath, this.lineInfo, this.source);
 
@@ -57,6 +59,14 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
   void visitFunctionDeclaration(FunctionDeclaration node) {
     final body = node.functionExpression.body;
     final params = node.functionExpression.parameters;
+    final parentClass = node.parent is FunctionDeclarationStatement
+        ? _currentClass
+        : null;
+    final fingerprintName = _functionFingerprintName(
+      node.name.lexeme,
+      isLocal: node.parent is FunctionDeclarationStatement,
+      parentClass: parentClass,
+    );
 
     functions.add(
       _analyzeFunction(
@@ -64,20 +74,23 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
         body: body,
         parameters: params,
         offset: node.offset,
-        parentClass: node.parent is FunctionDeclarationStatement
-            ? _currentClass
-            : null,
+        parentClass: parentClass,
+        fingerprintName: fingerprintName,
         suppressedRules: _complexitySuppressions(node),
       ),
     );
 
-    super.visitFunctionDeclaration(node);
+    _visitExecutable(
+      fingerprintName,
+      () => super.visitFunctionDeclaration(node),
+    );
   }
 
   @override
   void visitMethodDeclaration(MethodDeclaration node) {
     final body = node.body;
     final params = node.parameters;
+    final fingerprintName = _memberFingerprintName(node.name.lexeme);
 
     functions.add(
       _analyzeFunction(
@@ -86,34 +99,49 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
         parameters: params,
         offset: node.offset,
         parentClass: _currentClass,
+        fingerprintName: fingerprintName,
         suppressedRules: _complexitySuppressions(node),
       ),
     );
 
-    super.visitMethodDeclaration(node);
+    _visitExecutable(fingerprintName, () => super.visitMethodDeclaration(node));
   }
 
   @override
   void visitConstructorDeclaration(ConstructorDeclaration node) {
+    final name = node.name?.lexeme ?? 'new';
+    final fingerprintName = _memberFingerprintName(name);
     functions.add(
       _analyzeFunction(
-        name: node.name?.lexeme ?? 'new',
+        name: name,
         body: node.body,
         initializers: node.initializers,
         parameters: node.parameters,
         offset: node.name?.offset ?? node.returnType.offset,
         parentClass: _currentClass,
+        fingerprintName: fingerprintName,
         suppressedRules: _complexitySuppressions(node),
       ),
     );
 
-    super.visitConstructorDeclaration(node);
+    _visitExecutable(
+      fingerprintName,
+      () => super.visitConstructorDeclaration(node),
+    );
   }
 
   @override
   void visitFunctionExpression(FunctionExpression node) {
     if (node.parent is! FunctionDeclaration) {
       final location = lineInfo.getLocation(node.offset);
+      final scope =
+          _currentExecutableFingerprint ?? _currentClass ?? '<top-level>';
+      final index = _closureCounts.update(
+        scope,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+      final fingerprintName = '$scope.<closure#$index>';
       functions.add(
         _analyzeFunction(
           name: '<closure@${location.lineNumber}:${location.columnNumber}>',
@@ -121,12 +149,39 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
           parameters: node.parameters,
           offset: node.offset,
           parentClass: _currentClass,
+          fingerprintName: fingerprintName,
           suppressedRules: _complexitySuppressions(node),
         ),
       );
+      _visitExecutable(
+        fingerprintName,
+        () => super.visitFunctionExpression(node),
+      );
+      return;
     }
 
     super.visitFunctionExpression(node);
+  }
+
+  String _functionFingerprintName(
+    String name, {
+    required bool isLocal,
+    String? parentClass,
+  }) {
+    if (isLocal && _currentExecutableFingerprint != null) {
+      return '${_currentExecutableFingerprint!}.$name';
+    }
+    return parentClass == null ? name : '$parentClass.$name';
+  }
+
+  String _memberFingerprintName(String name) =>
+      _currentClass == null ? name : '${_currentClass!}.$name';
+
+  void _visitExecutable(String fingerprintName, void Function() visit) {
+    final previous = _currentExecutableFingerprint;
+    _currentExecutableFingerprint = fingerprintName;
+    visit();
+    _currentExecutableFingerprint = previous;
   }
 
   FunctionMetrics _analyzeFunction({
@@ -136,6 +191,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     FormalParameterList? parameters,
     required int offset,
     String? parentClass,
+    String? fingerprintName,
     Set<String> suppressedRules = const {},
   }) {
     final executableNodes = <AstNode>[...initializers, body];
@@ -163,6 +219,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
       parameterCount: paramCount,
       halsteadVolume: _calculateHalsteadVolume(executableNodes),
       parentClass: parentClass,
+      fingerprintName: fingerprintName,
       suppressedRules: suppressedRules,
     );
   }

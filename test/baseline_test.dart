@@ -46,6 +46,47 @@ void main() {
     expect(first.fingerprint, moved.fingerprint);
   });
 
+  test('closure baselines remain stable when source lines move', () async {
+    final source = File(p.join(fixture.path, 'sample.dart'));
+    const body = '''
+void parent() {
+  final callback = () {
+    if (true) print('value');
+  };
+  callback();
+}
+''';
+    source.writeAsStringSync(body);
+    final config = AnalyzerConfig(cyclomaticThreshold: 1);
+    final firstReport = await ComplexityAnalyzer(config).analyze(source.path);
+    final firstResult = AnalysisResult(
+      complexityReport: firstReport,
+      targetPath: source.path,
+      duration: Duration.zero,
+    );
+    final baseline = FindingBaseline.fromResult(firstResult);
+    final firstFingerprint = AnalysisFinding.fromResult(
+      firstResult,
+    ).single.fingerprint;
+
+    source.writeAsStringSync('// A new leading line.\n$body');
+    final movedReport = await ComplexityAnalyzer(config).analyze(source.path);
+    final movedResult = AnalysisResult(
+      complexityReport: movedReport,
+      targetPath: source.path,
+      duration: Duration.zero,
+    );
+    final movedFingerprint = AnalysisFinding.fromResult(
+      movedResult,
+    ).single.fingerprint;
+
+    expect(movedFingerprint, firstFingerprint);
+    expect(
+      baseline.apply(movedResult).complexityReport!.thresholdViolations,
+      isEmpty,
+    );
+  });
+
   test('writes and applies dead-code baselines', () async {
     final result = _result(fixture.path);
     final path = p.join(fixture.path, 'hyena-baseline.json');

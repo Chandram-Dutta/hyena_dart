@@ -16,6 +16,7 @@ class FunctionMetrics {
   final int parameterCount;
   final double halsteadVolume;
   final String? parentClass;
+  final String? fingerprintName;
   final Set<String> suppressedRules;
 
   FunctionMetrics({
@@ -28,6 +29,7 @@ class FunctionMetrics {
     required this.parameterCount,
     this.halsteadVolume = 0,
     this.parentClass,
+    this.fingerprintName,
     this.suppressedRules = const {},
   });
 
@@ -43,6 +45,7 @@ class FunctionMetrics {
     parameterCount: parameterCount,
     halsteadVolume: halsteadVolume,
     parentClass: parentClass,
+    fingerprintName: fingerprintName,
     suppressedRules: suppressedRules ?? this.suppressedRules,
   );
 
