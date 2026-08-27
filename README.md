@@ -271,6 +271,25 @@ void main() async {
 }
 ```
 
+## Releasing
+
+Releases tagged as `vX.Y.Z` are verified and published to pub.dev through
+GitHub Actions using short-lived OIDC credentials. The tag version must match
+the `version` in `pubspec.yaml`.
+
+Before using the workflow for the first time, configure the package's
+**Automated publishing** settings at
+[`pub.dev/packages/hyena_dart/admin`](https://pub.dev/packages/hyena_dart/admin):
+
+- Repository: `Chandram-Dutta/hyena_dart`
+- Tag pattern: `v{{version}}`
+- Required GitHub Actions environment: `pub.dev`
+
+Then bump `pubspec.yaml`, update `CHANGELOG.md`, merge those changes to `main`,
+and create a matching GitHub release. The publishing workflow runs formatting,
+analysis, and tests before the official Dart publishing workflow uploads the
+package.
+
 ## License
 
 MIT
