@@ -141,6 +141,7 @@ class MarkdownReporter implements Reporter {
       EntityType.enum_ => 'Enums',
       EntityType.enumValue => 'Enum Values',
       EntityType.function => 'Functions',
+      EntityType.constructor => 'Constructors',
       EntityType.method => 'Methods',
       EntityType.getter => 'Getters',
       EntityType.setter => 'Setters',

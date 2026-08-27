@@ -279,15 +279,20 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitConstructorDeclaration(ConstructorDeclaration node) {
-    final name = node.name?.lexeme;
-    final isPublic = name == null || _isPublic(name);
-    final element = node.declaredFragment?.element;
-    if (_currentContainerExported && isPublic && element != null) {
-      exportedElementIds.add(element.id);
-    }
-    if (_currentContainerLive && isPublic && element != null) {
-      liveElementIds.add(element.id);
-    }
+    final name = node.name?.lexeme ?? 'new';
+    final isPublic = _isPublic(name);
+    _record(
+      _entity(
+        name: name,
+        type: EntityType.constructor,
+        offset: node.name?.offset ?? node.returnType.offset,
+        parentName: _currentClass,
+        isPublic: isPublic,
+        isExported: _currentContainerExported && isPublic,
+      ),
+      node.declaredFragment?.element,
+      isLive: _currentContainerLive && isPublic,
+    );
     super.visitConstructorDeclaration(node);
   }
 

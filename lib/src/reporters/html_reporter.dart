@@ -217,7 +217,9 @@ class HtmlReporter implements Reporter {
     EntityType.extension ||
     EntityType.extensionType => 'mixin',
     EntityType.enum_ || EntityType.enumValue => 'enum',
-    EntityType.function || EntityType.method => 'function',
+    EntityType.function ||
+    EntityType.constructor ||
+    EntityType.method => 'function',
     EntityType.getter || EntityType.setter => 'accessor',
     EntityType.topLevelVariable || EntityType.field => 'variable',
     EntityType.typedef => 'typedef',

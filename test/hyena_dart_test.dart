@@ -258,6 +258,33 @@ void main() {
       expect(unusedNames, isNot(contains('_dynamicHelper')));
     });
 
+    test('reports unused explicit constructors', () async {
+      final libPath = await makeFixture('''
+class Example {
+  Example();
+  Example.used();
+  Example.unused();
+  Example._private();
+}
+
+void main() => Example.used();
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final constructors = report.unusedEntities
+          .where((entity) => entity.type == EntityType.constructor)
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(
+        constructors,
+        containsAll(['Example.new', 'Example.unused', 'Example._private']),
+      );
+      expect(constructors, isNot(contains('Example.used')));
+    });
+
     test('honors ignoreMain when it is disabled', () async {
       final libPath = await makeFixture('void main() {}');
       final report = await DeadCodeAnalyzer(
