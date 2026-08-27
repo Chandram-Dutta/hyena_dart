@@ -349,6 +349,57 @@ Baseline fingerprints use the rule, package-relative path, symbol type, and
 full symbol name. Moving a declaration to another line does not invalidate its
 baseline entry.
 
+## Performance Benchmarks
+
+The source repository includes deterministic single-package and workspace
+benchmark corpora. Run these commands from a source checkout. Fixture generation
+and warm-up runs happen outside measured samples. The harness records median and
+p95 wall time, files and lines per second, sampled process RSS, runtime metadata,
+and correctness signatures:
+
+```bash
+# Fast local regression suite
+dart run benchmark/benchmark.dart \
+  --suite=quick \
+  --output=benchmark-results.json
+
+# Larger 500/1,000-file and 20-package scenarios
+dart run benchmark/benchmark.dart --suite=full
+
+# Advisory comparison with the released v1.2.1 baseline
+dart run benchmark/benchmark.dart \
+  --baseline=benchmark/results/v1.2.1.json
+```
+
+The `Performance benchmarks` GitHub Actions workflow runs either generated
+suite on demand and uploads its JSON result. Comparisons are intentionally
+advisory until repeated hosted-runner measurements establish stable regression
+thresholds.
+
+The [open-source benchmark report](https://github.com/Chandram-Dutta/hyena_dart/blob/main/benchmark/results/opensource-2026-08-27.md)
+records pinned Melos, Flame, and Flutter packages measurements, representative
+review leads, and known compatibility limits. Findings from these scans are
+triage candidates rather than automatic refactoring instructions.
+
+For an explicitly reviewed production checkout, use the read-only external
+mode:
+
+```bash
+dart run benchmark/benchmark.dart \
+  --target=/path/to/repository \
+  --label=reviewed-production-repo \
+  --checks=both \
+  --output=production-benchmark.json
+```
+
+External mode does not run target code, shell hooks, or `pub get`, and it does
+not write inside the target. Output paths inside the target, including paths
+through symlink aliases, are rejected. The checkout should already contain the
+package resolution metadata needed by Dart analysis. Hyena may read resolved
+SDK and package dependencies just as it does during normal analysis. Benchmark
+JSON uses the supplied label and aggregate corpus counts rather than recording
+the target's absolute path.
+
 ## Source Suppressions
 
 Place an ignore comment immediately before a declaration when a finding is

@@ -3,3 +3,4 @@ AGENTS.md
 CODEOWNERS
 tool/
 test/
+benchmark/

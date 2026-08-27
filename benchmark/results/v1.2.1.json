@@ -1,0 +1,305 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-27T15:17:49.986203Z",
+  "hyenaVersion": "1.2.1",
+  "suite": "quick",
+  "warmups": 1,
+  "samples": 3,
+  "runtime": {
+    "operatingSystem": "linux",
+    "operatingSystemVersion": "Linux 6.1.158+ #1 SMP PREEMPT_DYNAMIC Tue Jul 28 15:38:05 UTC 2026",
+    "architecture": "linux_x64",
+    "dartVersion": "3.10.3 (stable) (Tue Dec 2 01:04:53 2025 -0800) on \"linux_x64\"",
+    "processors": 2,
+    "sourceRevision": "275688d4ce77c3f45ba0ec86e1a537ac3ad08790"
+  },
+  "corpora": [
+    {
+      "id": "single_100",
+      "kind": "single-package",
+      "dartFiles": 101,
+      "sourceLines": 2503,
+      "sourceBytes": 47519,
+      "packageCount": 1,
+      "generated": true
+    },
+    {
+      "id": "workspace_100",
+      "kind": "workspace",
+      "dartFiles": 101,
+      "sourceLines": 2757,
+      "sourceBytes": 51108,
+      "packageCount": 5,
+      "generated": true
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "complexity-single_100",
+      "category": "analysis",
+      "checks": "complexity",
+      "corpus": "single_100",
+      "samples": 3,
+      "operationsPerSample": 1,
+      "durationsMicros": [
+        133992.0,
+        127094.0,
+        118320.0
+      ],
+      "medianMs": 127.094,
+      "p95Ms": 133.992,
+      "minMs": 118.32,
+      "filesPerSecond": 794.687,
+      "linesPerSecond": 19694.085,
+      "peakRssBytes": 536801280,
+      "peakRssGrowthBytes": 6086656,
+      "maxProcessRssBytes": 602263552,
+      "signature": {
+        "packageCount": 1,
+        "files": 101,
+        "functions": 601,
+        "lines": 2503,
+        "thresholdViolations": 0
+      }
+    },
+    {
+      "name": "dead_code-single_100",
+      "category": "analysis",
+      "checks": "dead-code",
+      "corpus": "single_100",
+      "samples": 3,
+      "operationsPerSample": 1,
+      "durationsMicros": [
+        1594771.0,
+        1266075.0,
+        1157680.0
+      ],
+      "medianMs": 1266.075,
+      "p95Ms": 1594.771,
+      "minMs": 1157.68,
+      "filesPerSecond": 79.774,
+      "linesPerSecond": 1976.976,
+      "peakRssBytes": 703164416,
+      "peakRssGrowthBytes": 30896128,
+      "maxProcessRssBytes": 716021760,
+      "signature": {
+        "packageCount": 1,
+        "totalDeclarations": 800,
+        "unusedDeclarations": 400
+      }
+    },
+    {
+      "name": "both-single_100",
+      "category": "analysis",
+      "checks": "both",
+      "corpus": "single_100",
+      "samples": 3,
+      "operationsPerSample": 1,
+      "durationsMicros": [
+        1079249.0,
+        991090.0,
+        1049692.0
+      ],
+      "medianMs": 1049.692,
+      "p95Ms": 1079.249,
+      "minMs": 991.09,
+      "filesPerSecond": 96.219,
+      "linesPerSecond": 2384.509,
+      "peakRssBytes": 684507136,
+      "peakRssGrowthBytes": 6766592,
+      "maxProcessRssBytes": 723189760,
+      "signature": {
+        "packageCount": 1,
+        "totalDeclarations": 800,
+        "unusedDeclarations": 400,
+        "files": 101,
+        "functions": 601,
+        "lines": 2503,
+        "thresholdViolations": 0
+      }
+    },
+    {
+      "name": "workspace-discovery-100",
+      "category": "discovery",
+      "checks": "none",
+      "corpus": "workspace_100",
+      "samples": 3,
+      "operationsPerSample": 1,
+      "durationsMicros": [
+        8443.0,
+        10341.0,
+        8610.0
+      ],
+      "medianMs": 8.61,
+      "p95Ms": 10.341,
+      "minMs": 8.443,
+      "peakRssBytes": 675127296,
+      "peakRssGrowthBytes": 761856,
+      "maxProcessRssBytes": 723189760,
+      "signature": {
+        "packageCount": 5
+      }
+    },
+    {
+      "name": "both-workspace_100",
+      "category": "analysis",
+      "checks": "both",
+      "corpus": "workspace_100",
+      "samples": 3,
+      "operationsPerSample": 1,
+      "durationsMicros": [
+        2871020.0,
+        2908388.0,
+        2571466.0
+      ],
+      "medianMs": 2871.02,
+      "p95Ms": 2908.388,
+      "minMs": 2571.466,
+      "filesPerSecond": 35.179,
+      "linesPerSecond": 960.286,
+      "peakRssBytes": 727404544,
+      "peakRssGrowthBytes": 40644608,
+      "maxProcessRssBytes": 741343232,
+      "signature": {
+        "packageCount": 5,
+        "totalDeclarations": 825,
+        "unusedDeclarations": 418,
+        "files": 101,
+        "functions": 618,
+        "lines": 2757,
+        "thresholdViolations": 0
+      }
+    },
+    {
+      "name": "json-report-100",
+      "category": "report",
+      "checks": "both",
+      "corpus": "single_100",
+      "samples": 3,
+      "operationsPerSample": 20,
+      "durationsMicros": [
+        5536.95,
+        5357.65,
+        4868.35
+      ],
+      "medianMs": 5.358,
+      "p95Ms": 5.537,
+      "minMs": 4.868,
+      "peakRssBytes": 722313216,
+      "peakRssGrowthBytes": 1523712,
+      "maxProcessRssBytes": 745533440,
+      "signature": {
+        "deadCode": {
+          "totalDeclarations": 800,
+          "unusedCount": 400,
+          "deadCodePercentage": "50.00"
+        },
+        "complexity": {
+          "totalFiles": 101,
+          "totalFunctions": 601,
+          "totalLines": 2503,
+          "highComplexityFunctions": 0,
+          "highNestingFunctions": 0,
+          "highParameterFunctions": 0,
+          "thresholdViolations": 0
+        }
+      }
+    },
+    {
+      "name": "sarif-report-100",
+      "category": "report",
+      "checks": "both",
+      "corpus": "single_100",
+      "samples": 3,
+      "operationsPerSample": 20,
+      "durationsMicros": [
+        11753.6,
+        10158.55,
+        10428.4
+      ],
+      "medianMs": 10.428,
+      "p95Ms": 11.754,
+      "minMs": 10.159,
+      "peakRssBytes": 646619136,
+      "peakRssGrowthBytes": 10637312,
+      "maxProcessRssBytes": 745533440,
+      "signature": {
+        "bytes": 347092,
+        "fnv1a": "a0670b22"
+      }
+    },
+    {
+      "name": "mcp-end-to-end-100",
+      "category": "mcp",
+      "checks": "both",
+      "corpus": "single_100",
+      "samples": 3,
+      "operationsPerSample": 1,
+      "durationsMicros": [
+        867239.0,
+        871846.0,
+        859800.0
+      ],
+      "medianMs": 867.239,
+      "p95Ms": 871.846,
+      "minMs": 859.8,
+      "filesPerSecond": 116.462,
+      "linesPerSecond": 2886.171,
+      "peakRssBytes": 724856832,
+      "peakRssGrowthBytes": 29437952,
+      "maxProcessRssBytes": 745533440,
+      "signature": {
+        "checks": "both",
+        "summary": {
+          "totalFindings": 400,
+          "returnedFindings": 200,
+          "truncated": true,
+          "deadCode": {
+            "totalDeclarations": 800,
+            "unusedDeclarations": 400
+          },
+          "complexity": {
+            "files": 101,
+            "functions": 601,
+            "lines": 2503,
+            "cyclomaticFindings": 0,
+            "nestingFindings": 0,
+            "parameterFindings": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "cli-process-complexity-100",
+      "category": "cli",
+      "checks": "complexity",
+      "corpus": "single_100",
+      "samples": 3,
+      "operationsPerSample": 1,
+      "durationsMicros": [
+        7086074.0,
+        6988734.0,
+        6972113.0
+      ],
+      "medianMs": 6988.734,
+      "p95Ms": 7086.074,
+      "minMs": 6972.113,
+      "filesPerSecond": 14.452,
+      "linesPerSecond": 358.148,
+      "peakRssBytes": 699518976,
+      "peakRssGrowthBytes": 581632,
+      "maxProcessRssBytes": 745533440,
+      "signature": {
+        "complexity": {
+          "totalFiles": 101,
+          "totalFunctions": 601,
+          "totalLines": 2503,
+          "highComplexityFunctions": 0,
+          "highNestingFunctions": 0,
+          "highParameterFunctions": 0,
+          "thresholdViolations": 0
+        }
+      }
+    }
+  ]
+}

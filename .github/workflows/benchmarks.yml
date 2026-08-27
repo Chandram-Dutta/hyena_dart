@@ -1,0 +1,64 @@
+name: Performance benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Benchmark suite
+        required: true
+        default: quick
+        type: choice
+        options:
+          - quick
+          - full
+      samples:
+        description: Measured samples per benchmark
+        required: true
+        default: '3'
+        type: choice
+        options:
+          - '3'
+          - '5'
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Run ${{ inputs.suite }} suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BENCHMARK_SUITE: ${{ inputs.suite }}
+      BENCHMARK_SAMPLES: ${{ inputs.samples }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - name: Run deterministic benchmarks
+        shell: bash
+        run: |
+          dart run benchmark/benchmark.dart \
+            --suite="$BENCHMARK_SUITE" \
+            --samples="$BENCHMARK_SAMPLES" \
+            --warmups=1 \
+            --baseline=benchmark/results/v1.2.1.json \
+            --output=benchmark-results.json | tee benchmark-summary.txt
+          {
+            echo '## Hyena Dart performance benchmarks'
+            echo
+            echo '```text'
+            cat benchmark-summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyena-${{ inputs.suite }}-benchmark-${{ github.sha }}
+          path: |
+            benchmark-results.json
+            benchmark-summary.txt
+          if-no-files-found: error
+          retention-days: 30

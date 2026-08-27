@@ -1,5 +1,17 @@
 ## Unreleased
 
+### Added
+- Add deterministic single-package and workspace performance corpora, structured timing and memory results, an advisory v1.2.1 baseline, and a manually triggered benchmark workflow
+- Add opt-in read-only benchmarking for an existing production repository without running its code or dependency setup
+- Publish pinned Melos, Flame, and Flutter packages benchmark results with methodology, limitations, and concrete review leads
+
+### Fixed
+- Parse modern Dart dot-shorthand syntax and tolerate non-error dartdoc parser diagnostics in complexity analysis
+- Exclude `.dart_tool` and `build` artifacts from source analysis
+- Keep fields that implement inherited getters, and their initializer dependencies, reachable in dead-code analysis
+- Reject benchmark baseline comparisons when corpus metadata or correctness signatures differ
+- Prevent external benchmark output from being written inside the target, including through symlink aliases
+
 ## [1.2.1] - 2026-08-27
 
 ### Added
