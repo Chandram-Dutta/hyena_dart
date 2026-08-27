@@ -1,5 +1,11 @@
 import 'dart:math' as math;
 
+abstract final class ComplexityRule {
+  static const cyclomaticComplexity = 'cyclomatic-complexity';
+  static const maxNesting = 'max-nesting';
+  static const maxParameters = 'max-parameters';
+}
+
 class FunctionMetrics {
   final String name;
   final String filePath;
@@ -10,6 +16,7 @@ class FunctionMetrics {
   final int parameterCount;
   final double halsteadVolume;
   final String? parentClass;
+  final Set<String> suppressedRules;
 
   FunctionMetrics({
     required this.name,
@@ -21,6 +28,7 @@ class FunctionMetrics {
     required this.parameterCount,
     this.halsteadVolume = 0,
     this.parentClass,
+    this.suppressedRules = const {},
   });
 
   String get fullName => parentClass != null ? '$parentClass.$name' : name;
@@ -44,6 +52,8 @@ class FunctionMetrics {
     'parameterCount': parameterCount,
     'halsteadVolume': halsteadVolume.toStringAsFixed(2),
     'maintainabilityIndex': maintainabilityIndex.toStringAsFixed(2),
+    if (suppressedRules.isNotEmpty)
+      'suppressedRules': suppressedRules.toList()..sort(),
   };
 }
 
@@ -115,7 +125,11 @@ class ComplexityReport {
   List<FunctionMetrics> get highComplexityFunctions {
     return files
         .expand((f) => f.functions)
-        .where((f) => f.cyclomaticComplexity > cyclomaticThreshold)
+        .where(
+          (f) =>
+              f.cyclomaticComplexity > cyclomaticThreshold &&
+              !f.suppressedRules.contains(ComplexityRule.cyclomaticComplexity),
+        )
         .toList()
       ..sort(
         (a, b) => b.cyclomaticComplexity.compareTo(a.cyclomaticComplexity),
@@ -124,12 +138,20 @@ class ComplexityReport {
 
   List<FunctionMetrics> get highNestingFunctions => files
       .expand((f) => f.functions)
-      .where((f) => f.maxNestingLevel > maxNestingLevel)
+      .where(
+        (f) =>
+            f.maxNestingLevel > maxNestingLevel &&
+            !f.suppressedRules.contains(ComplexityRule.maxNesting),
+      )
       .toList();
 
   List<FunctionMetrics> get highParameterFunctions => files
       .expand((f) => f.functions)
-      .where((f) => f.parameterCount > maxParameters)
+      .where(
+        (f) =>
+            f.parameterCount > maxParameters &&
+            !f.suppressedRules.contains(ComplexityRule.maxParameters),
+      )
       .toList();
 
   List<FunctionMetrics> get thresholdViolations {
@@ -137,9 +159,14 @@ class ComplexityReport {
         .expand((f) => f.functions)
         .where(
           (f) =>
-              f.cyclomaticComplexity > cyclomaticThreshold ||
-              f.maxNestingLevel > maxNestingLevel ||
-              f.parameterCount > maxParameters,
+              (f.cyclomaticComplexity > cyclomaticThreshold &&
+                  !f.suppressedRules.contains(
+                    ComplexityRule.cyclomaticComplexity,
+                  )) ||
+              (f.maxNestingLevel > maxNestingLevel &&
+                  !f.suppressedRules.contains(ComplexityRule.maxNesting)) ||
+              (f.parameterCount > maxParameters &&
+                  !f.suppressedRules.contains(ComplexityRule.maxParameters)),
         )
         .toList();
     violations.sort(

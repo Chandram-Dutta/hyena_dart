@@ -285,6 +285,29 @@ void main() => Example.used();
       expect(constructors, isNot(contains('Example.used')));
     });
 
+    test('honors dead-code suppression without cascading findings', () async {
+      final libPath = await makeFixture('''
+void _intentionalDependency() {}
+
+// hyena:ignore dead-code
+void intentionallyUnused() => _intentionalDependency();
+
+void accidentallyUnused() {}
+void main() {}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.name)
+          .toSet();
+
+      expect(unusedNames, contains('accidentallyUnused'));
+      expect(unusedNames, isNot(contains('intentionallyUnused')));
+      expect(unusedNames, isNot(contains('_intentionalDependency')));
+    });
+
     test('honors ignoreMain when it is disabled', () async {
       final libPath = await makeFixture('void main() {}');
       final report = await DeadCodeAnalyzer(
@@ -712,6 +735,65 @@ void target() {}
       expect(metrics.totalLines, 1);
       expect(metrics.codeLines, 1);
       expect(metrics.blankLines, 0);
+    });
+
+    test('honors broad and rule-specific complexity suppressions', () async {
+      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+// hyena:ignore complexity
+void suppressedAll(int value) {
+  if (value > 0) print(value);
+}
+
+// hyena:ignore cyclomatic-complexity
+void suppressedCyclomatic() {
+  if (true) print('value');
+}
+
+// hyena:ignore max-nesting
+void suppressedNesting() {
+  if (true) print('value');
+}
+
+// hyena:ignore max-parameters
+void suppressedParameters(int value) {}
+''');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(
+          cyclomaticThreshold: 1,
+          maxNestingLevel: 0,
+          maxParameters: 0,
+        ),
+      ).analyze(fixture.path);
+
+      expect(
+        report.highComplexityFunctions.map((metrics) => metrics.name),
+        contains('suppressedNesting'),
+      );
+      expect(
+        report.highComplexityFunctions.map((metrics) => metrics.name),
+        isNot(contains('suppressedAll')),
+      );
+      expect(
+        report.highComplexityFunctions.map((metrics) => metrics.name),
+        isNot(contains('suppressedCyclomatic')),
+      );
+      expect(
+        report.highNestingFunctions.map((metrics) => metrics.name),
+        contains('suppressedCyclomatic'),
+      );
+      expect(
+        report.highNestingFunctions.map((metrics) => metrics.name),
+        isNot(contains('suppressedNesting')),
+      );
+      expect(
+        report.highParameterFunctions.map((metrics) => metrics.name),
+        isNot(contains('suppressedParameters')),
+      );
+      expect(
+        report.thresholdViolations.map((metrics) => metrics.name),
+        isNot(contains('suppressedAll')),
+      );
     });
 
     test('analyzes constructors and closures in their own scopes', () async {

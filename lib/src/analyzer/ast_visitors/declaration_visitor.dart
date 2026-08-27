@@ -4,6 +4,7 @@ import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/source/line_info.dart';
 
 import '../../models/code_entity.dart';
+import '../source_suppression.dart';
 import 'member_override.dart';
 
 class DeclarationVisitor extends RecursiveAstVisitor<void> {
@@ -29,6 +30,9 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   });
 
   bool _isPublic(String name) => !name.startsWith('_');
+
+  bool _ignoresDeadCode(AstNode node) =>
+      hyenaIgnoredRules(node).contains('dead-code');
 
   CodeEntity _entity({
     required String name,
@@ -83,6 +87,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     final name = node.name.lexeme;
     final isExported = exportedNames.contains(name);
     final isLive = liveNames.contains(name);
+    final isIgnored = _ignoresDeadCode(node);
     _record(
       _entity(
         name: name,
@@ -94,7 +99,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isExported: isExported,
       ),
       node.declaredFragment?.element,
-      isLive: isLive,
+      isLive: isLive || isIgnored,
     );
     _visitContainer(
       name,
@@ -109,6 +114,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     final name = node.name.lexeme;
     final isExported = exportedNames.contains(name);
     final isLive = liveNames.contains(name);
+    final isIgnored = _ignoresDeadCode(node);
     _record(
       _entity(
         name: name,
@@ -118,7 +124,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isExported: isExported,
       ),
       node.declaredFragment?.element,
-      isLive: isLive,
+      isLive: isLive || isIgnored,
     );
     _visitContainer(
       name,
@@ -133,6 +139,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     final name = node.name?.lexeme;
     final isExported = name != null && exportedNames.contains(name);
     final isLive = name != null && liveNames.contains(name);
+    final isIgnored = _ignoresDeadCode(node);
     if (name != null) {
       _record(
         _entity(
@@ -143,7 +150,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
           isExported: isExported,
         ),
         node.declaredFragment?.element,
-        isLive: isLive,
+        isLive: isLive || isIgnored,
       );
     }
     _visitContainer(
@@ -159,6 +166,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     final name = node.name.lexeme;
     final isExported = exportedNames.contains(name);
     final isLive = liveNames.contains(name);
+    final isIgnored = _ignoresDeadCode(node);
     _record(
       _entity(
         name: name,
@@ -168,7 +176,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isExported: isExported,
       ),
       node.declaredFragment?.element,
-      isLive: isLive,
+      isLive: isLive || isIgnored,
     );
     _visitContainer(
       name,
@@ -183,6 +191,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     final name = node.name.lexeme;
     final isExported = exportedNames.contains(name);
     final isLive = liveNames.contains(name);
+    final isIgnored = _ignoresDeadCode(node);
     _record(
       _entity(
         name: name,
@@ -192,7 +201,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isExported: isExported,
       ),
       node.declaredFragment?.element,
-      isLive: isLive,
+      isLive: isLive || isIgnored,
     );
 
     _visitContainer(name, isExported, isLive, () {
@@ -207,7 +216,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
             isExported: isExported,
           ),
           constant.declaredFragment?.element,
-          isLive: isLive,
+          isLive: isLive || _ignoresDeadCode(constant),
         );
       }
       super.visitEnumDeclaration(node);
@@ -240,7 +249,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isExported: exportedNames.contains(name),
       ),
       node.declaredFragment?.element,
-      isLive: liveNames.contains(name),
+      isLive: liveNames.contains(name) || _ignoresDeadCode(node),
     );
     super.visitFunctionDeclaration(node);
   }
@@ -272,7 +281,8 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isExported: _currentContainerExported && _isPublic(name),
       ),
       node.declaredFragment?.element,
-      isLive: _currentContainerLive && _isPublic(name),
+      isLive:
+          (_currentContainerLive && _isPublic(name)) || _ignoresDeadCode(node),
     );
     super.visitMethodDeclaration(node);
   }
@@ -291,7 +301,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isExported: _currentContainerExported && isPublic,
       ),
       node.declaredFragment?.element,
-      isLive: _currentContainerLive && isPublic,
+      isLive: (_currentContainerLive && isPublic) || _ignoresDeadCode(node),
     );
     super.visitConstructorDeclaration(node);
   }
@@ -309,7 +319,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
           isExported: exportedNames.contains(name),
         ),
         variable.declaredFragment?.element,
-        isLive: liveNames.contains(name),
+        isLive: liveNames.contains(name) || _ignoresDeadCode(node),
       );
     }
     super.visitTopLevelVariableDeclaration(node);
@@ -329,7 +339,9 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
           isExported: _currentContainerExported && _isPublic(name),
         ),
         variable.declaredFragment?.element,
-        isLive: _currentContainerLive && _isPublic(name),
+        isLive:
+            (_currentContainerLive && _isPublic(name)) ||
+            _ignoresDeadCode(node),
       );
     }
     super.visitFieldDeclaration(node);
@@ -347,7 +359,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isExported: exportedNames.contains(name),
       ),
       node.declaredFragment?.element,
-      isLive: liveNames.contains(name),
+      isLive: liveNames.contains(name) || _ignoresDeadCode(node),
     );
     super.visitFunctionTypeAlias(node);
   }
@@ -364,7 +376,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         isExported: exportedNames.contains(name),
       ),
       node.declaredFragment?.element,
-      isLive: liveNames.contains(name),
+      isLive: liveNames.contains(name) || _ignoresDeadCode(node),
     );
     super.visitGenericTypeAlias(node);
   }

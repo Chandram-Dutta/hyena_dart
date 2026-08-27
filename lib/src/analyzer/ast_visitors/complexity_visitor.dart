@@ -7,6 +7,7 @@ import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/source/line_info.dart';
 
 import '../../models/complexity_metrics.dart';
+import '../source_suppression.dart';
 
 class ComplexityVisitor extends RecursiveAstVisitor<void> {
   final String filePath;
@@ -66,6 +67,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
         parentClass: node.parent is FunctionDeclarationStatement
             ? _currentClass
             : null,
+        suppressedRules: _complexitySuppressions(node),
       ),
     );
 
@@ -84,6 +86,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
         parameters: params,
         offset: node.offset,
         parentClass: _currentClass,
+        suppressedRules: _complexitySuppressions(node),
       ),
     );
 
@@ -100,6 +103,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
         parameters: node.parameters,
         offset: node.name?.offset ?? node.returnType.offset,
         parentClass: _currentClass,
+        suppressedRules: _complexitySuppressions(node),
       ),
     );
 
@@ -117,6 +121,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
           parameters: node.parameters,
           offset: node.offset,
           parentClass: _currentClass,
+          suppressedRules: _complexitySuppressions(node),
         ),
       );
     }
@@ -131,6 +136,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     FormalParameterList? parameters,
     required int offset,
     String? parentClass,
+    Set<String> suppressedRules = const {},
   }) {
     final executableNodes = <AstNode>[...initializers, body];
     final complexityCounter = _CyclomaticComplexityCounter();
@@ -157,7 +163,24 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
       parameterCount: paramCount,
       halsteadVolume: _calculateHalsteadVolume(executableNodes),
       parentClass: parentClass,
+      suppressedRules: suppressedRules,
     );
+  }
+
+  Set<String> _complexitySuppressions(AstNode node) {
+    final ignored = hyenaIgnoredRules(node);
+    if (ignored.contains('complexity')) {
+      return {
+        ComplexityRule.cyclomaticComplexity,
+        ComplexityRule.maxNesting,
+        ComplexityRule.maxParameters,
+      };
+    }
+    return ignored.intersection({
+      ComplexityRule.cyclomaticComplexity,
+      ComplexityRule.maxNesting,
+      ComplexityRule.maxParameters,
+    });
   }
 
   int _countLinesOfCode(List<AstNode> nodes) {
