@@ -1,4 +1,4 @@
-## Unreleased
+## [1.2.2] - 2026-08-27
 
 ### Added
 - Add deterministic single-package and workspace performance corpora, structured timing and memory results, an advisory v1.2.1 baseline, and a manually triggered benchmark workflow
