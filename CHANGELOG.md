@@ -1,3 +1,11 @@
+## [1.1.1] - 2026-08-27
+
+### Fixed
+- Correct the minimum `analyzer` and `glob` constraints so supported lower-bound dependency resolution compiles and runs
+
+### CI
+- Validate lower dependency bounds with static analysis and an end-to-end CLI smoke test
+
 ## [1.1.0] - 2026-08-27
 
 ### Added
