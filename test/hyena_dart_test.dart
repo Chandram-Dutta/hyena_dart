@@ -343,28 +343,82 @@ class PartApi {
       expect(unusedNames, isNot(contains('PartApi.call')));
     });
 
-    test('includes part declarations from explicitly exported libraries', () async {
-      final libPath = await makeFixture(
-        "export 'src/api.dart';",
-        additionalFiles: {
-          'src/api.dart': "part 'api_part.dart';",
-          'src/api_part.dart': '''
+    test(
+      'includes part declarations from explicitly exported libraries',
+      () async {
+        final libPath = await makeFixture(
+          "export 'src/api.dart';",
+          additionalFiles: {
+            'src/api.dart': "part 'api_part.dart';",
+            'src/api_part.dart': '''
 part of 'api.dart';
 
 class ExportedPartApi {
   void call() {}
 }
 ''',
+          },
+        );
+
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(),
+        ).analyze(libPath);
+        final unusedNames = report.unusedEntities
+            .map((entity) => entity.fullName)
+            .toSet();
+
+        expect(unusedNames, isNot(contains('ExportedPartApi')));
+        expect(unusedNames, isNot(contains('ExportedPartApi.call')));
+      },
+    );
+
+    test('includes every branch of a conditional export', () async {
+      final libPath = await makeFixture(
+        "export 'src/default.dart' if (dart.library.io) 'src/io.dart';",
+        additionalFiles: {
+          'src/default.dart': 'class DefaultApi {}',
+          'src/io.dart': 'class IoApi {}',
         },
       );
 
       final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
       final unusedNames = report.unusedEntities
-          .map((entity) => entity.fullName)
+          .map((entity) => entity.name)
           .toSet();
 
-      expect(unusedNames, isNot(contains('ExportedPartApi')));
-      expect(unusedNames, isNot(contains('ExportedPartApi.call')));
+      expect(unusedNames, isNot(contains('DefaultApi')));
+      expect(unusedNames, isNot(contains('IoApi')));
+    });
+
+    test('keeps every conditional import implementation reachable', () async {
+      final libPath = await makeFixture(
+        '''
+import 'src/default.dart' if (dart.library.io) 'src/io.dart';
+
+void main() => createImplementation();
+''',
+        additionalFiles: {
+          'src/default.dart': '''
+void createImplementation() => _defaultHelper();
+void _defaultHelper() {}
+''',
+          'src/io.dart': '''
+void createImplementation() => _ioHelper();
+void _ioHelper() {}
+''',
+        },
+      );
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.name)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('createImplementation')));
+      expect(unusedNames, isNot(contains('_defaultHelper')));
+      expect(unusedNames, isNot(contains('_ioHelper')));
     });
 
     test('keeps an extension alive when one of its members is used', () async {

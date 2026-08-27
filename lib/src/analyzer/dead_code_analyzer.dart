@@ -66,6 +66,10 @@ class DeadCodeAnalyzer {
 
     final packageRoots = await _loadPackageRoots(absTarget);
     final exportedNames = _collectExportedNames(parsedUnits, packageRoots);
+    final conditionallyLiveNames = _collectConditionallyImportedNames(
+      parsedUnits,
+      packageRoots,
+    );
 
     for (final file in dartFiles) {
       final unit = parsedUnits[file];
@@ -78,6 +82,7 @@ class DeadCodeAnalyzer {
         file,
         lineInfos[file]!,
         exportedNames: fileExports,
+        liveNames: conditionallyLiveNames[file] ?? const {},
         ignoreMain: config.ignoreMain,
       );
       unit.accept(declarationVisitor);
@@ -86,6 +91,7 @@ class DeadCodeAnalyzer {
       if (config.ignoreExports) {
         rootElementIds.addAll(declarationVisitor.exportedElementIds);
       }
+      rootElementIds.addAll(declarationVisitor.liveElementIds);
 
       final referenceVisitor = ReferenceVisitor();
       unit.accept(referenceVisitor);
@@ -179,8 +185,7 @@ class DeadCodeAnalyzer {
 
       for (final directive in unit.directives) {
         if (directive is ExportDirective) {
-          final uri = directive.uri.stringValue;
-          if (uri != null) {
+          for (final uri in _namespaceDirectiveUris(directive)) {
             final exportedFile = _resolveImportUri(file, uri, packageRoots);
             if (exportedFile != null) {
               _addLibraryNames(
@@ -197,6 +202,41 @@ class DeadCodeAnalyzer {
     }
 
     return exportedNames;
+  }
+
+  Map<String, Set<String>> _collectConditionallyImportedNames(
+    Map<String, CompilationUnit> parsedUnits,
+    Map<String, String> packageRoots,
+  ) {
+    final liveNames = <String, Set<String>>{};
+    final libraryFiles = _collectLibraryFiles(parsedUnits, packageRoots);
+    for (final entry in parsedUnits.entries) {
+      for (final directive
+          in entry.value.directives.whereType<ImportDirective>()) {
+        if (directive.configurations.isEmpty) continue;
+        for (final uri in _namespaceDirectiveUris(directive)) {
+          final importedFile = _resolveImportUri(entry.key, uri, packageRoots);
+          if (importedFile == null) continue;
+          _addLibraryNames(
+            liveNames,
+            importedFile,
+            parsedUnits,
+            libraryFiles,
+            combinators: directive.combinators,
+          );
+        }
+      }
+    }
+    return liveNames;
+  }
+
+  Iterable<String> _namespaceDirectiveUris(NamespaceDirective directive) sync* {
+    final defaultUri = directive.uri.stringValue;
+    if (defaultUri != null) yield defaultUri;
+    for (final configuration in directive.configurations) {
+      final uri = configuration.uri.stringValue;
+      if (uri != null) yield uri;
+    }
   }
 
   Map<String, Set<String>> _collectLibraryFiles(
