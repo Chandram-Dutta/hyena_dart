@@ -79,38 +79,58 @@ void main() {
       ..writeAsStringSync('void target() {}\n');
     final baselinePath = p.join(fixture.path, 'hyena-baseline.json');
 
-    await _runCli([
+    final writeResult = await _runCli([
       'complexity',
       source.path,
       '--threshold=0',
       '--write-baseline=$baselinePath',
       '--format=json',
     ]);
+    expect(writeResult.exitCode, 0);
     expect(File(baselinePath).existsSync(), isTrue);
 
-    final output = await _runCli([
+    final baselineResult = await _runCli([
       'complexity',
       source.path,
       '--threshold=0',
       '--baseline=$baselinePath',
       '--format=json',
     ]);
-    final json = jsonDecode(output) as Map<String, dynamic>;
+    final json = jsonDecode(baselineResult.output) as Map<String, dynamic>;
     final complexity = json['complexity'] as Map<String, dynamic>;
     final summary = complexity['summary'] as Map<String, dynamic>;
     expect(summary['thresholdViolations'], 0);
+
+    final failingResult = await _runCli([
+      'complexity',
+      source.path,
+      '--threshold=0',
+      '--fail-on=complexity',
+      '--format=json',
+    ]);
+    expect(failingResult.exitCode, 1);
+
+    final passingResult = await _runCli([
+      'complexity',
+      source.path,
+      '--threshold=0',
+      '--baseline=$baselinePath',
+      '--fail-on=complexity',
+      '--format=json',
+    ]);
+    expect(passingResult.exitCode, 0);
   });
 }
 
-Future<String> _runCli(List<String> arguments) async {
+Future<({String output, int exitCode})> _runCli(List<String> arguments) async {
   final output = <String>[];
-  await runZoned(
+  final exitCode = await runZoned(
     () => HyenaCommandRunner().run(arguments),
     zoneSpecification: ZoneSpecification(
       print: (_, _, _, message) => output.add(message),
     ),
   );
-  return output.join('\n');
+  return (output: output.join('\n'), exitCode: exitCode ?? 0);
 }
 
 AnalysisResult _result(String rootPath) {

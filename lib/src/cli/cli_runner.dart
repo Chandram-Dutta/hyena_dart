@@ -6,6 +6,7 @@ import 'package:args/command_runner.dart';
 import '../analyzer/complexity_analyzer.dart';
 import '../analyzer/dead_code_analyzer.dart';
 import '../config/analyzer_config.dart';
+import '../models/analysis_finding.dart';
 import '../models/analysis_result.dart';
 import '../models/finding_baseline.dart';
 import '../reporters/console_reporter.dart';
@@ -14,7 +15,7 @@ import '../reporters/json_reporter.dart';
 import '../reporters/markdown_reporter.dart';
 import '../reporters/reporter.dart';
 
-class HyenaCommandRunner extends CommandRunner<void> {
+class HyenaCommandRunner extends CommandRunner<int> {
   HyenaCommandRunner()
     : super(
         'hyena',
@@ -26,7 +27,7 @@ class HyenaCommandRunner extends CommandRunner<void> {
   }
 }
 
-abstract class BaseAnalysisCommand extends Command<void> {
+abstract class BaseAnalysisCommand extends Command<int> {
   void addCommonOptions() {
     argParser.addOption(
       'format',
@@ -57,6 +58,12 @@ abstract class BaseAnalysisCommand extends Command<void> {
     argParser.addOption(
       'write-baseline',
       help: 'Write current findings to a Hyena baseline file',
+    );
+    argParser.addMultiOption(
+      'fail-on',
+      help: 'Return exit code 1 for selected finding categories',
+      allowed: ['dead-code', 'complexity'],
+      splitCommas: true,
     );
   }
 
@@ -106,6 +113,16 @@ abstract class BaseAnalysisCommand extends Command<void> {
     }
     return result;
   }
+
+  int resultExitCode(AnalysisResult result, ArgResults results) {
+    final failOn = (results['fail-on'] as List<String>).toSet();
+    if (failOn.isEmpty) return 0;
+    return AnalysisFinding.fromResult(
+          result,
+        ).any((finding) => failOn.contains(finding.category))
+        ? 1
+        : 0;
+  }
 }
 
 class AnalyzeCommand extends BaseAnalysisCommand {
@@ -130,7 +147,7 @@ class AnalyzeCommand extends BaseAnalysisCommand {
   }
 
   @override
-  Future<void> run() async {
+  Future<int> run() async {
     final targetPath = getTargetPath();
     final config = await AnalyzerConfig.load(
       argResults!['config'] as String?,
@@ -162,6 +179,7 @@ class AnalyzeCommand extends BaseAnalysisCommand {
     final reporter = getReporter(argResults!);
     final output = await reporter.generate(result);
     await outputResult(output, argResults!);
+    return resultExitCode(result, argResults!);
   }
 }
 
@@ -187,7 +205,7 @@ class DeadCodeCommand extends BaseAnalysisCommand {
   }
 
   @override
-  Future<void> run() async {
+  Future<int> run() async {
     final targetPath = getTargetPath();
     var config = await AnalyzerConfig.load(
       argResults!['config'] as String?,
@@ -219,6 +237,7 @@ class DeadCodeCommand extends BaseAnalysisCommand {
     final reporter = getReporter(argResults!);
     final output = await reporter.generate(result);
     await outputResult(output, argResults!);
+    return resultExitCode(result, argResults!);
   }
 }
 
@@ -240,7 +259,7 @@ class ComplexityCommand extends BaseAnalysisCommand {
   }
 
   @override
-  Future<void> run() async {
+  Future<int> run() async {
     final targetPath = getTargetPath();
     var config = await AnalyzerConfig.load(
       argResults!['config'] as String?,
@@ -274,5 +293,6 @@ class ComplexityCommand extends BaseAnalysisCommand {
     final reporter = getReporter(argResults!);
     final output = await reporter.generate(result);
     await outputResult(output, argResults!);
+    return resultExitCode(result, argResults!);
   }
 }
