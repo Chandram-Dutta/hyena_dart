@@ -8,6 +8,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   final Set<String> references = {};
   final Set<String> typeReferences = {};
   final Set<String> imports = {};
+  final Set<String> unresolvedMemberNames = {};
   final Set<int> referencedElementIds = {};
   final Map<int, Set<int>> referenceGraph = {};
   final Set<int> rootElementIds = {};
@@ -188,6 +189,9 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     references.add('${node.prefix.name}.${node.identifier.name}');
     _recordElement(node.prefix.element);
     _recordElement(node.identifier.element);
+    if (node.identifier.element == null && node.prefix.element != null) {
+      unresolvedMemberNames.add(node.identifier.name);
+    }
     super.visitPrefixedIdentifier(node);
   }
 
@@ -221,6 +225,9 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
       }
     }
     references.add(node.methodName.name);
+    if (node.methodName.element == null) {
+      unresolvedMemberNames.add(node.methodName.name);
+    }
     _recordElement(node.methodName.element);
     super.visitMethodInvocation(node);
   }
@@ -228,6 +235,9 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitPropertyAccess(PropertyAccess node) {
     references.add(node.propertyName.name);
+    if (node.propertyName.element == null) {
+      unresolvedMemberNames.add(node.propertyName.name);
+    }
     _recordElement(node.propertyName.element);
     super.visitPropertyAccess(node);
   }

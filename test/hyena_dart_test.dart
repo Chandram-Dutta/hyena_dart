@@ -233,6 +233,31 @@ void main() => invoke(Implementation());
       },
     );
 
+    test('keeps members invoked through dynamic targets reachable', () async {
+      final libPath = await makeFixture('''
+void _dynamicHelper() {}
+
+class DynamicTarget {
+  void dynamicCall() => _dynamicHelper();
+}
+
+void main() {
+  dynamic target = DynamicTarget();
+  target.dynamicCall();
+}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('DynamicTarget.dynamicCall')));
+      expect(unusedNames, isNot(contains('_dynamicHelper')));
+    });
+
     test('honors ignoreMain when it is disabled', () async {
       final libPath = await makeFixture('void main() {}');
       final report = await DeadCodeAnalyzer(

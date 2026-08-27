@@ -33,6 +33,7 @@ class DeadCodeAnalyzer {
     final elementIdToEntity = <int, CodeEntity>{};
     final referenceGraph = <int, Set<int>>{};
     final rootElementIds = <int>{};
+    final unresolvedMemberNames = <String>{};
 
     final parsedUnits = <String, CompilationUnit>{};
     final lineInfos = <String, LineInfo>{};
@@ -96,9 +97,16 @@ class DeadCodeAnalyzer {
       final referenceVisitor = ReferenceVisitor();
       unit.accept(referenceVisitor);
       allReferences.addAll(referenceVisitor.allReferences);
+      unresolvedMemberNames.addAll(referenceVisitor.unresolvedMemberNames);
       rootElementIds.addAll(referenceVisitor.rootElementIds);
       for (final entry in referenceVisitor.referenceGraph.entries) {
         referenceGraph.putIfAbsent(entry.key, () => {}).addAll(entry.value);
+      }
+    }
+
+    for (final entry in elementIdToEntity.entries) {
+      if (unresolvedMemberNames.contains(entry.value.name)) {
+        rootElementIds.add(entry.key);
       }
     }
 
