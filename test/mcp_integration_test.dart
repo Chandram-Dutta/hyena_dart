@@ -263,7 +263,7 @@ hyena:
           )
           .timeout(const Duration(seconds: 20));
       expect(initializeResult.capabilities.tools, isNotNull);
-      expect(initializeResult.serverInfo.version, '1.1.1');
+      expect(initializeResult.serverInfo.version, '1.1.2');
       connection.notifyInitialized();
 
       final tools = await connection.listTools(ListToolsRequest());

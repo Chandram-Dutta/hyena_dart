@@ -10,7 +10,7 @@ base class HyenaMcpServer extends MCPServer with ToolsSupport {
 
   HyenaMcpServer(super.channel, {required this.analysisService})
     : super.fromStreamChannel(
-        implementation: Implementation(name: 'hyena-dart', version: '1.1.1'),
+        implementation: Implementation(name: 'hyena-dart', version: '1.1.2'),
         instructions:
             'Analyze Dart source for dead code and complexity. The only '
             'available tool is read-only and confined to the workspace root '
