@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dart_mcp/server.dart';
 
+import '../version.dart';
 import 'mcp_analysis_service.dart';
 
 base class HyenaMcpServer extends MCPServer with ToolsSupport {
@@ -10,7 +11,10 @@ base class HyenaMcpServer extends MCPServer with ToolsSupport {
 
   HyenaMcpServer(super.channel, {required this.analysisService})
     : super.fromStreamChannel(
-        implementation: Implementation(name: 'hyena-dart', version: '1.1.2'),
+        implementation: Implementation(
+          name: 'hyena-dart',
+          version: hyenaVersion,
+        ),
         instructions:
             'Analyze Dart source for dead code and complexity. The only '
             'available tool is read-only and confined to the workspace root '

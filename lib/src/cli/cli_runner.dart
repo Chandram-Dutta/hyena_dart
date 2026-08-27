@@ -15,6 +15,7 @@ import '../reporters/json_reporter.dart';
 import '../reporters/markdown_reporter.dart';
 import '../reporters/reporter.dart';
 import '../reporters/sarif_reporter.dart';
+import '../version.dart';
 
 class HyenaCommandRunner extends CommandRunner<int> {
   HyenaCommandRunner()
@@ -22,9 +23,23 @@ class HyenaCommandRunner extends CommandRunner<int> {
         'hyena',
         'A Flutter/Dart codebase analyzer for dead code and complexity metrics.',
       ) {
+    argParser.addFlag(
+      'version',
+      help: 'Print the Hyena Dart version',
+      negatable: false,
+    );
     addCommand(AnalyzeCommand());
     addCommand(DeadCodeCommand());
     addCommand(ComplexityCommand());
+  }
+
+  @override
+  Future<int?> runCommand(ArgResults topLevelResults) {
+    if (topLevelResults['version'] as bool) {
+      print('hyena_dart $hyenaVersion');
+      return Future.value(0);
+    }
+    return super.runCommand(topLevelResults);
   }
 }
 

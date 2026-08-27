@@ -26,6 +26,7 @@ jobs:
             exit 1
           fi
       - run: dart pub get
+      - run: dart run tool/check_version.dart
       - run: dart format --output=none --set-exit-if-changed .
       - run: dart analyze --fatal-infos
       - run: dart test

@@ -4,6 +4,7 @@ import 'package:args/args.dart';
 import 'package:dart_mcp/stdio.dart';
 import 'package:hyena_dart/src/mcp/hyena_mcp_server.dart';
 import 'package:hyena_dart/src/mcp/mcp_analysis_service.dart';
+import 'package:hyena_dart/src/version.dart';
 
 Future<void> main(List<String> arguments) async {
   final parser = ArgParser()
@@ -12,12 +13,17 @@ Future<void> main(List<String> arguments) async {
       help: 'Workspace root that MCP analysis targets are confined to',
       valueHelp: 'directory',
     )
+    ..addFlag('version', help: 'Print the Hyena Dart version', negatable: false)
     ..addFlag('help', abbr: 'h', help: 'Show this help text', negatable: false);
 
   try {
     final results = parser.parse(arguments);
     if (results['help'] as bool) {
       stdout.writeln('Usage: hyena_mcp --root <directory>\n\n${parser.usage}');
+      return;
+    }
+    if (results['version'] as bool) {
+      stdout.writeln('hyena_mcp $hyenaVersion');
       return;
     }
     if (results.rest.isNotEmpty) {

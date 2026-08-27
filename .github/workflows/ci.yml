@@ -19,6 +19,7 @@ jobs:
         with:
           sdk: stable
       - run: dart pub get
+      - run: dart run tool/check_version.dart
       - run: dart format --output=none --set-exit-if-changed .
       - run: dart analyze --fatal-infos
       - run: dart test
@@ -32,6 +33,7 @@ jobs:
         with:
           sdk: stable
       - run: dart pub downgrade
+      - run: dart run tool/check_version.dart
       - run: dart analyze --fatal-infos
       - run: dart run bin/hyena_dart.dart analyze lib --format=json --output=/tmp/hyena-lower-bounds.json
       - run: dart run bin/hyena_mcp.dart --help
