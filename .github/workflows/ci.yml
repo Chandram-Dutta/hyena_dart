@@ -22,3 +22,15 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed .
       - run: dart analyze --fatal-infos
       - run: dart test
+
+  lower-bounds:
+    name: Test lower dependency bounds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub downgrade
+      - run: dart analyze --fatal-infos
+      - run: dart run bin/hyena_dart.dart analyze lib --format=json --output=/tmp/hyena-lower-bounds.json
