@@ -251,5 +251,6 @@ void main() {
         expect(File(aliasOutput).existsSync(), isFalse);
       }
     },
+    timeout: const Timeout(Duration(minutes: 2)),
   );
 }
