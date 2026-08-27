@@ -12,4 +12,5 @@ export 'src/reporters/console_reporter.dart';
 export 'src/reporters/json_reporter.dart';
 export 'src/reporters/markdown_reporter.dart';
 export 'src/reporters/html_reporter.dart';
+export 'src/reporters/sarif_reporter.dart';
 export 'src/cli/cli_runner.dart';

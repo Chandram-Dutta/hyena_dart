@@ -14,6 +14,7 @@ import '../reporters/html_reporter.dart';
 import '../reporters/json_reporter.dart';
 import '../reporters/markdown_reporter.dart';
 import '../reporters/reporter.dart';
+import '../reporters/sarif_reporter.dart';
 
 class HyenaCommandRunner extends CommandRunner<int> {
   HyenaCommandRunner()
@@ -33,7 +34,7 @@ abstract class BaseAnalysisCommand extends Command<int> {
       'format',
       abbr: 'f',
       help: 'Output format',
-      allowed: ['console', 'json', 'markdown', 'html'],
+      allowed: ['console', 'json', 'markdown', 'html', 'sarif'],
       defaultsTo: 'console',
     );
     argParser.addOption(
@@ -79,6 +80,7 @@ abstract class BaseAnalysisCommand extends Command<int> {
       'json' => JsonReporter(),
       'markdown' => MarkdownReporter(),
       'html' => HtmlReporter(),
+      'sarif' => SarifReporter(),
       _ => ConsoleReporter(useColors: !noColor),
     };
   }

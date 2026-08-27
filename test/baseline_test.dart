@@ -120,6 +120,34 @@ void main() {
     ]);
     expect(passingResult.exitCode, 0);
   });
+
+  test('SARIF reporter emits rules, locations, and fingerprints', () async {
+    final sarif =
+        jsonDecode(await SarifReporter().generate(_result(fixture.path)))
+            as Map<String, dynamic>;
+
+    expect(sarif['version'], '2.1.0');
+    final runs = sarif['runs'] as List;
+    final run = runs.single as Map<String, dynamic>;
+    final tool = run['tool'] as Map<String, dynamic>;
+    final driver = tool['driver'] as Map<String, dynamic>;
+    final rules = driver['rules'] as List;
+    expect(rules, hasLength(4));
+
+    final results = run['results'] as List;
+    expect(results, hasLength(4));
+    final deadCode = results.cast<Map<String, dynamic>>().singleWhere(
+      (result) => result['ruleId'] == FindingRule.deadCode,
+    );
+    final locations = deadCode['locations'] as List;
+    final location = locations.single as Map<String, dynamic>;
+    final physicalLocation =
+        location['physicalLocation'] as Map<String, dynamic>;
+    final artifact =
+        physicalLocation['artifactLocation'] as Map<String, dynamic>;
+    expect(artifact['uri'], 'lib/sample.dart');
+    expect(deadCode['partialFingerprints'], isNotEmpty);
+  });
 }
 
 Future<({String output, int exitCode})> _runCli(List<String> arguments) async {
