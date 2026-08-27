@@ -7,6 +7,7 @@ import '../analyzer/complexity_analyzer.dart';
 import '../analyzer/dead_code_analyzer.dart';
 import '../config/analyzer_config.dart';
 import '../models/analysis_result.dart';
+import '../models/finding_baseline.dart';
 import '../reporters/console_reporter.dart';
 import '../reporters/html_reporter.dart';
 import '../reporters/json_reporter.dart';
@@ -49,6 +50,14 @@ abstract class BaseAnalysisCommand extends Command<void> {
       help: 'Disable colored output',
       negatable: false,
     );
+    argParser.addOption(
+      'baseline',
+      help: 'Suppress findings recorded in a Hyena baseline file',
+    );
+    argParser.addOption(
+      'write-baseline',
+      help: 'Write current findings to a Hyena baseline file',
+    );
   }
 
   String getTargetPath() {
@@ -75,6 +84,27 @@ abstract class BaseAnalysisCommand extends Command<void> {
     } else {
       print(content);
     }
+  }
+
+  Future<AnalysisResult> applyBaselineOptions(
+    AnalysisResult result,
+    ArgResults results,
+  ) async {
+    final baselinePath = results['baseline'] as String?;
+    final writeBaselinePath = results['write-baseline'] as String?;
+    if (baselinePath != null && writeBaselinePath != null) {
+      throw UsageException(
+        '--baseline and --write-baseline cannot be used together.',
+        usage,
+      );
+    }
+    if (writeBaselinePath != null) {
+      await FindingBaseline.fromResult(result).write(writeBaselinePath);
+    }
+    if (baselinePath != null) {
+      return (await FindingBaseline.load(baselinePath)).apply(result);
+    }
+    return result;
   }
 }
 
@@ -121,12 +151,13 @@ class AnalyzeCommand extends BaseAnalysisCommand {
 
     stopwatch.stop();
 
-    final result = AnalysisResult(
+    var result = AnalysisResult(
       deadCodeReport: deadCodeReport,
       complexityReport: complexityReport,
       targetPath: targetPath,
       duration: stopwatch.elapsed,
     );
+    result = await applyBaselineOptions(result, argResults!);
 
     final reporter = getReporter(argResults!);
     final output = await reporter.generate(result);
@@ -178,11 +209,12 @@ class DeadCodeCommand extends BaseAnalysisCommand {
     final deadCodeReport = await DeadCodeAnalyzer(config).analyze(targetPath);
     stopwatch.stop();
 
-    final result = AnalysisResult(
+    var result = AnalysisResult(
       deadCodeReport: deadCodeReport,
       targetPath: targetPath,
       duration: stopwatch.elapsed,
     );
+    result = await applyBaselineOptions(result, argResults!);
 
     final reporter = getReporter(argResults!);
     final output = await reporter.generate(result);
@@ -232,11 +264,12 @@ class ComplexityCommand extends BaseAnalysisCommand {
     ).analyze(targetPath);
     stopwatch.stop();
 
-    final result = AnalysisResult(
+    var result = AnalysisResult(
       complexityReport: complexityReport,
       targetPath: targetPath,
       duration: stopwatch.elapsed,
     );
+    result = await applyBaselineOptions(result, argResults!);
 
     final reporter = getReporter(argResults!);
     final output = await reporter.generate(result);

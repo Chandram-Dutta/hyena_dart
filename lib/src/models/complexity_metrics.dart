@@ -33,6 +33,19 @@ class FunctionMetrics {
 
   String get fullName => parentClass != null ? '$parentClass.$name' : name;
 
+  FunctionMetrics copyWith({Set<String>? suppressedRules}) => FunctionMetrics(
+    name: name,
+    filePath: filePath,
+    line: line,
+    cyclomaticComplexity: cyclomaticComplexity,
+    linesOfCode: linesOfCode,
+    maxNestingLevel: maxNestingLevel,
+    parameterCount: parameterCount,
+    halsteadVolume: halsteadVolume,
+    parentClass: parentClass,
+    suppressedRules: suppressedRules ?? this.suppressedRules,
+  );
+
   double get maintainabilityIndex {
     final rawIndex =
         171 -
