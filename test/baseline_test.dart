@@ -87,6 +87,58 @@ void parent() {
     );
   });
 
+  test('closure baselines use separate unnamed extension scopes', () async {
+    final source = File(p.join(fixture.path, 'sample.dart'));
+    const secondExtension = '''
+extension on int {
+  void check() {
+    final violating = () {
+      if (this > 0) print(this);
+    };
+    violating();
+  }
+}
+''';
+    source.writeAsStringSync('''
+extension on String {
+  void check() {
+    final harmless = () => print(this);
+    harmless();
+  }
+}
+$secondExtension''');
+    final config = AnalyzerConfig(cyclomaticThreshold: 1);
+    final firstReport = await ComplexityAnalyzer(config).analyze(source.path);
+    final baseline = FindingBaseline.fromResult(
+      AnalysisResult(
+        complexityReport: firstReport,
+        targetPath: source.path,
+        duration: Duration.zero,
+      ),
+    );
+
+    source.writeAsStringSync('''
+extension on String {
+  void check() {
+    final added = () => print(this);
+    final harmless = () => print(this);
+    added();
+    harmless();
+  }
+}
+$secondExtension''');
+    final changedReport = await ComplexityAnalyzer(config).analyze(source.path);
+    final filtered = baseline.apply(
+      AnalysisResult(
+        complexityReport: changedReport,
+        targetPath: source.path,
+        duration: Duration.zero,
+      ),
+    );
+
+    expect(filtered.complexityReport!.thresholdViolations, isEmpty);
+  });
+
   test('writes and applies dead-code baselines', () async {
     final result = _result(fixture.path);
     final path = p.join(fixture.path, 'hyena-baseline.json');

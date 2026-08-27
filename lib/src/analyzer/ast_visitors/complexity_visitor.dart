@@ -15,8 +15,10 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
   final String source;
   final List<FunctionMetrics> functions = [];
   String? _currentClass;
+  String? _currentContainerFingerprint;
   String? _currentExecutableFingerprint;
   final Map<String, int> _closureCounts = {};
+  final Map<String, int> _unnamedExtensionCounts = {};
 
   ComplexityVisitor(this.filePath, this.lineInfo, this.source);
 
@@ -36,9 +38,23 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitExtensionDeclaration(ExtensionDeclaration node) {
-    _currentClass = node.name?.lexeme;
+    final name = node.name?.lexeme;
+    _currentClass = name;
+    if (name != null) {
+      _currentContainerFingerprint = name;
+    } else {
+      final extendedType = node.onClause?.extendedType.toSource() ?? 'unknown';
+      final index = _unnamedExtensionCounts.update(
+        extendedType,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+      _currentContainerFingerprint =
+          '<unnamed-extension-on-$extendedType#$index>';
+    }
     super.visitExtensionDeclaration(node);
     _currentClass = null;
+    _currentContainerFingerprint = null;
   }
 
   @override
@@ -174,8 +190,10 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     return parentClass == null ? name : '$parentClass.$name';
   }
 
-  String _memberFingerprintName(String name) =>
-      _currentClass == null ? name : '${_currentClass!}.$name';
+  String _memberFingerprintName(String name) {
+    final container = _currentContainerFingerprint ?? _currentClass;
+    return container == null ? name : '$container.$name';
+  }
 
   void _visitExecutable(String fingerprintName, void Function() visit) {
     final previous = _currentExecutableFingerprint;
