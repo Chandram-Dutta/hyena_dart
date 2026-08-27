@@ -1,3 +1,16 @@
+## [1.0.1] - 2026-08-27
+
+### Fixed
+- Honor configured complexity thresholds, dead-code settings, and target-project configuration without CLI defaults overriding YAML
+- Detect dead code through declaration reachability, including exported APIs, extensions, extension types, and their dependencies
+- Respect barrel export visibility and `show`/`hide` combinators
+- Report accurate one-based source locations and physical line totals
+- Analyze constructors, closures, modern control flow, and constructor initializer lists in their correct complexity scopes
+- Exclude nested closure bodies from outer-function metrics
+- Calculate token-based Halstead volume and a normalized maintainability index
+- Surface parse and resolution failures instead of silently omitting source files
+- Escape source-controlled content in HTML reports
+
 ## [1.0.0] - 2026-05-23
 
 ### Added
