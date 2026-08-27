@@ -2,6 +2,8 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element2.dart';
 
+import 'member_override.dart';
+
 class ReferenceVisitor extends RecursiveAstVisitor<void> {
   final Set<String> references = {};
   final Set<String> typeReferences = {};
@@ -24,9 +26,6 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     visit();
     _currentDeclarationId = previousDeclarationId;
   }
-
-  bool _isOverride(MethodDeclaration node) =>
-      node.metadata.any((annotation) => annotation.name.name == 'override');
 
   void _recordElement(Element2? element) {
     if (element == null) return;
@@ -119,7 +118,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     _visitInScope(
       node.declaredFragment?.element,
       () => super.visitMethodDeclaration(node),
-      isRoot: _isOverride(node),
+      isRoot: isOverridingMember(node),
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/source/line_info.dart';
 
 import '../../models/code_entity.dart';
+import 'member_override.dart';
 
 class DeclarationVisitor extends RecursiveAstVisitor<void> {
   final String filePath;
@@ -247,7 +248,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitMethodDeclaration(MethodDeclaration node) {
     final name = node.name.lexeme;
-    if (_isOverride(node)) {
+    if (isOverridingMember(node)) {
       super.visitMethodDeclaration(node);
       return;
     }
@@ -274,15 +275,6 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
       isLive: _currentContainerLive && _isPublic(name),
     );
     super.visitMethodDeclaration(node);
-  }
-
-  bool _isOverride(MethodDeclaration node) {
-    for (final annotation in node.metadata) {
-      if (annotation.name.name == 'override') {
-        return true;
-      }
-    }
-    return false;
   }
 
   @override

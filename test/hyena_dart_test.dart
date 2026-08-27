@@ -197,6 +197,42 @@ void main() {
       expect(names, isNot(contains('Holder.used')));
     });
 
+    test(
+      'keeps inherited implementations without override annotations',
+      () async {
+        final libPath = await makeFixture('''
+abstract interface class Contract {
+  void call();
+  int get value;
+  set value(int value);
+}
+
+class Implementation implements Contract {
+  void call() {}
+  int get value => 0;
+  set value(int value) {}
+}
+
+void invoke(Contract contract) {
+  contract.call();
+  contract.value = contract.value + 1;
+}
+
+void main() => invoke(Implementation());
+''');
+
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(ignoreExports: false),
+        ).analyze(libPath);
+        final unusedNames = report.unusedEntities
+            .map((entity) => entity.fullName)
+            .toSet();
+
+        expect(unusedNames, isNot(contains('Implementation.call')));
+        expect(unusedNames, isNot(contains('Implementation.value')));
+      },
+    );
+
     test('honors ignoreMain when it is disabled', () async {
       final libPath = await makeFixture('void main() {}');
       final report = await DeadCodeAnalyzer(
