@@ -34,3 +34,4 @@ jobs:
       - run: dart pub downgrade
       - run: dart analyze --fatal-infos
       - run: dart run bin/hyena_dart.dart analyze lib --format=json --output=/tmp/hyena-lower-bounds.json
+      - run: dart run bin/hyena_mcp.dart --help

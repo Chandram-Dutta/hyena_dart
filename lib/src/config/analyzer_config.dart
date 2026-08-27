@@ -25,38 +25,93 @@ class AnalyzerConfig {
   static Future<AnalyzerConfig> load(
     String? configPath, {
     String? targetPath,
+    String? searchBoundary,
   }) async {
+    final boundary = searchBoundary == null
+        ? null
+        : await _resolveBoundary(searchBoundary);
     if (configPath != null) {
       final file = File(configPath);
       if (!await file.exists()) {
         throw ArgumentError('Configuration file does not exist: $configPath');
       }
-      return _parseConfig(await file.readAsString(), file.path);
+      final safeFile = await _resolveConfigFile(file, boundary);
+      return _parseConfig(await safeFile.readAsString(), safeFile.path);
     }
 
-    final file = await _findConfigFile(targetPath ?? Directory.current.path);
+    final file = await _findConfigFile(
+      targetPath ?? Directory.current.path,
+      searchBoundary: boundary,
+    );
     if (file != null) {
       return _parseConfig(await file.readAsString(), file.path);
     }
     return AnalyzerConfig();
   }
 
-  static Future<File?> _findConfigFile(String targetPath) async {
+  static Future<String> _resolveBoundary(String searchBoundary) async {
+    final directory = Directory(p.absolute(searchBoundary));
+    if (!await directory.exists()) {
+      throw ArgumentError(
+        'Configuration search boundary does not exist: $searchBoundary',
+      );
+    }
+    return p.normalize(await directory.resolveSymbolicLinks());
+  }
+
+  static Future<File> _resolveConfigFile(
+    File file,
+    String? searchBoundary,
+  ) async {
+    if (searchBoundary == null) return file;
+
+    final resolvedPath = p.normalize(await file.resolveSymbolicLinks());
+    if (!_isWithinOrEqual(searchBoundary, resolvedPath)) {
+      throw ArgumentError('Configuration file is outside the search boundary');
+    }
+    return File(resolvedPath);
+  }
+
+  static Future<File?> _findConfigFile(
+    String targetPath, {
+    String? searchBoundary,
+  }) async {
     final absoluteTarget = p.absolute(targetPath);
     var directory = await FileSystemEntity.isFile(absoluteTarget)
         ? File(absoluteTarget).parent
         : Directory(absoluteTarget);
+    if (searchBoundary != null && await directory.exists()) {
+      directory = Directory(
+        p.normalize(await directory.resolveSymbolicLinks()),
+      );
+    }
+
+    if (searchBoundary != null &&
+        !_isWithinOrEqual(searchBoundary, p.normalize(directory.path))) {
+      throw ArgumentError(
+        'Configuration target is outside the search boundary',
+      );
+    }
 
     while (true) {
       for (final name in ['hyena.yaml', 'analysis_options.yaml']) {
         final file = File(p.join(directory.path, name));
-        if (await file.exists()) return file;
+        if (await file.exists()) {
+          return _resolveConfigFile(file, searchBoundary);
+        }
+      }
+      if (searchBoundary != null &&
+          p.equals(p.normalize(directory.path), searchBoundary)) {
+        return null;
       }
       final parent = directory.parent;
       if (parent.path == directory.path) return null;
       directory = parent;
     }
   }
+
+  static bool _isWithinOrEqual(String rootPath, String candidatePath) =>
+      p.equals(rootPath, candidatePath) || p.isWithin(rootPath, candidatePath);
 
   static AnalyzerConfig _parseConfig(String content, String sourcePath) {
     try {

@@ -13,6 +13,7 @@ topics:
 
 executables:
   hyena_dart:
+  hyena_mcp:
 
 environment:
   sdk: ^3.10.3
@@ -20,6 +21,7 @@ environment:
 dependencies:
   analyzer: ^7.7.1
   args: ^2.4.0
+  dart_mcp: ^0.5.2
   path: ^1.9.0
   yaml: ^3.1.0
   glob: ^2.1.1

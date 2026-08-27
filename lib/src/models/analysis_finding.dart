@@ -49,14 +49,17 @@ class AnalysisFinding {
     fingerprintSymbol ?? symbol,
   ]);
 
-  static List<AnalysisFinding> fromResult(AnalysisResult result) {
-    final rootPath = analysisRootForTarget(result.targetPath);
+  static List<AnalysisFinding> fromResult(
+    AnalysisResult result, {
+    String? rootPath,
+  }) {
+    final analysisRoot = rootPath ?? analysisRootForTarget(result.targetPath);
     final findings = <AnalysisFinding>[];
     final deadCodeReport = result.deadCodeReport;
     if (deadCodeReport != null) {
       findings.addAll(
         deadCodeReport.unusedEntities.map(
-          (entity) => forDeadCode(entity, rootPath: rootPath),
+          (entity) => forDeadCode(entity, rootPath: analysisRoot),
         ),
       );
     }
@@ -70,7 +73,7 @@ class AnalysisFinding {
             ruleId: FindingRule.cyclomaticComplexity,
             threshold: complexityReport.cyclomaticThreshold,
             value: metrics.cyclomaticComplexity,
-            rootPath: rootPath,
+            rootPath: analysisRoot,
           ),
         ),
       );
@@ -81,7 +84,7 @@ class AnalysisFinding {
             ruleId: FindingRule.maxNesting,
             threshold: complexityReport.maxNestingLevel,
             value: metrics.maxNestingLevel,
-            rootPath: rootPath,
+            rootPath: analysisRoot,
           ),
         ),
       );
@@ -92,7 +95,7 @@ class AnalysisFinding {
             ruleId: FindingRule.maxParameters,
             threshold: complexityReport.maxParameters,
             value: metrics.parameterCount,
-            rootPath: rootPath,
+            rootPath: analysisRoot,
           ),
         ),
       );
