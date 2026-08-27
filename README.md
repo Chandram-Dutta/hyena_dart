@@ -7,42 +7,42 @@ A powerful Flutter/Dart codebase analyzer that detects dead code and calculates 
 
 ## Features
 
-- **Dead Code Detection** - Find unused classes, functions, methods, enums, variables, fields, and typedefs
+- **Dead Code Detection** - Find unused classes, constructors, functions, methods, enums, variables, fields, and typedefs
 - **Complexity Metrics** - Cyclomatic complexity, lines of code, nesting levels, parameter count, maintainability index
-- **Multiple Output Formats** - Console (colored), JSON, Markdown, HTML
+- **Multiple Output Formats** - Console (colored), JSON, Markdown, HTML, and SARIF 2.1
 - **Configurable** - Exclude patterns, thresholds, and analysis options via YAML config
-- **CI/CD Ready** - JSON output for easy integration with build pipelines
+- **CI/CD Ready** - Finding-based exit codes, baselines, source suppressions, and SARIF output
 
 ## Installation
 
-Add to your `pubspec.yaml` as a dev dependency:
-
-```yaml
-dev_dependencies:
-  hyena_dart:
-    path: /path/to/hyena_dart
-```
-
-Or run directly:
+Install the CLI from pub.dev:
 
 ```bash
-dart run bin/hyena_dart.dart <command> [options]
+dart pub global activate hyena_dart
+hyena_dart --help
+```
+
+Or add Hyena to a project as a dev dependency:
+
+```bash
+dart pub add --dev hyena_dart
+dart run hyena_dart analyze .
 ```
 
 ## Quick Start
 
 ```bash
 # Analyze current directory
-dart run bin/hyena_dart.dart analyze .
+hyena_dart analyze .
 
 # Analyze specific path
-dart run bin/hyena_dart.dart analyze lib
+hyena_dart analyze lib
 
 # Dead code analysis only
-dart run bin/hyena_dart.dart dead-code lib
+hyena_dart dead-code lib
 
 # Complexity analysis only
-dart run bin/hyena_dart.dart complexity lib
+hyena_dart complexity lib
 ```
 
 ## CLI Reference
@@ -53,35 +53,38 @@ dart run bin/hyena_dart.dart complexity lib
 Run both dead code and complexity analysis.
 
 ```bash
-dart run bin/hyena_dart.dart analyze <path> [options]
+hyena_dart analyze <path> [options]
 ```
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
-| `--format` | `-f` | Output format: `console`, `json`, `markdown`, `html` | `console` |
+| `--format` | `-f` | Output format: `console`, `json`, `markdown`, `html`, `sarif` | `console` |
 | `--output` | `-o` | Output file path (prints to stdout if not specified) | - |
 | `--config` | `-c` | Path to configuration file | - |
 | `--no-color` | - | Disable colored output | `false` |
+| `--baseline` | - | Suppress findings recorded in a baseline file | - |
+| `--write-baseline` | - | Write current findings to a baseline file | - |
+| `--fail-on` | - | Exit 1 for `dead-code`, `complexity`, or both | - |
 | `--dead-code` | - | Include dead code analysis | `true` |
 | `--complexity` | - | Include complexity analysis | `true` |
 
 **Examples:**
 ```bash
 # Full analysis with HTML report
-dart run bin/hyena_dart.dart analyze lib --format=html --output=report.html
+hyena_dart analyze lib --format=html --output=report.html
 
 # JSON output for CI/CD
-dart run bin/hyena_dart.dart analyze lib --format=json --output=analysis.json
+hyena_dart analyze lib --format=json --output=analysis.json
 
 # Skip complexity analysis
-dart run bin/hyena_dart.dart analyze lib --no-complexity
+hyena_dart analyze lib --no-complexity
 ```
 
 #### `dead-code` - Dead Code Analysis
 Analyze codebase for unused code entities.
 
 ```bash
-dart run bin/hyena_dart.dart dead-code <path> [options]
+hyena_dart dead-code <path> [options]
 ```
 
 | Option | Short | Description | Default |
@@ -89,23 +92,26 @@ dart run bin/hyena_dart.dart dead-code <path> [options]
 | `--format` | `-f` | Output format | `console` |
 | `--output` | `-o` | Output file path | - |
 | `--config` | `-c` | Path to configuration file | - |
+| `--baseline` | - | Suppress findings recorded in a baseline file | - |
+| `--write-baseline` | - | Write current findings to a baseline file | - |
+| `--fail-on` | - | Exit 1 when dead-code findings remain | - |
 | `--ignore-exports` | - | Ignore exported entities | `true` |
 | `--ignore-private` | - | Ignore private entities | `false` |
 
 **Examples:**
 ```bash
 # Find all unused code including exports
-dart run bin/hyena_dart.dart dead-code lib --no-ignore-exports
+hyena_dart dead-code lib --no-ignore-exports
 
 # Markdown report
-dart run bin/hyena_dart.dart dead-code lib --format=markdown --output=dead-code.md
+hyena_dart dead-code lib --format=markdown --output=dead-code.md
 ```
 
 #### `complexity` - Complexity Analysis
 Analyze code complexity metrics.
 
 ```bash
-dart run bin/hyena_dart.dart complexity <path> [options]
+hyena_dart complexity <path> [options]
 ```
 
 | Option | Short | Description | Default |
@@ -113,15 +119,18 @@ dart run bin/hyena_dart.dart complexity <path> [options]
 | `--format` | `-f` | Output format | `console` |
 | `--output` | `-o` | Output file path | - |
 | `--config` | `-c` | Path to configuration file | - |
+| `--baseline` | - | Suppress findings recorded in a baseline file | - |
+| `--write-baseline` | - | Write current findings to a baseline file | - |
+| `--fail-on` | - | Exit 1 when complexity findings remain | - |
 | `--threshold` | `-t` | Cyclomatic complexity threshold for warnings | `20` |
 
 **Examples:**
 ```bash
 # Set custom threshold
-dart run bin/hyena_dart.dart complexity lib --threshold=15
+hyena_dart complexity lib --threshold=15
 
 # JSON output
-dart run bin/hyena_dart.dart complexity lib --format=json
+hyena_dart complexity lib --format=json
 ```
 
 ## Configuration
@@ -203,11 +212,71 @@ GitHub-friendly format with tables and collapsible sections.
 ### HTML
 Visual report with styled cards, tables, and color-coded metrics.
 
+### SARIF
+SARIF 2.1 output for code-scanning systems:
+
+```bash
+hyena_dart analyze . --format=sarif --output=hyena.sarif
+```
+
+## CI/CD Usage
+
+Hyena exits with code 0 by default, even when it reports findings. Opt into a
+stable exit code 1 for selected categories:
+
+```bash
+hyena_dart analyze . --fail-on=dead-code,complexity
+```
+
+To adopt Hyena without failing on existing findings, create and commit a
+baseline, then fail only on new findings:
+
+```bash
+hyena_dart analyze . --write-baseline=hyena-baseline.json
+hyena_dart analyze . \
+  --baseline=hyena-baseline.json \
+  --fail-on=dead-code,complexity
+```
+
+Baseline fingerprints use the rule, package-relative path, symbol type, and
+full symbol name. Moving a declaration to another line does not invalidate its
+baseline entry.
+
+## Source Suppressions
+
+Place an ignore comment immediately before a declaration when a finding is
+intentional:
+
+```dart
+// hyena:ignore dead-code
+void retainedForReflection() {}
+
+// hyena:ignore complexity
+void generatedDispatcher() {
+  // All complexity threshold findings are suppressed.
+}
+
+// Rule-specific complexity suppressions:
+// hyena:ignore cyclomatic-complexity
+void stateMachine() {}
+
+// hyena:ignore max-nesting
+void nestedParser() {}
+
+// hyena:ignore max-parameters
+void frameworkCallback(int a, int b, int c, int d, int e, int f, int g) {}
+```
+
+Suppressed dead-code declarations remain reachability roots, so dependencies
+used by an intentionally retained declaration are not reported as cascading
+dead code.
+
 ## Metrics Explained
 
 ### Dead Code Detection
 Detects the following unused entities:
 - Classes (including abstract classes)
+- Explicit unnamed, named, and private constructors
 - Mixins and Extensions
 - Enums and enum values
 - Top-level and instance functions/methods

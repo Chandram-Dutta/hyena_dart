@@ -1,3 +1,19 @@
+## [1.1.0] - 2026-08-27
+
+### Added
+- Analyze individual Dart files as well as directories
+- Detect unused explicit constructors
+- Support `hyena:ignore` source suppressions for dead code and individual complexity rules
+- Add versioned finding baselines with stable, line-independent fingerprints
+- Add opt-in `--fail-on` exit codes for dead-code and complexity findings
+- Add SARIF 2.1 output for code-scanning integrations
+
+### Fixed
+- Preserve public APIs from directly importable package libraries and library parts
+- Follow every conditional import and export branch
+- Recognize inherited member implementations without requiring an `@override` annotation
+- Conservatively retain unresolved dynamic member targets
+
 ## [1.0.1] - 2026-08-27
 
 ### Fixed
