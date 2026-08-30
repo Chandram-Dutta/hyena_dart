@@ -13,7 +13,7 @@ void main() {
       final config = AnalyzerConfig();
       expect(config.cyclomaticThreshold, 20);
       expect(config.maxNestingLevel, 5);
-      expect(config.ignoreExports, true);
+      expect(config.ignoreExports, false);
     });
 
     test('copyWith preserves values', () {
@@ -807,6 +807,56 @@ hyena:
       expect(summary['unusedCount'], 0);
     });
 
+    test(
+      'analyze reports public APIs by default and can preserve them explicitly',
+      () async {
+        final libPath = await makeFixture('void unusedPublicApi() {}');
+        final defaultOutput = <String>[];
+
+        await runZoned(
+          () => HyenaCommandRunner().run([
+            'analyze',
+            libPath,
+            '--no-complexity',
+            '--format=json',
+          ]),
+          zoneSpecification: ZoneSpecification(
+            print: (_, _, _, message) => defaultOutput.add(message),
+          ),
+        );
+
+        final defaultJson =
+            jsonDecode(defaultOutput.join('\n')) as Map<String, dynamic>;
+        final defaultDeadCode = defaultJson['deadCode'] as Map<String, dynamic>;
+        final defaultEntities = (defaultDeadCode['unusedEntities'] as List)
+            .cast<Map>();
+        expect(
+          defaultEntities.map((entity) => entity['name']),
+          contains('unusedPublicApi'),
+        );
+
+        final output = <String>[];
+
+        await runZoned(
+          () => HyenaCommandRunner().run([
+            'analyze',
+            libPath,
+            '--ignore-exports',
+            '--no-complexity',
+            '--format=json',
+          ]),
+          zoneSpecification: ZoneSpecification(
+            print: (_, _, _, message) => output.add(message),
+          ),
+        );
+
+        final json = jsonDecode(output.join('\n')) as Map<String, dynamic>;
+        final deadCode = json['deadCode'] as Map<String, dynamic>;
+        final summary = deadCode['summary'] as Map<String, dynamic>;
+        expect(summary['unusedCount'], 0);
+      },
+    );
+
     test('reports one-based declaration lines and columns', () async {
       final libPath = await makeFixture('\n  void unusedFunction() {}\n');
       final report = await DeadCodeAnalyzer(
@@ -824,7 +874,9 @@ hyena:
         additionalFiles: {'src/api.dart': 'class PublicApi {}'},
       );
 
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: true),
+      ).analyze(libPath);
 
       expect(
         report.unusedEntities.map((entity) => entity.name),
@@ -840,7 +892,9 @@ hyena:
         },
       );
 
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: true),
+      ).analyze(libPath);
       final unusedNames = report.unusedEntities
           .map((entity) => entity.name)
           .toSet();
@@ -859,7 +913,9 @@ class PublicApi {
 }
 ''');
 
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: true),
+      ).analyze(libPath);
       final unusedNames = report.unusedEntities
           .map((entity) => entity.fullName)
           .toSet();
@@ -884,7 +940,9 @@ class PartApi {
         },
       );
 
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: true),
+      ).analyze(libPath);
       final unusedNames = report.unusedEntities
           .map((entity) => entity.fullName)
           .toSet();
@@ -911,7 +969,7 @@ class ExportedPartApi {
         );
 
         final report = await DeadCodeAnalyzer(
-          AnalyzerConfig(),
+          AnalyzerConfig(ignoreExports: true),
         ).analyze(libPath);
         final unusedNames = report.unusedEntities
             .map((entity) => entity.fullName)
@@ -931,7 +989,9 @@ class ExportedPartApi {
         },
       );
 
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: true),
+      ).analyze(libPath);
       final unusedNames = report.unusedEntities
           .map((entity) => entity.name)
           .toSet();
@@ -1132,7 +1192,9 @@ void _implementation() {}
         },
       );
 
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: true),
+      ).analyze(libPath);
       final unusedNames = report.unusedEntities
           .map((entity) => entity.name)
           .toSet();
@@ -1166,7 +1228,9 @@ extension ApiExtension on String {
         },
       );
 
-      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: true),
+      ).analyze(libPath);
       final unusedNames = report.unusedEntities
           .map((entity) => entity.fullName)
           .toSet();

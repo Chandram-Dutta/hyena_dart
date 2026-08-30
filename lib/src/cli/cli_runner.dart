@@ -159,6 +159,16 @@ class AnalyzeCommand extends BaseAnalysisCommand {
       help: 'Include complexity analysis',
       defaultsTo: true,
     );
+    argParser.addFlag(
+      'ignore-exports',
+      help: 'Preserve exported public APIs from dead-code findings',
+      defaultsTo: false,
+    );
+    argParser.addFlag(
+      'ignore-private',
+      help: 'Ignore private entities',
+      defaultsTo: false,
+    );
   }
 
   @override
@@ -169,6 +179,19 @@ class AnalyzeCommand extends BaseAnalysisCommand {
       configPath: argResults!['config'] as String?,
       includeDeadCode: argResults!['dead-code'] as bool,
       includeComplexity: argResults!['complexity'] as bool,
+      configure: (config) {
+        if (argResults!.wasParsed('ignore-exports')) {
+          config = config.copyWith(
+            ignoreExports: argResults!['ignore-exports'] as bool,
+          );
+        }
+        if (argResults!.wasParsed('ignore-private')) {
+          config = config.copyWith(
+            ignorePrivate: argResults!['ignore-private'] as bool,
+          );
+        }
+        return config;
+      },
     );
     result = await applyBaselineOptions(result, argResults!);
 
@@ -190,8 +213,8 @@ class DeadCodeCommand extends BaseAnalysisCommand {
     addCommonOptions();
     argParser.addFlag(
       'ignore-exports',
-      help: 'Ignore exported entities',
-      defaultsTo: true,
+      help: 'Preserve exported public APIs from dead-code findings',
+      defaultsTo: false,
     );
     argParser.addFlag(
       'ignore-private',

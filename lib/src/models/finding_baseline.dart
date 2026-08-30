@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'analysis_finding.dart';
+import 'analysis_path.dart';
 import 'analysis_result.dart';
 import 'complexity_metrics.dart';
 import 'dead_code_report.dart';

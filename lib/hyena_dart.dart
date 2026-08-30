@@ -4,6 +4,7 @@ export 'src/analyzer/analysis_runner.dart';
 export 'src/config/analyzer_config.dart';
 export 'src/models/analysis_result.dart';
 export 'src/models/analysis_finding.dart';
+export 'src/models/analysis_path.dart';
 export 'src/models/code_entity.dart';
 export 'src/models/complexity_metrics.dart';
 export 'src/models/dead_code_report.dart';

@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:path/path.dart' as p;
-
+import 'analysis_path.dart';
 import 'analysis_result.dart';
 import 'code_entity.dart';
 import 'complexity_metrics.dart';
@@ -155,25 +153,4 @@ class AnalysisFinding {
       properties: {'value': value, 'threshold': threshold},
     );
   }
-}
-
-String analysisRootForTarget(String targetPath) {
-  final absoluteTarget = p.absolute(targetPath);
-  var directory = FileSystemEntity.isFileSync(absoluteTarget)
-      ? File(absoluteTarget).parent
-      : Directory(absoluteTarget);
-  final fallbackRoot = directory.path;
-  while (true) {
-    if (File(p.join(directory.path, 'pubspec.yaml')).existsSync()) {
-      return p.normalize(directory.path);
-    }
-    final parent = directory.parent;
-    if (parent.path == directory.path) return p.normalize(fallbackRoot);
-    directory = parent;
-  }
-}
-
-String relativeFindingPath(String filePath, String rootPath) {
-  final relative = p.relative(p.absolute(filePath), from: rootPath);
-  return p.posix.joinAll(p.split(relative));
 }

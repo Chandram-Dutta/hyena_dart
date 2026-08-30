@@ -1,3 +1,4 @@
+import 'analysis_path.dart';
 import 'code_entity.dart';
 
 class DeadCodeReport {
@@ -32,7 +33,7 @@ class DeadCodeReport {
     return map;
   }
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({String? rootPath}) => {
     'analyzedAt': analyzedAt.toIso8601String(),
     'summary': {
       'totalDeclarations': totalDeclarations,
@@ -44,7 +45,9 @@ class DeadCodeReport {
           (e) => <String, dynamic>{
             'name': e.fullName,
             'type': e.typeLabel,
-            'filePath': e.filePath,
+            'filePath': rootPath == null
+                ? e.filePath
+                : relativeAnalysisPath(e.filePath, rootPath),
             'line': e.line,
             'column': e.column,
             'isPublic': e.isPublic,

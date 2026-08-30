@@ -16,36 +16,53 @@ A Dart and Flutter codebase analyzer for finding unused declarations and measuri
 
 ## Installation
 
-Install the CLI from pub.dev:
+Add Hyena to each project as a dev dependency. This pins the analyzer version
+for local development and CI:
 
 ```bash
-dart pub global activate hyena_dart
-hyena_dart --help
-hyena_dart --version
-```
-
-Or add Hyena to a project as a dev dependency:
-
-```bash
-dart pub add --dev hyena_dart
+dart pub add dev:hyena_dart
+dart run hyena_dart --help
+dart run hyena_dart --version
 dart run hyena_dart analyze .
 ```
+
+For a Flutter project, use `flutter pub add dev:hyena_dart` and then the same
+`dart run` commands. Hyena supports project-local execution only, keeping its
+version in the project's dependency resolution and lockfile.
 
 ## Quick Start
 
 ```bash
 # Analyze current directory
-hyena_dart analyze .
+dart run hyena_dart analyze .
 
 # Analyze specific path
-hyena_dart analyze lib
+dart run hyena_dart analyze lib
 
 # Dead code analysis only
-hyena_dart dead-code lib
+dart run hyena_dart dead-code lib
 
 # Complexity analysis only
-hyena_dart complexity lib
+dart run hyena_dart complexity lib
 ```
+
+Dead-code analysis reports unused public and private declarations by default.
+Reusable package authors can preserve exported public APIs with
+`--ignore-exports` or `hyena.dead_code.ignore_exports: true`.
+
+## Migrating from v1.x
+
+- Add Hyena as a project dev dependency with `dart pub add dev:hyena_dart`
+  (or `flutter pub add dev:hyena_dart`); v2 no longer maps global executables.
+- Run the CLI and MCP server with `dart run hyena_dart` and
+  `dart run hyena_dart:hyena_mcp`.
+- Expect unused public declarations in dead-code results. Set
+  `ignore_exports: true` for reusable packages whose exported API must remain
+  reachable without an in-repository caller.
+- Update consumers of console, JSON, Markdown, and HTML reports to expect
+  project- or workspace-relative target and file paths. Existing SARIF output,
+  MCP results, and baseline fingerprints were already relative and remain
+  compatible.
 
 ### Dart Workspaces and Monorepos
 
@@ -54,7 +71,7 @@ analyze the root package and every workspace member:
 
 ```bash
 dart pub get
-hyena_dart analyze .
+dart run hyena_dart analyze .
 ```
 
 Hyena supports explicit, nested, and glob workspace entries, subject to the
@@ -71,8 +88,8 @@ Configuration is discovered separately for each package. A package-local
 `hyena.yaml` or `analysis_options.yaml` takes precedence; otherwise discovery
 continues up to the workspace root. An explicit `--config` file applies to all
 packages. Console, JSON, Markdown, and HTML reports contain package sections,
-while SARIF locations and baseline fingerprints remain relative to the common
-workspace root.
+and every report path, SARIF location, and baseline fingerprint is relative to
+the common workspace root.
 
 ## AI Assistant Integration
 
@@ -80,15 +97,16 @@ Hyena includes a read-only MCP server. The source repository also provides an
 agent skill. The MCP server exposes one tool, `hyena_analyze`, for dead-code
 and complexity analysis with structured results.
 
-After globally activating Hyena, configure an MCP client to launch the server
-over standard input/output:
+After adding Hyena as a project dev dependency, configure an MCP client to
+launch the server over standard input/output. `-C` selects the project before
+resolving its local Hyena dependency, while the server root remains `.`:
 
 ```json
 {
   "mcpServers": {
     "hyena": {
-      "command": "hyena_mcp",
-      "args": ["--root", "/absolute/path/to/dart-project"]
+      "command": "dart",
+      "args": ["-C", "/absolute/path/to/dart-project", "run", "hyena_dart:hyena_mcp", "--root", "."]
     }
   }
 }
@@ -135,7 +153,7 @@ It prefers the constrained MCP tool and documents a JSON CLI fallback.
 Run both dead code and complexity analysis.
 
 ```bash
-hyena_dart analyze <path> [options]
+dart run hyena_dart analyze <path> [options]
 ```
 
 | Option | Short | Description | Default |
@@ -149,24 +167,26 @@ hyena_dart analyze <path> [options]
 | `--fail-on` | - | Exit 1 for `dead-code`, `complexity`, or both | - |
 | `--dead-code` | - | Include dead code analysis | `true` |
 | `--complexity` | - | Include complexity analysis | `true` |
+| `--ignore-exports` | - | Preserve exported public APIs from dead-code findings | `false` |
+| `--ignore-private` | - | Ignore private entities | `false` |
 
 **Examples:**
 ```bash
 # Full analysis with HTML report
-hyena_dart analyze lib --format=html --output=report.html
+dart run hyena_dart analyze lib --format=html --output=report.html
 
 # JSON output for CI/CD
-hyena_dart analyze lib --format=json --output=analysis.json
+dart run hyena_dart analyze lib --format=json --output=analysis.json
 
 # Skip complexity analysis
-hyena_dart analyze lib --no-complexity
+dart run hyena_dart analyze lib --no-complexity
 ```
 
 #### `dead-code` - Dead Code Analysis
 Analyze codebase for unused code entities.
 
 ```bash
-hyena_dart dead-code <path> [options]
+dart run hyena_dart dead-code <path> [options]
 ```
 
 | Option | Short | Description | Default |
@@ -177,23 +197,23 @@ hyena_dart dead-code <path> [options]
 | `--baseline` | - | Suppress findings recorded in a baseline file | - |
 | `--write-baseline` | - | Write current findings to a baseline file | - |
 | `--fail-on` | - | Exit 1 when dead-code findings remain | - |
-| `--ignore-exports` | - | Ignore exported entities | `true` |
+| `--ignore-exports` | - | Preserve exported public APIs from dead-code findings | `false` |
 | `--ignore-private` | - | Ignore private entities | `false` |
 
 **Examples:**
 ```bash
-# Find all unused code including exports
-hyena_dart dead-code lib --no-ignore-exports
+# Preserve a reusable package's exported public API
+dart run hyena_dart dead-code lib --ignore-exports
 
 # Markdown report
-hyena_dart dead-code lib --format=markdown --output=dead-code.md
+dart run hyena_dart dead-code lib --format=markdown --output=dead-code.md
 ```
 
 #### `complexity` - Complexity Analysis
 Analyze code complexity metrics.
 
 ```bash
-hyena_dart complexity <path> [options]
+dart run hyena_dart complexity <path> [options]
 ```
 
 | Option | Short | Description | Default |
@@ -209,10 +229,10 @@ hyena_dart complexity <path> [options]
 **Examples:**
 ```bash
 # Set custom threshold
-hyena_dart complexity lib --threshold=15
+dart run hyena_dart complexity lib --threshold=15
 
 # JSON output
-hyena_dart complexity lib --format=json
+dart run hyena_dart complexity lib --format=json
 ```
 
 ## Configuration
@@ -237,7 +257,7 @@ hyena:
   # Dead code options
   dead_code:
     ignore_main: true
-    ignore_exports: true
+    ignore_exports: false
     ignore_private: false
 
     # Declarations retained as framework or generated-code roots
@@ -317,13 +337,14 @@ Machine-readable format for CI/CD integration:
 GitHub-friendly format with tables and collapsible sections.
 
 ### HTML
-Visual report with styled cards, tables, and color-coded metrics.
+Visual report with styled cards, tables, color-coded metrics, and
+project-relative source paths.
 
 ### SARIF
 SARIF 2.1 output for code-scanning systems:
 
 ```bash
-hyena_dart analyze . --format=sarif --output=hyena.sarif
+dart run hyena_dart analyze . --format=sarif --output=hyena.sarif
 ```
 
 ## CI/CD Usage
@@ -332,15 +353,15 @@ Hyena exits with code 0 by default, even when it reports findings. Opt into a
 stable exit code 1 for selected categories:
 
 ```bash
-hyena_dart analyze . --fail-on=dead-code,complexity
+dart run hyena_dart analyze . --fail-on=dead-code,complexity
 ```
 
 To adopt Hyena without failing on existing findings, create and commit a
 baseline, then fail only on new findings:
 
 ```bash
-hyena_dart analyze . --write-baseline=hyena-baseline.json
-hyena_dart analyze . \
+dart run hyena_dart analyze . --write-baseline=hyena-baseline.json
+dart run hyena_dart analyze . \
   --baseline=hyena-baseline.json \
   --fail-on=dead-code,complexity
 ```
@@ -475,7 +496,7 @@ void main() async {
 
   final config = AnalyzerConfig(
     cyclomaticThreshold: 15,
-    ignoreExports: true,
+    ignoreExports: false,
   );
 
   // Dead code analysis

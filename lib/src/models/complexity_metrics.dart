@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'analysis_path.dart';
+
 abstract final class ComplexityRule {
   static const cyclomaticComplexity = 'cyclomatic-complexity';
   static const maxNesting = 'max-nesting';
@@ -58,9 +60,11 @@ class FunctionMetrics {
     return (rawIndex * 100 / 171).clamp(0, 100);
   }
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({String? rootPath}) => {
     'name': fullName,
-    'filePath': filePath,
+    'filePath': rootPath == null
+        ? filePath
+        : relativeAnalysisPath(filePath, rootPath),
     'line': line,
     'cyclomaticComplexity': cyclomaticComplexity,
     'linesOfCode': linesOfCode,
@@ -105,8 +109,10 @@ class FileMetrics {
         .reduce((a, b) => a > b ? a : b);
   }
 
-  Map<String, dynamic> toJson() => {
-    'filePath': filePath,
+  Map<String, dynamic> toJson({String? rootPath}) => {
+    'filePath': rootPath == null
+        ? filePath
+        : relativeAnalysisPath(filePath, rootPath),
     'totalLines': totalLines,
     'codeLines': codeLines,
     'commentLines': commentLines,
@@ -115,7 +121,7 @@ class FileMetrics {
       2,
     ),
     'maxCyclomaticComplexity': maxCyclomaticComplexity,
-    'functions': functions.map((f) => f.toJson()).toList(),
+    'functions': functions.map((f) => f.toJson(rootPath: rootPath)).toList(),
   };
 }
 
@@ -191,7 +197,7 @@ class ComplexityReport {
     return violations;
   }
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({String? rootPath}) => {
     'analyzedAt': analyzedAt.toIso8601String(),
     'thresholds': {
       'cyclomaticComplexity': cyclomaticThreshold,
@@ -207,6 +213,6 @@ class ComplexityReport {
       'highParameterFunctions': highParameterFunctions.length,
       'thresholdViolations': thresholdViolations.length,
     },
-    'files': files.map((f) => f.toJson()).toList(),
+    'files': files.map((f) => f.toJson(rootPath: rootPath)).toList(),
   };
 }

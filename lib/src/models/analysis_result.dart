@@ -1,3 +1,4 @@
+import 'analysis_path.dart';
 import 'dead_code_report.dart';
 import 'complexity_metrics.dart';
 
@@ -30,17 +31,24 @@ class AnalysisResult {
     }
   }
 
-  Map<String, dynamic> toJson() => {
-    'targetPath': targetPath,
-    'duration': '${duration.inMilliseconds}ms',
-    if (packageName != null) 'package': packageName,
-    if (isWorkspace) ...{
-      'workspace': _workspaceSummary(),
-      'packages': packageResults.map((result) => result.toJson()).toList(),
-    },
-    if (deadCodeReport != null) 'deadCode': deadCodeReport!.toJson(),
-    if (complexityReport != null) 'complexity': complexityReport!.toJson(),
-  };
+  Map<String, dynamic> toJson({String? rootPath}) {
+    final analysisRoot = rootPath ?? analysisRootForTarget(targetPath);
+    return {
+      'targetPath': relativeAnalysisPath(targetPath, analysisRoot),
+      'duration': '${duration.inMilliseconds}ms',
+      if (packageName != null) 'package': packageName,
+      if (isWorkspace) ...{
+        'workspace': _workspaceSummary(),
+        'packages': packageResults
+            .map((result) => result.toJson(rootPath: analysisRoot))
+            .toList(),
+      },
+      if (deadCodeReport != null)
+        'deadCode': deadCodeReport!.toJson(rootPath: analysisRoot),
+      if (complexityReport != null)
+        'complexity': complexityReport!.toJson(rootPath: analysisRoot),
+    };
+  }
 
   Map<String, dynamic> _workspaceSummary() {
     final analyses = packageAnalyses.toList();

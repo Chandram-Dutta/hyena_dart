@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:hyena_dart/hyena_dart.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -22,6 +24,61 @@ void main() {
       );
     });
   }
+
+  test(
+    'all reports keep subdirectory and file targets project-relative',
+    () async {
+      final project = await Directory.systemTemp.createTemp(
+        'hyena_relative_reports_',
+      );
+      addTearDown(() => project.delete(recursive: true));
+      File(
+        p.join(project.path, 'pubspec.yaml'),
+      ).writeAsStringSync('name: relative_reports\n');
+      final source = File(p.join(project.path, 'lib', 'example.dart'));
+      source.parent.createSync();
+      source.writeAsStringSync('void unused() {}\n');
+
+      for (final (targetPath, expectedTarget) in [
+        (source.parent.path, 'lib'),
+        (source.path, 'lib/example.dart'),
+      ]) {
+        final result = _relativePathResult(targetPath, source.path);
+        final outputs = {
+          'console': await ConsoleReporter(useColors: false).generate(result),
+          'json': await JsonReporter().generate(result),
+          'markdown': await MarkdownReporter().generate(result),
+          'html': await HtmlReporter().generate(result),
+        };
+
+        for (final entry in outputs.entries) {
+          expect(entry.value, isNot(contains(project.path)), reason: entry.key);
+          if (entry.key == 'html') {
+            expect(
+              entry.value,
+              contains(expectedTarget.replaceAll('/', '&#47;')),
+              reason: entry.key,
+            );
+            expect(
+              entry.value,
+              contains('lib&#47;example.dart'),
+              reason: entry.key,
+            );
+          } else {
+            expect(entry.value, contains(expectedTarget), reason: entry.key);
+            expect(
+              entry.value,
+              contains('lib/example.dart'),
+              reason: entry.key,
+            );
+          }
+        }
+
+        final json = jsonDecode(outputs['json']!) as Map<String, dynamic>;
+        expect(json['targetPath'], expectedTarget);
+      }
+    },
+  );
 }
 
 String _normalize(String name, String value) {
@@ -93,5 +150,47 @@ AnalysisResult _goldenResult() {
     targetPath: workspacePath,
     duration: const Duration(milliseconds: 42),
     packageResults: [packageResult],
+  );
+}
+
+AnalysisResult _relativePathResult(String targetPath, String filePath) {
+  final function = FunctionMetrics(
+    name: 'unused',
+    filePath: filePath,
+    line: 1,
+    cyclomaticComplexity: 2,
+    linesOfCode: 1,
+    maxNestingLevel: 0,
+    parameterCount: 0,
+  );
+  return AnalysisResult(
+    targetPath: targetPath,
+    duration: Duration.zero,
+    deadCodeReport: DeadCodeReport(
+      totalDeclarations: 1,
+      unusedEntities: [
+        CodeEntity(
+          name: 'unused',
+          type: EntityType.function,
+          filePath: filePath,
+          line: 1,
+          column: 1,
+          isPublic: true,
+        ),
+      ],
+    ),
+    complexityReport: ComplexityReport(
+      cyclomaticThreshold: 1,
+      files: [
+        FileMetrics(
+          filePath: filePath,
+          totalLines: 1,
+          codeLines: 1,
+          commentLines: 0,
+          blankLines: 0,
+          functions: [function],
+        ),
+      ],
+    ),
   );
 }

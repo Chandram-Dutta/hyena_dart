@@ -5,7 +5,7 @@ compatibility: "Requires Dart 3.10.3 or later and resolved package dependencies.
 mcpServers:
   hyena:
     command: dart
-    args: ["run", "bin/hyena_mcp.dart", "--root", "."]
+    args: ["run", "hyena_dart:hyena_mcp", "--root", "."]
     includeTools: ["hyena_analyze"]
 ---
 
@@ -42,7 +42,7 @@ bypass the MCP server's workspace, size, or time limits.
 When MCP tools are unavailable, run Hyena directly and request JSON on stdout:
 
 ```bash
-dart run bin/hyena_dart.dart analyze <relative-path> --format=json
+dart run hyena_dart analyze <relative-path> --format=json
 ```
 
 For this read-only workflow, do not pass `--output`, `--write-baseline`, or an

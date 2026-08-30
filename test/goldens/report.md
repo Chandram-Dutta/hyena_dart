@@ -1,13 +1,13 @@
 # Hyena Code Analysis Report
 
-**Target:** `/workspace`
+**Target:** `.`
 **Analysis Duration:** 42ms
 
 **Workspace packages:** 1
 
 ## Package `example`
 
-**Path:** `/workspace/packages/example`
+**Path:** `packages/example`
 
 ## Dead Code Report
 
@@ -21,7 +21,7 @@
 
 | Name | File | Line |
 |------|------|------|
-| `unusedHelper` | /workspace/packages/example/lib/example.dart | 3 |
+| `unusedHelper` | packages/example/lib/example.dart | 3 |
 
 ## Complexity Report
 
@@ -45,7 +45,7 @@ Thresholds: cyclomatic > 1, nesting > 1, parameters > 1.
 ### All Files
 
 <details>
-<summary>/workspace/packages/example/lib/example.dart (1 functions)</summary>
+<summary>packages/example/lib/example.dart (1 functions)</summary>
 
 - **Total Lines:** 12
 - **Code Lines:** 9

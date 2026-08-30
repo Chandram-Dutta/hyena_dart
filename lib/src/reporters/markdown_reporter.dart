@@ -1,4 +1,5 @@
 import '../models/analysis_result.dart';
+import '../models/analysis_path.dart';
 import '../models/code_entity.dart';
 import 'reporter.dart';
 
@@ -6,10 +7,13 @@ class MarkdownReporter implements Reporter {
   @override
   Future<String> generate(AnalysisResult result) async {
     final buffer = StringBuffer();
+    final rootPath = analysisRootForTarget(result.targetPath);
 
     buffer.writeln('# Hyena Code Analysis Report');
     buffer.writeln();
-    buffer.writeln('**Target:** `${result.targetPath}`');
+    buffer.writeln(
+      '**Target:** `${relativeAnalysisPath(result.targetPath, rootPath)}`',
+    );
     buffer.writeln(
       '**Analysis Duration:** ${result.duration.inMilliseconds}ms',
     );
@@ -22,33 +26,39 @@ class MarkdownReporter implements Reporter {
       buffer.writeln();
       for (final packageResult in result.packageAnalyses) {
         buffer.writeln(
-          '## Package `${packageResult.packageName ?? packageResult.targetPath}`',
+          '## Package `${packageResult.packageName ?? relativeAnalysisPath(packageResult.targetPath, rootPath)}`',
         );
         buffer.writeln();
-        buffer.writeln('**Path:** `${packageResult.targetPath}`');
+        buffer.writeln(
+          '**Path:** `${relativeAnalysisPath(packageResult.targetPath, rootPath)}`',
+        );
         buffer.writeln();
         if (packageResult.deadCodeReport != null) {
-          _writeDeadCodeSection(buffer, packageResult);
+          _writeDeadCodeSection(buffer, packageResult, rootPath);
         }
         if (packageResult.complexityReport != null) {
-          _writeComplexitySection(buffer, packageResult);
+          _writeComplexitySection(buffer, packageResult, rootPath);
         }
       }
       return buffer.toString();
     }
 
     if (result.deadCodeReport != null) {
-      _writeDeadCodeSection(buffer, result);
+      _writeDeadCodeSection(buffer, result, rootPath);
     }
 
     if (result.complexityReport != null) {
-      _writeComplexitySection(buffer, result);
+      _writeComplexitySection(buffer, result, rootPath);
     }
 
     return buffer.toString();
   }
 
-  void _writeDeadCodeSection(StringBuffer buffer, AnalysisResult result) {
+  void _writeDeadCodeSection(
+    StringBuffer buffer,
+    AnalysisResult result,
+    String rootPath,
+  ) {
     final report = result.deadCodeReport!;
 
     buffer.writeln('## Dead Code Report');
@@ -79,14 +89,18 @@ class MarkdownReporter implements Reporter {
       buffer.writeln('|------|------|------|');
       for (final entity in entities) {
         buffer.writeln(
-          '| `${entity.fullName}` | ${entity.filePath} | ${entity.line} |',
+          '| `${entity.fullName}` | ${relativeAnalysisPath(entity.filePath, rootPath)} | ${entity.line} |',
         );
       }
       buffer.writeln();
     }
   }
 
-  void _writeComplexitySection(StringBuffer buffer, AnalysisResult result) {
+  void _writeComplexitySection(
+    StringBuffer buffer,
+    AnalysisResult result,
+    String rootPath,
+  ) {
     final report = result.complexityReport!;
 
     buffer.writeln('## Complexity Report');
@@ -136,7 +150,7 @@ class MarkdownReporter implements Reporter {
     for (final file in report.files) {
       buffer.writeln('<details>');
       buffer.writeln(
-        '<summary>${file.filePath} (${file.functions.length} functions)</summary>',
+        '<summary>${relativeAnalysisPath(file.filePath, rootPath)} (${file.functions.length} functions)</summary>',
       );
       buffer.writeln();
       buffer.writeln('- **Total Lines:** ${file.totalLines}');

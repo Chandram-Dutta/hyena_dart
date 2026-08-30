@@ -3,13 +3,13 @@
                     HYENA CODE ANALYSIS REPORT
 ═══════════════════════════════════════════════════════════════
 
-Target: /workspace
+Target: .
 Duration: 42ms
 
 Workspace packages: 1
 
 PACKAGE example
-/workspace/packages/example
+packages/example
 
 ───────────────────────────────────────────────────────────────
                          DEAD CODE REPORT
@@ -21,7 +21,7 @@ Dead code percentage: 50.0%
 
 ⚡ 1 unused function:
   • unusedHelper
-    /workspace/packages/example/lib/example.dart
+    packages/example/lib/example.dart
 
 ───────────────────────────────────────────────────────────────
                       COMPLEXITY REPORT
@@ -39,4 +39,4 @@ Total lines: 12
     Max Nesting: 2
     Parameters: 2
     Maintainability Index: 75.9
-    /workspace/packages/example/lib/example.dart
+    packages/example/lib/example.dart

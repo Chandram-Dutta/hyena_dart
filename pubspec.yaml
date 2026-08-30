@@ -11,10 +11,6 @@ topics:
   - linter
   - cli
 
-executables:
-  hyena_dart:
-  hyena_mcp:
-
 environment:
   sdk: ^3.10.3
 

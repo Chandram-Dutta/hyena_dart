@@ -1,4 +1,5 @@
 import '../models/analysis_result.dart';
+import '../models/analysis_path.dart';
 import '../models/code_entity.dart';
 import 'reporter.dart';
 
@@ -16,6 +17,7 @@ class ConsoleReporter implements Reporter {
   @override
   Future<String> generate(AnalysisResult result) async {
     final buffer = StringBuffer();
+    final rootPath = analysisRootForTarget(result.targetPath);
 
     buffer.writeln();
     buffer.writeln(
@@ -28,7 +30,9 @@ class ConsoleReporter implements Reporter {
       _bold('═══════════════════════════════════════════════════════════════'),
     );
     buffer.writeln();
-    buffer.writeln('${_dim("Target:")} ${result.targetPath}');
+    buffer.writeln(
+      '${_dim("Target:")} ${relativeAnalysisPath(result.targetPath, rootPath)}',
+    );
     buffer.writeln('${_dim("Duration:")} ${result.duration.inMilliseconds}ms');
     buffer.writeln();
 
@@ -40,33 +44,39 @@ class ConsoleReporter implements Reporter {
         buffer.writeln();
         buffer.writeln(
           _bold(
-            'PACKAGE ${packageResult.packageName ?? packageResult.targetPath}',
+            'PACKAGE ${packageResult.packageName ?? relativeAnalysisPath(packageResult.targetPath, rootPath)}',
           ),
         );
-        buffer.writeln(_dim(packageResult.targetPath));
+        buffer.writeln(
+          _dim(relativeAnalysisPath(packageResult.targetPath, rootPath)),
+        );
         buffer.writeln();
         if (packageResult.deadCodeReport != null) {
-          _writeDeadCodeSection(buffer, packageResult);
+          _writeDeadCodeSection(buffer, packageResult, rootPath);
         }
         if (packageResult.complexityReport != null) {
-          _writeComplexitySection(buffer, packageResult);
+          _writeComplexitySection(buffer, packageResult, rootPath);
         }
       }
       return buffer.toString();
     }
 
     if (result.deadCodeReport != null) {
-      _writeDeadCodeSection(buffer, result);
+      _writeDeadCodeSection(buffer, result, rootPath);
     }
 
     if (result.complexityReport != null) {
-      _writeComplexitySection(buffer, result);
+      _writeComplexitySection(buffer, result, rootPath);
     }
 
     return buffer.toString();
   }
 
-  void _writeDeadCodeSection(StringBuffer buffer, AnalysisResult result) {
+  void _writeDeadCodeSection(
+    StringBuffer buffer,
+    AnalysisResult result,
+    String rootPath,
+  ) {
     final report = result.deadCodeReport!;
 
     buffer.writeln(
@@ -107,7 +117,9 @@ class ConsoleReporter implements Reporter {
       );
       for (final entity in entities.take(20)) {
         buffer.writeln('  ${_dim("•")} ${entity.fullName}');
-        buffer.writeln('    ${_dim(entity.filePath)}');
+        buffer.writeln(
+          '    ${_dim(relativeAnalysisPath(entity.filePath, rootPath))}',
+        );
       }
       if (entities.length > 20) {
         buffer.writeln(_dim('    ... and ${entities.length - 20} more'));
@@ -116,7 +128,11 @@ class ConsoleReporter implements Reporter {
     }
   }
 
-  void _writeComplexitySection(StringBuffer buffer, AnalysisResult result) {
+  void _writeComplexitySection(
+    StringBuffer buffer,
+    AnalysisResult result,
+    String rootPath,
+  ) {
     final report = result.complexityReport!;
 
     buffer.writeln(
@@ -164,7 +180,9 @@ class ConsoleReporter implements Reporter {
       buffer.writeln(
         '    ${_dim("Maintainability Index:")} ${func.maintainabilityIndex.toStringAsFixed(1)}',
       );
-      buffer.writeln('    ${_dim(func.filePath)}');
+      buffer.writeln(
+        '    ${_dim(relativeAnalysisPath(func.filePath, rootPath))}',
+      );
       buffer.writeln();
     }
 

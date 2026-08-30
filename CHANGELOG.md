@@ -1,3 +1,13 @@
+## Unreleased
+
+### Changed
+- Report unused exported public declarations by default; reusable package APIs can be preserved with `ignore_exports: true` or `--ignore-exports`
+- Support only project-local dev-dependency execution, removing global executable mappings and global-activation instructions
+- Emit project- or workspace-relative paths in console, JSON, Markdown, and HTML reports, matching existing SARIF, baseline, and MCP behavior
+
+### Added
+- Support `--ignore-exports` and `--ignore-private` on the combined `analyze` command
+
 ## [1.2.4] - 2026-08-30
 
 ### Fixed

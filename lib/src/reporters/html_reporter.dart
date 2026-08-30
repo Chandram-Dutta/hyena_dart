@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../models/analysis_result.dart';
+import '../models/analysis_path.dart';
 import '../models/code_entity.dart';
 import 'reporter.dart';
 
@@ -8,6 +9,7 @@ class HtmlReporter implements Reporter {
   @override
   Future<String> generate(AnalysisResult result) async {
     final buffer = StringBuffer();
+    final rootPath = analysisRootForTarget(result.targetPath);
 
     buffer.writeln('<!DOCTYPE html>');
     buffer.writeln('<html lang="en">');
@@ -26,7 +28,7 @@ class HtmlReporter implements Reporter {
     buffer.writeln('    <header>');
     buffer.writeln('      <h1>Hyena Code Analysis Report</h1>');
     buffer.writeln(
-      '      <p class="meta">Target: <code>${_escape(result.targetPath)}</code> • Duration: ${result.duration.inMilliseconds}ms</p>',
+      '      <p class="meta">Target: <code>${_escape(relativeAnalysisPath(result.targetPath, rootPath))}</code> • Duration: ${result.duration.inMilliseconds}ms</p>',
     );
     buffer.writeln('    </header>');
 
@@ -34,25 +36,25 @@ class HtmlReporter implements Reporter {
       for (final packageResult in result.packageAnalyses) {
         buffer.writeln('    <section class="report-section">');
         buffer.writeln(
-          '      <h2>Package <code>${_escape(packageResult.packageName ?? packageResult.targetPath)}</code></h2>',
+          '      <h2>Package <code>${_escape(packageResult.packageName ?? relativeAnalysisPath(packageResult.targetPath, rootPath))}</code></h2>',
         );
         buffer.writeln(
-          '      <p class="meta">${_escape(packageResult.targetPath)}</p>',
+          '      <p class="meta">${_escape(relativeAnalysisPath(packageResult.targetPath, rootPath))}</p>',
         );
         buffer.writeln('    </section>');
         if (packageResult.deadCodeReport != null) {
-          _writeDeadCodeSection(buffer, packageResult);
+          _writeDeadCodeSection(buffer, packageResult, rootPath);
         }
         if (packageResult.complexityReport != null) {
-          _writeComplexitySection(buffer, packageResult);
+          _writeComplexitySection(buffer, packageResult, rootPath);
         }
       }
     } else {
       if (result.deadCodeReport != null) {
-        _writeDeadCodeSection(buffer, result);
+        _writeDeadCodeSection(buffer, result, rootPath);
       }
       if (result.complexityReport != null) {
-        _writeComplexitySection(buffer, result);
+        _writeComplexitySection(buffer, result, rootPath);
       }
     }
 
@@ -63,7 +65,11 @@ class HtmlReporter implements Reporter {
     return buffer.toString();
   }
 
-  void _writeDeadCodeSection(StringBuffer buffer, AnalysisResult result) {
+  void _writeDeadCodeSection(
+    StringBuffer buffer,
+    AnalysisResult result,
+    String rootPath,
+  ) {
     final report = result.deadCodeReport!;
 
     buffer.writeln('    <section class="report-section">');
@@ -105,7 +111,7 @@ class HtmlReporter implements Reporter {
       for (final entry in grouped.entries) {
         buffer.writeln('        <details>');
         buffer.writeln(
-          '          <summary>${_escape(entry.key)} (${entry.value.length} issues)</summary>',
+          '          <summary>${_escape(relativeAnalysisPath(entry.key, rootPath))} (${entry.value.length} issues)</summary>',
         );
         buffer.writeln('          <table>');
         buffer.writeln(
@@ -133,7 +139,11 @@ class HtmlReporter implements Reporter {
     buffer.writeln('    </section>');
   }
 
-  void _writeComplexitySection(StringBuffer buffer, AnalysisResult result) {
+  void _writeComplexitySection(
+    StringBuffer buffer,
+    AnalysisResult result,
+    String rootPath,
+  ) {
     final report = result.complexityReport!;
 
     buffer.writeln('    <section class="report-section">');
@@ -189,7 +199,7 @@ class HtmlReporter implements Reporter {
       for (final func in violations) {
         buffer.writeln('          <tr>');
         buffer.writeln(
-          '            <td><code>${_escape(func.fullName)}</code><br><small>${_escape(func.filePath)}</small></td>',
+          '            <td><code>${_escape(func.fullName)}</code><br><small>${_escape(relativeAnalysisPath(func.filePath, rootPath))}</small></td>',
         );
         buffer.writeln(
           '            <td class="${_getComplexityClass(func.cyclomaticComplexity)}">${func.cyclomaticComplexity}</td>',
