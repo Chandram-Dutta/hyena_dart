@@ -394,23 +394,49 @@ void main() {}
       }
     });
 
-    test('CLI accepts the current-directory target', () async {
-      final libPath = await makeFixture('''
+    test(
+      'CLI respects context boundaries for current-directory targets',
+      () async {
+        final libPath = await makeFixture('''
 void unused() {}
 void main() {}
 ''');
-      final executable = p.normalize(p.absolute('bin', 'hyena_dart.dart'));
+        final flutterSdkSource = File(
+          p.join(
+            p.dirname(libPath),
+            '.fvm',
+            'flutter_sdk',
+            'packages',
+            'flutter',
+            'test_fixes',
+            'services',
+            'services.dart',
+          ),
+        );
+        flutterSdkSource.parent.createSync(recursive: true);
+        flutterSdkSource.writeAsStringSync('''
+void applyFix() {
+  await Future<void>.value();
+}
+''');
+        final executable = p.normalize(p.absolute('bin', 'hyena_dart.dart'));
 
-      final result = await Process.run(Platform.resolvedExecutable, [
-        executable,
-        'analyze',
-        '.',
-        '--format=json',
-      ], workingDirectory: p.dirname(libPath));
+        final result = await Process.run(Platform.resolvedExecutable, [
+          executable,
+          'analyze',
+          '.',
+          '--format=json',
+        ], workingDirectory: p.dirname(libPath));
 
-      expect(result.exitCode, 0, reason: result.stderr as String);
-      expect((jsonDecode(result.stdout as String) as Map)['targetPath'], '.');
-    });
+        expect(result.exitCode, 0, reason: result.stderr as String);
+        final report = jsonDecode(result.stdout as String) as Map;
+        expect(report['targetPath'], '.');
+        expect(
+          (report['complexity'] as Map)['summary'],
+          containsPair('totalFiles', 1),
+        );
+      },
+    );
 
     test('honors dead-code suppression without cascading findings', () async {
       final libPath = await makeFixture('''
@@ -1415,13 +1441,23 @@ void documented() {}
       expect(report.totalFunctions, 1);
     });
 
-    test('ignores generated package and build artifacts', () async {
+    test('skips files outside the analyzer context', () async {
       File(
         p.join(fixture.path, 'sample.dart'),
       ).writeAsStringSync('void target() {}');
       for (final relativePath in [
         p.join('.dart_tool', 'generated', 'invalid.dart'),
         p.join('build', 'invalid.dart'),
+        p.join(
+          '.fvm',
+          'flutter_sdk',
+          'packages',
+          'flutter',
+          'test_fixes',
+          'services',
+          'services.dart',
+        ),
+        p.join('.another_tool', 'worktrees', 'invalid.dart'),
       ]) {
         final file = File(p.join(fixture.path, relativePath));
         file.parent.createSync(recursive: true);
@@ -1431,6 +1467,22 @@ void documented() {}
       final report = await ComplexityAnalyzer(
         AnalyzerConfig(),
       ).analyze(fixture.path);
+
+      expect(report.totalFiles, 1);
+      expect(report.totalFunctions, 1);
+    });
+
+    test('analyzes an explicitly targeted tool-named directory', () async {
+      final target = Directory(
+        p.join(fixture.path, '.fvm', 'flutter_sdk', 'project'),
+      )..createSync(recursive: true);
+      File(
+        p.join(target.path, 'source.dart'),
+      ).writeAsStringSync('void target() {}');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(target.path);
 
       expect(report.totalFiles, 1);
       expect(report.totalFunctions, 1);

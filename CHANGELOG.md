@@ -1,3 +1,8 @@
+## [1.2.4] - 2026-08-30
+
+### Fixed
+- Apply Dart analyzer context boundaries to complexity source discovery, preventing nested SDKs and tool-managed checkouts from being parsed as project source without hard-coded directory exclusions
+
 ## [1.2.3] - 2026-08-30
 
 ### Fixed

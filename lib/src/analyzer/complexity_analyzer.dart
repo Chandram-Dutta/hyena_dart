@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/error/error.dart';
@@ -21,15 +22,25 @@ class ComplexityAnalyzer {
     String targetPath, {
     Iterable<String> excludedPaths = const [],
   }) async {
-    final absoluteTarget = p.absolute(targetPath);
+    final absoluteTarget = p.normalize(p.absolute(targetPath));
     final analysisRoot = await FileSystemEntity.isFile(absoluteTarget)
         ? p.dirname(absoluteTarget)
         : absoluteTarget;
     final normalizedExcludedPaths = excludedPaths
         .map((path) => p.normalize(p.absolute(path)))
         .toList();
-    final dartFiles = await _collectDartFiles(absoluteTarget)
-      ..sort();
+    final dartFiles = (await _collectDartFiles(
+      absoluteTarget,
+    )).map((file) => p.normalize(p.absolute(file))).toList()..sort();
+    final collection = AnalysisContextCollection(
+      includedPaths: [absoluteTarget],
+      excludedPaths: normalizedExcludedPaths,
+    );
+    dartFiles.removeWhere(
+      (file) => !collection.contexts.any(
+        (context) => context.contextRoot.isAnalyzed(file),
+      ),
+    );
     final fileMetrics = <FileMetrics>[];
 
     for (final file in dartFiles) {
