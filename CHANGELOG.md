@@ -1,3 +1,9 @@
+## [1.2.3] - 2026-08-30
+
+### Fixed
+- Normalize and absolutize analysis targets and discovered source paths before creating analyzer contexts, so current-directory and trailing-separator targets work reliably
+- Exclude VCS and tool metadata trees, including Delta worktrees, and verify context membership before resolving each source file
+
 ## [1.2.2] - 2026-08-27
 
 ### Added

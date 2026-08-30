@@ -370,6 +370,48 @@ void main() => Example.used();
       expect(constructors, isNot(contains('Example.used')));
     });
 
+    test('normalizes dot and trailing-separator target paths', () async {
+      final libPath = await makeFixture('''
+void unused() {}
+void main() {}
+''');
+      final rootPath = p.dirname(libPath);
+      final targets = [
+        '$rootPath${p.separator}.',
+        '$rootPath${p.separator}',
+        '${p.join(rootPath, 'lib')}${p.separator}..',
+      ];
+
+      for (final target in targets) {
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(ignoreExports: false),
+        ).analyze(target);
+        expect(
+          report.unusedEntities.map((entity) => entity.name),
+          contains('unused'),
+          reason: 'target $target should be canonicalized before analysis',
+        );
+      }
+    });
+
+    test('CLI accepts the current-directory target', () async {
+      final libPath = await makeFixture('''
+void unused() {}
+void main() {}
+''');
+      final executable = p.normalize(p.absolute('bin', 'hyena_dart.dart'));
+
+      final result = await Process.run(Platform.resolvedExecutable, [
+        executable,
+        'analyze',
+        '.',
+        '--format=json',
+      ], workingDirectory: p.dirname(libPath));
+
+      expect(result.exitCode, 0, reason: result.stderr as String);
+      expect((jsonDecode(result.stdout as String) as Map)['targetPath'], '.');
+    });
+
     test('honors dead-code suppression without cascading findings', () async {
       final libPath = await makeFixture('''
 void _intentionalDependency() {}
@@ -967,7 +1009,7 @@ void main() {
       );
     });
 
-    test('ignores generated package and build artifacts', () async {
+    test('ignores generated and tool metadata source trees', () async {
       final libPath = await makeFixture('''
 void unused() {}
 void main() {}
@@ -976,6 +1018,8 @@ void main() {}
       for (final relativePath in [
         p.join('.dart_tool', 'generated', 'invalid.dart'),
         p.join('build', 'invalid.dart'),
+        p.join('.delta', 'worktrees', 'nested', 'lib', 'auth_api.dart'),
+        p.join('.git', 'worktrees', 'invalid.dart'),
       ]) {
         final file = File(p.join(root, relativePath));
         file.parent.createSync(recursive: true);
@@ -1351,25 +1395,29 @@ void documented() {}
       expect(report.totalFunctions, 1);
     });
 
-    test('ignores generated package and build artifacts', () async {
+    test('ignores generated and tool metadata source trees', () async {
       File(
         p.join(fixture.path, 'sample.dart'),
       ).writeAsStringSync('void target() {}');
       for (final relativePath in [
         p.join('.dart_tool', 'generated', 'invalid.dart'),
         p.join('build', 'invalid.dart'),
+        p.join('.delta', 'worktrees', 'nested', 'lib', 'auth_api.dart'),
       ]) {
         final file = File(p.join(fixture.path, relativePath));
         file.parent.createSync(recursive: true);
         file.writeAsStringSync('void broken( {');
       }
+      final hiddenSource = File(p.join(fixture.path, '.hidden', 'source.dart'));
+      hiddenSource.parent.createSync();
+      hiddenSource.writeAsStringSync('void hiddenSource() {}');
 
       final report = await ComplexityAnalyzer(
         AnalyzerConfig(),
       ).analyze(fixture.path);
 
-      expect(report.totalFiles, 1);
-      expect(report.totalFunctions, 1);
+      expect(report.totalFiles, 2);
+      expect(report.totalFunctions, 2);
     });
 
     test('fails instead of silently omitting invalid files', () async {

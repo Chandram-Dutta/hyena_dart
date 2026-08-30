@@ -15,6 +15,7 @@ import '../models/code_entity.dart';
 import '../models/dead_code_report.dart';
 import 'ast_visitors/declaration_visitor.dart';
 import 'ast_visitors/reference_visitor.dart';
+import 'source_file_filter.dart';
 
 class DeadCodeAnalyzer {
   final AnalyzerConfig config;
@@ -60,7 +61,7 @@ class DeadCodeAnalyzer {
     required Iterable<String> excludedPaths,
   }) async {
     final stopwatch = Stopwatch()..start();
-    final absTarget = p.absolute(targetPath);
+    final absTarget = p.normalize(p.absolute(targetPath));
     final analysisRoot = await FileSystemEntity.isFile(absTarget)
         ? p.dirname(absTarget)
         : absTarget;
@@ -68,16 +69,24 @@ class DeadCodeAnalyzer {
         .map((path) => p.normalize(p.absolute(path)))
         .toList();
     final dartFiles =
-        (await _collectDartFiles(absTarget)).map(p.absolute).where((file) {
-          return !_shouldExclude(
-            file,
-            analysisRoot: analysisRoot,
-            excludedPaths: normalizedExcludedPaths,
-          );
-        }).toList()..sort();
+        (await _collectDartFiles(
+            absTarget,
+          )).map((file) => p.normalize(p.absolute(file))).where((file) {
+            return !_shouldExclude(
+              file,
+              analysisRoot: analysisRoot,
+              excludedPaths: normalizedExcludedPaths,
+            );
+          }).toList()
+          ..sort();
     final collection = AnalysisContextCollection(
       includedPaths: [absTarget],
       excludedPaths: normalizedExcludedPaths,
+    );
+    dartFiles.removeWhere(
+      (file) => !collection.contexts.any(
+        (context) => context.contextRoot.isAnalyzed(file),
+      ),
     );
 
     final allDeclarations = <CodeEntity>[];
@@ -212,24 +221,17 @@ class DeadCodeAnalyzer {
     );
     final absolutePath = p.posix.joinAll(p.split(normalizedPath));
 
+    if (isDefaultExcludedSourcePath(
+      p.relative(normalizedPath, from: analysisRoot),
+    )) {
+      return true;
+    }
+
     for (final pattern in config.excludePatterns) {
       final glob = Glob(pattern);
       if (glob.matches(relativePath) || glob.matches(absolutePath)) {
         return true;
       }
-    }
-
-    if (normalizedPath.endsWith('.g.dart') ||
-        normalizedPath.endsWith('.freezed.dart') ||
-        normalizedPath.endsWith('.mocks.dart')) {
-      return true;
-    }
-
-    final segments = p.split(normalizedPath);
-    if (segments.contains('.dart_tool') ||
-        segments.contains('build') ||
-        segments.contains('generated')) {
-      return true;
     }
 
     return false;

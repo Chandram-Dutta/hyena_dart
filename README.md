@@ -282,6 +282,14 @@ hyena:
     cyclomatic_threshold: 15
 ```
 
+Hyena excludes generated source suffixes (`.g.dart`, `.freezed.dart`, and
+`.mocks.dart`) plus common generated, build, VCS, and tool metadata directories
+by default: `generated`, `build`, `.dart_tool`, `.delta`, `.fvm`, `.git`, `.hg`,
+`.jj`, and `.svn`. These directory names are matched within the selected target,
+so a project located beneath a same-named parent directory can still be analyzed.
+Other hidden directories are not default exclusions; add them to `exclude` when
+they should be omitted.
+
 ## Output Formats
 
 ### Console (Default)

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:hyena_dart/src/analyzer/source_file_filter.dart';
 import 'package:path/path.dart' as p;
 
 class BenchmarkCorpus {
@@ -38,7 +39,7 @@ class BenchmarkCorpus {
     String targetPath, {
     required String label,
   }) async {
-    final target = Directory(p.absolute(targetPath));
+    final target = Directory(p.normalize(p.absolute(targetPath)));
     if (!await target.exists()) {
       throw ArgumentError('Benchmark target does not exist: $targetPath');
     }
@@ -52,15 +53,7 @@ class BenchmarkCorpus {
     )) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       final relative = p.relative(entity.path, from: target.path);
-      final segments = p.split(relative);
-      if (segments.contains('.dart_tool') ||
-          segments.contains('build') ||
-          segments.contains('generated') ||
-          entity.path.endsWith('.g.dart') ||
-          entity.path.endsWith('.freezed.dart') ||
-          entity.path.endsWith('.mocks.dart')) {
-        continue;
-      }
+      if (isDefaultExcludedSourcePath(relative)) continue;
       final content = await entity.readAsString();
       dartFiles++;
       sourceLines += const LineSplitter().convert(content).length;

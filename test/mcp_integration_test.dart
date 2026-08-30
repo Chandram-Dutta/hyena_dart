@@ -82,6 +82,36 @@ void main() {
       );
     });
 
+    test('ignores tool metadata when enforcing source limits', () async {
+      final project = await _createProject();
+      addTearDown(() => project.delete(recursive: true));
+      final metadataSource = File(
+        p.join(
+          project.path,
+          '.delta',
+          'worktrees',
+          'nested',
+          'lib',
+          'auth_api.dart',
+        ),
+      );
+      metadataSource.parent.createSync(recursive: true);
+      metadataSource.writeAsStringSync('void broken( {');
+      final service = await McpAnalysisService.create(
+        project.path,
+        limits: const McpAnalysisLimits(maxDartFiles: 1),
+      );
+
+      final result = await service.analyze(
+        targetPath: '.',
+        checks: 'complexity',
+      );
+
+      final summary = result['summary'] as Map<String, Object?>;
+      final complexity = summary['complexity'] as Map<String, Object?>;
+      expect(complexity['files'], 1);
+    });
+
     test('cancels an active request and releases the service', () async {
       final project = await _createProject();
       addTearDown(() => project.delete(recursive: true));
