@@ -1,3 +1,19 @@
+## [2.0.1] - 2026-08-30
+
+### Fixed
+- Escape source-controlled paths and symbol names in Markdown reports to prevent report markup injection
+- Reject extra CLI target paths and empty combined analyses instead of silently ignoring them
+- Report expected CLI usage, configuration, analysis, and filesystem failures without unhandled stack traces
+- Describe the MCP filesystem boundary accurately: targets are workspace-confined, while Dart may resolve SDK and dependency sources outside the workspace
+- Use project-relative paths in the package example
+
+### Security
+- Pin GitHub Actions to reviewed commits and verify the downloaded Dart SDK used by orb setup
+- Add package dry-run validation to the release workflow
+
+### Maintenance
+- Refresh compatible locked dependency versions
+
 ## [2.0.0] - 2026-08-30
 
 ### Changed
