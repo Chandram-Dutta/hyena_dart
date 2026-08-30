@@ -2,7 +2,7 @@
 
 ### Fixed
 - Normalize and absolutize analysis targets and discovered source paths before creating analyzer contexts, so current-directory and trailing-separator targets work reliably
-- Exclude VCS and tool metadata trees, including Delta worktrees, and verify context membership before resolving each source file
+- Verify that each discovered source belongs to the selected analyzer context before resolving it, preventing nested tool worktrees from crashing analysis
 
 ## [1.2.2] - 2026-08-27
 

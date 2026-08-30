@@ -15,7 +15,6 @@ import '../models/code_entity.dart';
 import '../models/dead_code_report.dart';
 import 'ast_visitors/declaration_visitor.dart';
 import 'ast_visitors/reference_visitor.dart';
-import 'source_file_filter.dart';
 
 class DeadCodeAnalyzer {
   final AnalyzerConfig config;
@@ -221,17 +220,24 @@ class DeadCodeAnalyzer {
     );
     final absolutePath = p.posix.joinAll(p.split(normalizedPath));
 
-    if (isDefaultExcludedSourcePath(
-      p.relative(normalizedPath, from: analysisRoot),
-    )) {
-      return true;
-    }
-
     for (final pattern in config.excludePatterns) {
       final glob = Glob(pattern);
       if (glob.matches(relativePath) || glob.matches(absolutePath)) {
         return true;
       }
+    }
+
+    if (normalizedPath.endsWith('.g.dart') ||
+        normalizedPath.endsWith('.freezed.dart') ||
+        normalizedPath.endsWith('.mocks.dart')) {
+      return true;
+    }
+
+    final segments = p.split(normalizedPath);
+    if (segments.contains('.dart_tool') ||
+        segments.contains('build') ||
+        segments.contains('generated')) {
+      return true;
     }
 
     return false;

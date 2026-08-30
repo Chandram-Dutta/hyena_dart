@@ -11,7 +11,6 @@ import 'package:path/path.dart' as p;
 import '../config/analyzer_config.dart';
 import '../models/complexity_metrics.dart';
 import 'ast_visitors/complexity_visitor.dart';
-import 'source_file_filter.dart';
 
 class ComplexityAnalyzer {
   final AnalyzerConfig config;
@@ -22,7 +21,7 @@ class ComplexityAnalyzer {
     String targetPath, {
     Iterable<String> excludedPaths = const [],
   }) async {
-    final absoluteTarget = p.normalize(p.absolute(targetPath));
+    final absoluteTarget = p.absolute(targetPath);
     final analysisRoot = await FileSystemEntity.isFile(absoluteTarget)
         ? p.dirname(absoluteTarget)
         : absoluteTarget;
@@ -97,17 +96,24 @@ class ComplexityAnalyzer {
     );
     final absolutePath = p.posix.joinAll(p.split(normalizedPath));
 
-    if (isDefaultExcludedSourcePath(
-      p.relative(normalizedPath, from: analysisRoot),
-    )) {
-      return true;
-    }
-
     for (final pattern in config.excludePatterns) {
       final glob = Glob(pattern);
       if (glob.matches(relativePath) || glob.matches(absolutePath)) {
         return true;
       }
+    }
+
+    if (normalizedPath.endsWith('.g.dart') ||
+        normalizedPath.endsWith('.freezed.dart') ||
+        normalizedPath.endsWith('.mocks.dart')) {
+      return true;
+    }
+
+    final segments = p.split(normalizedPath);
+    if (segments.contains('.dart_tool') ||
+        segments.contains('build') ||
+        segments.contains('generated')) {
+      return true;
     }
 
     return false;

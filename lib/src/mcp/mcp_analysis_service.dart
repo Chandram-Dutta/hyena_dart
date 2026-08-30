@@ -5,7 +5,6 @@ import 'dart:isolate';
 import 'package:path/path.dart' as p;
 
 import '../analyzer/analysis_runner.dart';
-import '../analyzer/source_file_filter.dart';
 import '../models/analysis_finding.dart';
 import '../models/complexity_metrics.dart';
 import '../models/dead_code_report.dart';
@@ -254,9 +253,6 @@ Future<void> _validateTargetContents(
   await for (final entity in Directory(
     targetPath,
   ).list(recursive: true, followLinks: false)) {
-    final relativePath = p.relative(entity.path, from: targetPath);
-    if (isDefaultExcludedSourcePath(relativePath)) continue;
-
     if (entity is Link) {
       final linkType = await FileSystemEntity.type(
         entity.path,

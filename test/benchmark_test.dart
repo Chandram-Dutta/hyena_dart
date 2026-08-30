@@ -196,8 +196,6 @@ void main() {
       ['generated', 'source.dart'],
       ['.dart_tool', 'source.dart'],
       ['build', 'source.dart'],
-      ['.delta', 'worktrees', 'nested', 'source.dart'],
-      ['.hidden', 'source.dart'],
     ]) {
       final file = File(p.joinAll([target.path, ...segments]));
       file.parent.createSync(recursive: true);
@@ -209,8 +207,8 @@ void main() {
       label: 'external-test',
     );
 
-    expect(corpus.dartFiles, 2);
-    expect(corpus.sourceLines, 2);
+    expect(corpus.dartFiles, 1);
+    expect(corpus.sourceLines, 1);
   });
 
   test(

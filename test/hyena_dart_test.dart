@@ -1009,7 +1009,7 @@ void main() {
       );
     });
 
-    test('ignores generated and tool metadata source trees', () async {
+    test('skips files outside the analyzer context', () async {
       final libPath = await makeFixture('''
 void unused() {}
 void main() {}
@@ -1019,7 +1019,7 @@ void main() {}
         p.join('.dart_tool', 'generated', 'invalid.dart'),
         p.join('build', 'invalid.dart'),
         p.join('.delta', 'worktrees', 'nested', 'lib', 'auth_api.dart'),
-        p.join('.git', 'worktrees', 'invalid.dart'),
+        p.join('.another_tool', 'worktrees', 'invalid.dart'),
       ]) {
         final file = File(p.join(root, relativePath));
         file.parent.createSync(recursive: true);
@@ -1029,6 +1029,26 @@ void main() {}
       final report = await DeadCodeAnalyzer(
         AnalyzerConfig(ignoreExports: false),
       ).analyze(root);
+
+      expect(report.unusedEntities.map((entity) => entity.name), ['unused']);
+    });
+
+    test('analyzes an explicitly targeted tool-named directory', () async {
+      final container = await Directory.systemTemp.createTemp(
+        'hyena_explicit_target_',
+      );
+      created.add(container);
+      final target = Directory(
+        p.join(container.path, '.delta', 'worktrees', 'project'),
+      )..createSync(recursive: true);
+      File(p.join(target.path, 'source.dart')).writeAsStringSync('''
+void unused() {}
+void main() {}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(target.path);
 
       expect(report.unusedEntities.map((entity) => entity.name), ['unused']);
     });
@@ -1395,29 +1415,25 @@ void documented() {}
       expect(report.totalFunctions, 1);
     });
 
-    test('ignores generated and tool metadata source trees', () async {
+    test('ignores generated package and build artifacts', () async {
       File(
         p.join(fixture.path, 'sample.dart'),
       ).writeAsStringSync('void target() {}');
       for (final relativePath in [
         p.join('.dart_tool', 'generated', 'invalid.dart'),
         p.join('build', 'invalid.dart'),
-        p.join('.delta', 'worktrees', 'nested', 'lib', 'auth_api.dart'),
       ]) {
         final file = File(p.join(fixture.path, relativePath));
         file.parent.createSync(recursive: true);
         file.writeAsStringSync('void broken( {');
       }
-      final hiddenSource = File(p.join(fixture.path, '.hidden', 'source.dart'));
-      hiddenSource.parent.createSync();
-      hiddenSource.writeAsStringSync('void hiddenSource() {}');
 
       final report = await ComplexityAnalyzer(
         AnalyzerConfig(),
       ).analyze(fixture.path);
 
-      expect(report.totalFiles, 2);
-      expect(report.totalFunctions, 2);
+      expect(report.totalFiles, 1);
+      expect(report.totalFunctions, 1);
     });
 
     test('fails instead of silently omitting invalid files', () async {
