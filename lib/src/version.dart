@@ -1,1 +1,1 @@
-const hyenaVersion = '1.2.4';
+const hyenaVersion = '2.0.0';

@@ -1,4 +1,4 @@
-## Unreleased
+## [2.0.0] - 2026-08-30
 
 ### Changed
 - Report unused exported public declarations by default; reusable package APIs can be preserved with `ignore_exports: true` or `--ignore-exports`
