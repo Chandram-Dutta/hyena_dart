@@ -1,6 +1,8 @@
 hyena_dart_logo.png
 AGENTS.md
 CODEOWNERS
+CONTRIBUTING.md
+SECURITY.md
 tool/
 test/
 benchmark/

@@ -1665,4 +1665,35 @@ void documented() {}
     expect(html, contains('&lt;script&gt;target&lt;&#47;script&gt;'));
     expect(html, contains('&lt;img src=x onerror=alert(1)&gt;'));
   });
+
+  test('MarkdownReporter escapes source-controlled markup', () async {
+    const payload = '</summary>![private](https://example.invalid/track)|';
+    final report = DeadCodeReport(
+      unusedEntities: [
+        CodeEntity(
+          name: payload,
+          type: EntityType.function,
+          filePath: payload,
+          line: 1,
+          column: 1,
+          isPublic: true,
+        ),
+      ],
+      totalDeclarations: 1,
+    );
+
+    final markdown = await MarkdownReporter().generate(
+      AnalysisResult(
+        deadCodeReport: report,
+        targetPath: payload,
+        duration: Duration.zero,
+      ),
+    );
+
+    expect(markdown, isNot(contains(payload)));
+    expect(markdown, isNot(contains('![private]')));
+    expect(markdown, contains('&lt;/summary&gt;'));
+    expect(markdown, contains('&#33;&#91;private&#93;'));
+    expect(markdown, contains('&#124;'));
+  });
 }

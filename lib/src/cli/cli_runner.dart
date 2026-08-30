@@ -82,6 +82,13 @@ abstract class BaseAnalysisCommand extends Command<int> {
   }
 
   String getTargetPath() {
+    if (argResults!.rest.length > 1) {
+      throw UsageException(
+        'Expected at most one target path, but received: '
+        '${argResults!.rest.join(', ')}.',
+        usage,
+      );
+    }
     return argResults!.rest.isEmpty ? '.' : argResults!.rest.first;
   }
 
@@ -174,11 +181,19 @@ class AnalyzeCommand extends BaseAnalysisCommand {
   @override
   Future<int> run() async {
     final targetPath = getTargetPath();
+    final includeDeadCode = argResults!['dead-code'] as bool;
+    final includeComplexity = argResults!['complexity'] as bool;
+    if (!includeDeadCode && !includeComplexity) {
+      throw UsageException(
+        'At least one of --dead-code or --complexity must be enabled.',
+        usage,
+      );
+    }
     var result = await const AnalysisRunner().analyze(
       targetPath,
       configPath: argResults!['config'] as String?,
-      includeDeadCode: argResults!['dead-code'] as bool,
-      includeComplexity: argResults!['complexity'] as bool,
+      includeDeadCode: includeDeadCode,
+      includeComplexity: includeComplexity,
       configure: (config) {
         if (argResults!.wasParsed('ignore-exports')) {
           config = config.copyWith(

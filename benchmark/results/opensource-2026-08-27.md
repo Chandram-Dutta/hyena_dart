@@ -26,7 +26,8 @@ they are not measurements of the unmodified pub.dev v1.2.1 package.
 | [flutter/packages `bd3cbc1b`](https://github.com/flutter/packages/commit/bd3cbc1b8c3f44daf36eb8c455255e0f626223eb) | Complexity | 3,514 | 1,535,690 | 8.354 s | 8.416 s | 420.6 | 21.5 MiB | 101,719 functions; 3,297 threshold violations |
 
 The structured benchmark JSON, including every sample, runtime metadata, and
-correctness signatures, was retained with the release verification artifacts.
+correctness signatures, was retained during release verification but is not
+included in this repository. This report is the durable public summary.
 
 ## Production usefulness
 

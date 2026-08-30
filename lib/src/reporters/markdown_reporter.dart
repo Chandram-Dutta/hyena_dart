@@ -12,7 +12,7 @@ class MarkdownReporter implements Reporter {
     buffer.writeln('# Hyena Code Analysis Report');
     buffer.writeln();
     buffer.writeln(
-      '**Target:** `${relativeAnalysisPath(result.targetPath, rootPath)}`',
+      '**Target:** ${_inlineCode(relativeAnalysisPath(result.targetPath, rootPath))}',
     );
     buffer.writeln(
       '**Analysis Duration:** ${result.duration.inMilliseconds}ms',
@@ -26,11 +26,11 @@ class MarkdownReporter implements Reporter {
       buffer.writeln();
       for (final packageResult in result.packageAnalyses) {
         buffer.writeln(
-          '## Package `${packageResult.packageName ?? relativeAnalysisPath(packageResult.targetPath, rootPath)}`',
+          '## Package ${_inlineCode(packageResult.packageName ?? relativeAnalysisPath(packageResult.targetPath, rootPath))}',
         );
         buffer.writeln();
         buffer.writeln(
-          '**Path:** `${relativeAnalysisPath(packageResult.targetPath, rootPath)}`',
+          '**Path:** ${_inlineCode(relativeAnalysisPath(packageResult.targetPath, rootPath))}',
         );
         buffer.writeln();
         if (packageResult.deadCodeReport != null) {
@@ -89,7 +89,7 @@ class MarkdownReporter implements Reporter {
       buffer.writeln('|------|------|------|');
       for (final entity in entities) {
         buffer.writeln(
-          '| `${entity.fullName}` | ${relativeAnalysisPath(entity.filePath, rootPath)} | ${entity.line} |',
+          '| ${_inlineCode(entity.fullName)} | ${_markdownText(relativeAnalysisPath(entity.filePath, rootPath))} | ${entity.line} |',
         );
       }
       buffer.writeln();
@@ -140,7 +140,7 @@ class MarkdownReporter implements Reporter {
     buffer.writeln('|----------|------------|-----|---------|--------|-----|');
     for (final func in violations) {
       buffer.writeln(
-        '| `${func.fullName}` | ${func.cyclomaticComplexity} | ${func.linesOfCode} | ${func.maxNestingLevel} | ${func.parameterCount} | ${func.maintainabilityIndex.toStringAsFixed(1)} |',
+        '| ${_inlineCode(func.fullName)} | ${func.cyclomaticComplexity} | ${func.linesOfCode} | ${func.maxNestingLevel} | ${func.parameterCount} | ${func.maintainabilityIndex.toStringAsFixed(1)} |',
       );
     }
     buffer.writeln();
@@ -150,7 +150,7 @@ class MarkdownReporter implements Reporter {
     for (final file in report.files) {
       buffer.writeln('<details>');
       buffer.writeln(
-        '<summary>${relativeAnalysisPath(file.filePath, rootPath)} (${file.functions.length} functions)</summary>',
+        '<summary>${_markdownText(relativeAnalysisPath(file.filePath, rootPath))} (${file.functions.length} functions)</summary>',
       );
       buffer.writeln();
       buffer.writeln('- **Total Lines:** ${file.totalLines}');
@@ -187,5 +187,31 @@ class MarkdownReporter implements Reporter {
       EntityType.import => 'Imports',
     };
     return '$label ($count)';
+  }
+
+  String _inlineCode(String value) => '`${_markdownText(value)}`';
+
+  String _markdownText(String value) {
+    const entities = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '\\': '&#92;',
+      '`': '&#96;',
+      '*': '&#42;',
+      '_': '&#95;',
+      '[': '&#91;',
+      ']': '&#93;',
+      '(': '&#40;',
+      ')': '&#41;',
+      '!': '&#33;',
+      '|': '&#124;',
+      '\r': ' ',
+      '\n': ' ',
+    };
+    return value
+        .split('')
+        .map((character) => entities[character] ?? character)
+        .join();
   }
 }

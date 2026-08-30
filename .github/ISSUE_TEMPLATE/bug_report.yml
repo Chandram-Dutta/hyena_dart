@@ -6,6 +6,8 @@ body:
     attributes:
       value: |
         Thanks for taking the time to fill out this bug report!
+        Before submitting, remove secrets, credentials, environment values,
+        private source or paths, personal information, and customer data.
   - type: textarea
     id: description
     attributes:
@@ -19,7 +21,7 @@ body:
       label: Steps to Reproduce
       description: Steps to reproduce the behavior.
       placeholder: |
-        1. Run `dart run bin/hyena_dart.dart analyze <path>`
+        1. Run `dart run hyena_dart analyze <path>`
         2. ...
         3. See error
     validations:
@@ -45,5 +47,5 @@ body:
     id: logs
     attributes:
       label: Relevant Log Output
-      description: Please copy and paste any relevant log output or stack traces.
+      description: Please copy and paste relevant log output or stack traces after redacting secrets, private paths, personal information, and customer data.
       render: shell
