@@ -5,13 +5,12 @@ import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/error/error.dart';
-import 'package:glob/glob.dart';
-import 'package:glob/list_local_fs.dart';
 import 'package:path/path.dart' as p;
 
 import '../config/analyzer_config.dart';
 import '../models/complexity_metrics.dart';
 import 'ast_visitors/complexity_visitor.dart';
+import 'source_discovery.dart';
 
 class ComplexityAnalyzer {
   final AnalyzerConfig config;
@@ -22,6 +21,7 @@ class ComplexityAnalyzer {
     String targetPath, {
     Iterable<String> excludedPaths = const [],
   }) async {
+    final discovery = SourceDiscovery(config);
     final absoluteTarget = p.normalize(p.absolute(targetPath));
     final analysisRoot = await FileSystemEntity.isFile(absoluteTarget)
         ? p.dirname(absoluteTarget)
@@ -29,7 +29,7 @@ class ComplexityAnalyzer {
     final normalizedExcludedPaths = excludedPaths
         .map((path) => p.normalize(p.absolute(path)))
         .toList();
-    final dartFiles = (await _collectDartFiles(
+    final dartFiles = (await discovery.collect(
       absoluteTarget,
     )).map((file) => p.normalize(p.absolute(file))).toList()..sort();
     final collection = AnalysisContextCollection(
@@ -44,7 +44,7 @@ class ComplexityAnalyzer {
     final fileMetrics = <FileMetrics>[];
 
     for (final file in dartFiles) {
-      if (_shouldExclude(
+      if (discovery.shouldExclude(
         file,
         analysisRoot: analysisRoot,
         excludedPaths: normalizedExcludedPaths,
@@ -62,72 +62,6 @@ class ComplexityAnalyzer {
       maxNestingLevel: config.maxNestingLevel,
       maxParameters: config.maxParameters,
     );
-  }
-
-  Future<List<String>> _collectDartFiles(String targetPath) async {
-    final file = File(targetPath);
-    if (await file.exists()) {
-      if (!file.path.endsWith('.dart')) {
-        throw ArgumentError('Target file is not a Dart source: $targetPath');
-      }
-      return [file.path];
-    }
-
-    final target = Directory(targetPath);
-    if (!await target.exists()) {
-      throw ArgumentError('Target path does not exist: $targetPath');
-    }
-
-    final glob = Glob('**.dart');
-    final files = <String>[];
-
-    await for (final entity in glob.list(root: targetPath)) {
-      if (entity is File) {
-        files.add(entity.path);
-      }
-    }
-
-    return files;
-  }
-
-  bool _shouldExclude(
-    String filePath, {
-    required String analysisRoot,
-    required List<String> excludedPaths,
-  }) {
-    final normalizedPath = p.normalize(p.absolute(filePath));
-    if (excludedPaths.any(
-      (root) =>
-          p.equals(root, normalizedPath) || p.isWithin(root, normalizedPath),
-    )) {
-      return true;
-    }
-    final relativePath = p.posix.joinAll(
-      p.split(p.relative(normalizedPath, from: analysisRoot)),
-    );
-    final absolutePath = p.posix.joinAll(p.split(normalizedPath));
-
-    for (final pattern in config.excludePatterns) {
-      final glob = Glob(pattern);
-      if (glob.matches(relativePath) || glob.matches(absolutePath)) {
-        return true;
-      }
-    }
-
-    if (normalizedPath.endsWith('.g.dart') ||
-        normalizedPath.endsWith('.freezed.dart') ||
-        normalizedPath.endsWith('.mocks.dart')) {
-      return true;
-    }
-
-    final segments = p.split(normalizedPath);
-    if (segments.contains('.dart_tool') ||
-        segments.contains('build') ||
-        segments.contains('generated')) {
-      return true;
-    }
-
-    return false;
   }
 
   Future<FileMetrics> _analyzeFile(String filePath) async {
