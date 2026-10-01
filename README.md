@@ -3,6 +3,7 @@
 <img src="https://raw.githubusercontent.com/Chandram-Dutta/hyena_dart/main/hyena_dart_logo.png" width="200" alt="Hyena Logo">
 
 A Dart and Flutter codebase analyzer for finding unused declarations and measuring code complexity. Hyena uses the official Dart `analyzer` package for AST-based analysis.
+It is designed for local development and CI workflows.
 
 ## Features
 
