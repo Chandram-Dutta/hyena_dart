@@ -18,7 +18,9 @@ import 'ast_visitors/complexity_visitor.dart';
 /// replaceable in tests to simulate unreadable files.
 typedef ReadDartSource = Future<String> Function(String path);
 
+/// Computes per-function complexity metrics for Dart sources.
 class ComplexityAnalyzer {
+  /// Thresholds and exclusions used by this analyzer.
   final AnalyzerConfig config;
   final ReadDartSource _readSource;
 
@@ -34,6 +36,11 @@ class ComplexityAnalyzer {
   static Future<String> _defaultReadSource(String path) =>
       File(path).readAsString();
 
+  /// Analyzes the Dart file or directory at [targetPath].
+  ///
+  /// Files under any of [excludedPaths] (for example nested workspace
+  /// packages) and files matching [AnalyzerConfig.excludePatterns] are
+  /// skipped.
   Future<ComplexityReport> analyze(
     String targetPath, {
     Iterable<String> excludedPaths = const [],

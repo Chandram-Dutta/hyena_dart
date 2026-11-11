@@ -5,7 +5,11 @@ import '../models/analysis_path.dart';
 import '../models/code_entity.dart';
 import 'reporter.dart';
 
+/// Renders an [AnalysisResult] as a self-contained HTML page.
 class HtmlReporter implements Reporter {
+  /// Creates an HTML reporter.
+  HtmlReporter();
+
   @override
   Future<String> generate(AnalysisResult result) async {
     final buffer = StringBuffer();

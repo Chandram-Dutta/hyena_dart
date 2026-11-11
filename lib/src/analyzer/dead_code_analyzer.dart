@@ -27,7 +27,10 @@ typedef ResolveDartUnit =
       String path,
     );
 
+/// Finds declarations that are never referenced, using resolved analysis
+/// from the official `analyzer` package.
 class DeadCodeAnalyzer {
+  /// Options and exceptions used by this analyzer.
   final AnalyzerConfig config;
   final ResolveDartUnit _resolveUnit;
 
@@ -45,6 +48,11 @@ class DeadCodeAnalyzer {
     String path,
   ) => session.getResolvedUnit(path);
 
+  /// Analyzes the Dart package or directory at [targetPath].
+  ///
+  /// Files under any of [excludedPaths] (for example nested workspace
+  /// packages) and files matching [AnalyzerConfig.excludePatterns] are
+  /// skipped.
   Future<DeadCodeReport> analyze(
     String targetPath, {
     Iterable<String> excludedPaths = const [],
@@ -53,6 +61,12 @@ class DeadCodeAnalyzer {
     return _buildReports([analysis]).single;
   }
 
+  /// Analyzes several workspace packages together, sharing one reference
+  /// graph. A declaration counts as used if it is reachable from a root in
+  /// any of the packages.
+  ///
+  /// Returns one report, with its analysis duration, for each entry in
+  /// [packages], in the same order.
   static Future<List<({DeadCodeReport report, Duration duration})>>
   analyzeWorkspace(
     List<

@@ -6,9 +6,13 @@ import 'package:dart_mcp/server.dart';
 import '../version.dart';
 import 'mcp_analysis_service.dart';
 
+/// An MCP server that exposes a single read-only Hyena analysis tool.
 base class HyenaMcpServer extends MCPServer with ToolsSupport {
+  /// The service that runs the analyses requested by clients.
   final McpAnalysisService analysisService;
 
+  /// Creates a server that talks over [channel] and runs analyses with
+  /// [analysisService].
   HyenaMcpServer(super.channel, {required this.analysisService})
     : super.fromStreamChannel(
         implementation: Implementation(

@@ -3,7 +3,13 @@ import '../models/analysis_path.dart';
 import '../models/code_entity.dart';
 import 'reporter.dart';
 
+/// Renders an [AnalysisResult] as a Markdown document.
+///
+/// Paths and symbol names come from the analyzed sources and are escaped.
 class MarkdownReporter implements Reporter {
+  /// Creates a Markdown reporter.
+  MarkdownReporter();
+
   @override
   Future<String> generate(AnalysisResult result) async {
     final buffer = StringBuffer();

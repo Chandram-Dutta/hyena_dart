@@ -4,9 +4,12 @@ import '../models/code_entity.dart';
 import '../models/skipped_file.dart';
 import 'reporter.dart';
 
+/// Renders an [AnalysisResult] as a human-readable terminal report.
 class ConsoleReporter implements Reporter {
+  /// Whether to add ANSI color and style escape codes.
   final bool useColors;
 
+  /// Creates a console reporter.
   ConsoleReporter({this.useColors = true});
 
   String _red(String text) => useColors ? '\x1B[31m$text\x1B[0m' : text;

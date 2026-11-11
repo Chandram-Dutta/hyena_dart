@@ -14,12 +14,21 @@ const _maxPathLength = 4096;
 const _maxOutputTextLength = 4096;
 const _maxSkippedFiles = 200;
 
+/// Resource limits applied to each MCP analysis request.
 class McpAnalysisLimits {
+  /// Maximum number of Dart files a target may contain.
   final int maxDartFiles;
+
+  /// Maximum total size, in bytes, of the Dart sources in a target.
   final int maxSourceBytes;
+
+  /// Maximum number of findings included in a response.
   final int maxFindings;
+
+  /// Maximum time an analysis may run before it is stopped.
   final Duration timeout;
 
+  /// Creates limits; omitted values use the defaults.
   const McpAnalysisLimits({
     this.maxDartFiles = 10000,
     this.maxSourceBytes = 50 * 1024 * 1024,
@@ -28,17 +37,25 @@ class McpAnalysisLimits {
   });
 }
 
+/// An expected MCP analysis failure, reported to the client as a tool error.
 class McpAnalysisException implements Exception {
+  /// Human-readable description of the failure.
   final String message;
 
+  /// Creates an exception with [message].
   const McpAnalysisException(this.message);
 
   @override
   String toString() => message;
 }
 
+/// Runs Hyena analyses for the MCP server, keeping targets inside a
+/// workspace root and applying [McpAnalysisLimits].
 class McpAnalysisService {
+  /// The resolved workspace root; analysis targets must be inside it.
   final String rootPath;
+
+  /// Limits applied to each analysis.
   final McpAnalysisLimits limits;
 
   bool _analysisInProgress = false;
@@ -46,6 +63,9 @@ class McpAnalysisService {
 
   McpAnalysisService._(this.rootPath, this.limits);
 
+  /// Creates a service rooted at [rootPath], after resolving symlinks.
+  ///
+  /// Throws an [ArgumentError] if [rootPath] does not exist.
   static Future<McpAnalysisService> create(
     String rootPath, {
     McpAnalysisLimits limits = const McpAnalysisLimits(),
@@ -59,6 +79,12 @@ class McpAnalysisService {
     return McpAnalysisService._(resolvedRoot, limits);
   }
 
+  /// Analyzes [targetPath] (relative to [rootPath]) and returns a JSON-ready
+  /// summary.
+  ///
+  /// [checks] is `both`, `dead-code` or `complexity`. Only one analysis can
+  /// run at a time. Throws a [McpAnalysisException] for invalid requests or
+  /// when a limit is exceeded.
   Future<Map<String, Object?>> analyze({
     String targetPath = '.',
     String checks = 'both',
@@ -86,6 +112,7 @@ class McpAnalysisService {
     }
   }
 
+  /// Cancels the analysis that is currently running, if there is one.
   void cancelCurrentAnalysis() {
     final cancellation = _cancellation;
     if (cancellation != null && !cancellation.isCompleted) {

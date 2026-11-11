@@ -3,17 +3,53 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
+/// Options that control dead code and complexity analysis.
+///
+/// Construct one directly, or use [load] to read the `hyena:` section of a
+/// `hyena.yaml` or `analysis_options.yaml` file. Every option has a
+/// conservative default.
 class AnalyzerConfig {
+  /// Glob patterns for files to skip (`hyena.exclude`), matched against both
+  /// relative and absolute paths, such as `**/*.g.dart`.
   final List<String> excludePatterns;
+
+  /// Functions with a cyclomatic complexity above this value are reported
+  /// (`hyena.complexity.cyclomatic_threshold`, default 20).
   final int cyclomaticThreshold;
+
+  /// Functions nested deeper than this value are reported
+  /// (`hyena.complexity.max_nesting`, default 5).
   final int maxNestingLevel;
+
+  /// Functions with more parameters than this value are reported
+  /// (`hyena.complexity.max_parameters`, default 6).
   final int maxParameters;
+
+  /// Whether `main` functions are treated as used
+  /// (`hyena.dead_code.ignore_main`, default `true`).
   final bool ignoreMain;
+
+  /// Whether declarations reachable through a public library export are
+  /// treated as used (`hyena.dead_code.ignore_exports`, default `false`).
+  ///
+  /// Enable this for reusable packages whose public API has no caller inside
+  /// the repository.
   final bool ignoreExports;
+
+  /// Whether private (`_`-prefixed) declarations are left out of dead code
+  /// results (`hyena.dead_code.ignore_private`, default `false`).
   final bool ignorePrivate;
+
+  /// Declaration names, either `name` or `Parent.name`, that are always
+  /// treated as used (`hyena.dead_code.entry_points`).
   final List<String> entryPoints;
+
+  /// Annotation names (with or without a leading `@`) whose annotated
+  /// declarations are treated as used
+  /// (`hyena.dead_code.entry_point_annotations`).
   final List<String> entryPointAnnotations;
 
+  /// Creates a configuration. Omitted options use their defaults.
   AnalyzerConfig({
     this.excludePatterns = const [],
     this.cyclomaticThreshold = 20,
@@ -26,6 +62,19 @@ class AnalyzerConfig {
     this.entryPointAnnotations = const [],
   });
 
+  /// Loads configuration from a YAML file.
+  ///
+  /// If [configPath] is given, that file is read. Otherwise, the search
+  /// starts at [targetPath] (or the current directory) and walks up to the
+  /// first directory that contains `hyena.yaml` or `analysis_options.yaml`.
+  /// Options are read from that file's `hyena:` section. If no file or
+  /// section is found, the defaults are returned.
+  ///
+  /// When [searchBoundary] is set, both the search and the resolved config
+  /// file must stay inside that directory.
+  ///
+  /// Throws an [ArgumentError] for a missing file or a boundary violation,
+  /// and a [FormatException] for invalid configuration.
   static Future<AnalyzerConfig> load(
     String? configPath, {
     String? targetPath,
@@ -201,6 +250,7 @@ class AnalyzerConfig {
     }).toList();
   }
 
+  /// Returns a copy of this configuration with the given options replaced.
   AnalyzerConfig copyWith({
     List<String>? excludePatterns,
     int? cyclomaticThreshold,

@@ -1,6 +1,8 @@
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart';
 
+/// Returns the rule ids listed in `// hyena:ignore rule-a, rule-b` comments
+/// directly before [node].
 Set<String> hyenaIgnoredRules(AstNode node) {
   final rules = <String>{};
   Token? comment = node.beginToken.precedingComments;

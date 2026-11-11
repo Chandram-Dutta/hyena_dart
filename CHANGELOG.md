@@ -1,5 +1,16 @@
 ## Unreleased
 
+### Breaking
+- `package:hyena_dart/hyena_dart.dart` no longer exports CLI wiring or internal path helpers. Code that imported these symbols from the public library must stop using them (or import `package:hyena_dart/src/...` at its own risk):
+  - `HyenaCommandRunner` (from `src/cli/cli_runner.dart`)
+  - `BaseAnalysisCommand` (from `src/cli/cli_runner.dart`)
+  - `AnalyzeCommand` (from `src/cli/cli_runner.dart`)
+  - `DeadCodeCommand` (from `src/cli/cli_runner.dart`)
+  - `ComplexityCommand` (from `src/cli/cli_runner.dart`)
+  - `analysisRootForTarget` (from `src/models/analysis_path.dart`)
+  - `relativeAnalysisPath` (from `src/models/analysis_path.dart`)
+  - `relativeFindingPath` (from `src/models/analysis_path.dart`)
+
 ### Changed
 - **Breaking:** Upgrade to `analyzer: ^14.0.0` (from `^8.4.1`). Projects whose other dev tools still require an older analyzer will no longer resolve alongside Hyena
 - **Breaking:** Raise the minimum Dart SDK to 3.11.0, as required by analyzer 14
@@ -22,6 +33,11 @@
 - Declarations in skipped files are not reported as dead code. Code that a resolvable-but-erroneous file references is still treated as used, so skipping it does not create false positives elsewhere
 - The MCP server returns normal results for targets containing such files instead of failing the request
 - Dead code analysis now collects references from generated files (`.g.dart`, `.freezed.dart`, `.mocks.dart`, including `part` files) instead of skipping them, so declarations used only by generated code (e.g. helpers called from `_$UserFromJson`, private freezed constructors, interfaces implemented by mocks) are no longer reported as unused. Declarations inside generated files are still never reported, stale generated files with errors no longer abort the run, and user `exclude` patterns still remove generated files entirely.
+
+### Documentation
+- Add a library-level overview and API documentation for every exported type and member
+- Enable the `public_member_api_docs` lint so new public API must be documented
+- Update the package example to compute display paths with `package:path` instead of the removed helpers
 
 ### Maintenance
 - Add a `frontend_server_client: ^4.0.0` dev-dependency floor so `dart pub downgrade && dart test` works on current SDKs

@@ -3,14 +3,30 @@ import 'dead_code_report.dart';
 import 'complexity_metrics.dart';
 import 'skipped_file.dart';
 
+/// The combined outcome of running Hyena on a target path.
+///
+/// For a workspace, [packageResults] holds one result per member package and
+/// the top-level reports are `null`.
 class AnalysisResult {
+  /// Dead code results, or `null` if dead code analysis was not run.
   final DeadCodeReport? deadCodeReport;
+
+  /// Complexity results, or `null` if complexity analysis was not run.
   final ComplexityReport? complexityReport;
+
+  /// The file or directory that was analyzed.
   final String targetPath;
+
+  /// How long the analysis took.
   final Duration duration;
+
+  /// Name of the analyzed package, if known.
   final String? packageName;
+
+  /// Per-package results when the target is a workspace; empty otherwise.
   final List<AnalysisResult> packageResults;
 
+  /// Creates an analysis result.
   AnalysisResult({
     this.deadCodeReport,
     this.complexityReport,
@@ -20,8 +36,11 @@ class AnalysisResult {
     this.packageResults = const [],
   });
 
+  /// Whether this result aggregates several workspace packages.
   bool get isWorkspace => packageResults.isNotEmpty;
 
+  /// The single-package results: this result itself, or every nested package
+  /// result for a workspace.
   Iterable<AnalysisResult> get packageAnalyses sync* {
     if (!isWorkspace) {
       yield this;
@@ -41,6 +60,10 @@ class AnalysisResult {
     }
   }
 
+  /// Serializes this result to JSON.
+  ///
+  /// Paths are emitted relative to [rootPath], which defaults to the package
+  /// root containing [targetPath].
   Map<String, dynamic> toJson({String? rootPath}) {
     final analysisRoot = rootPath ?? analysisRootForTarget(targetPath);
     return {

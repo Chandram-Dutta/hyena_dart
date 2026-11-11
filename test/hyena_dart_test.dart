@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:hyena_dart/hyena_dart.dart';
+import 'package:hyena_dart/src/cli/cli_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 

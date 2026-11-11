@@ -4,6 +4,8 @@ import 'package:analyzer/dart/element/element.dart';
 
 import 'element_key.dart';
 
+/// Whether the method, getter or setter [node] overrides a superinterface
+/// member, either by `@override` or by resolved element.
 bool isOverridingMember(MethodDeclaration node) {
   if (_hasOverrideAnnotation(node)) return true;
 
@@ -12,6 +14,8 @@ bool isOverridingMember(MethodDeclaration node) {
   return element != null && _isOverridingExecutable(element, name);
 }
 
+/// Whether the field [variable] in [declaration] overrides a superinterface
+/// getter or setter.
 bool isOverridingField(
   FieldDeclaration declaration,
   VariableDeclaration variable,

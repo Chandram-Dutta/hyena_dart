@@ -21,11 +21,10 @@ analyzer:
     # matching, but analyzer 8.x still marks them experimental.
     experimental_member_use: ignore
 
-# Uncomment the following section to specify additional rules.
-
-# linter:
-#   rules:
-#     - camel_case_types
+linter:
+  rules:
+    # Keep the exported API documented (pub.dev scores dartdoc coverage).
+    - public_member_api_docs
 
 # analyzer:
 #   exclude:
