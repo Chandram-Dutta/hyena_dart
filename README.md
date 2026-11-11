@@ -30,11 +30,15 @@ For a Flutter project, use `flutter pub add dev:hyena_dart` and then the same
 `dart run` commands. Hyena supports project-local execution only, keeping its
 version in the project's dependency resolution and lockfile.
 
-Compatibility note: Hyena 2.0 uses analyzer 8.4. Fully resolved dead-code
-analysis of Dart 3.12 source that uses private named parameters is not yet
-supported and fails rather than silently omitting affected files. Complexity
-analysis remains available for those projects. Supporting that syntax requires
-the planned migration to analyzer 12's element and AST APIs.
+Compatibility note: Hyena depends on `analyzer: ^14.0.0` and requires Dart SDK
+3.11 or newer. Because Hyena is a dev dependency, other dev tools in the same
+project (code generators, custom lint plugins) must also accept analyzer 14.x;
+if one still requires an older analyzer, `pub get` reports a version conflict.
+Dart 3.12 syntax such as private named parameters is analyzed normally. A
+source file using language features newer than the resolved analyzer
+understands produces error diagnostics, and Hyena fails rather than silently
+omitting it; upgrading Hyena's analyzer (`dart pub upgrade analyzer`) usually
+resolves this.
 
 ## Quick Start
 

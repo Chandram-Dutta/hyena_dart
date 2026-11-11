@@ -1,3 +1,18 @@
+## Unreleased
+
+### Changed
+- **Breaking:** Upgrade to `analyzer: ^14.0.0` (from `^8.4.1`). Projects whose other dev tools still require an older analyzer will no longer resolve alongside Hyena
+- **Breaking:** Raise the minimum Dart SDK to 3.11.0, as required by analyzer 14
+- Migrate to the analyzer 14 AST: class, enum, and extension-type names come from `namePart`, enum constants from `body`, and constructor locations no longer use the removed `returnType`
+- Stop passing the removed `excludedPaths` to `AnalysisContextCollection`; nested workspace packages are still excluded by Hyena's own file filtering
+
+### Fixed
+- Dead-code analysis of Dart 3.12 source using private named parameters, which analyzer 8.4 could not resolve
+
+### Maintenance
+- Add a `frontend_server_client: ^4.0.0` dev-dependency floor so `dart pub downgrade && dart test` works on current SDKs
+- Give the CLI subprocess tests a longer timeout, since `dart run` now compiles the larger analyzer from source
+
 ## [2.0.1] - 2026-08-30
 
 ### Fixed

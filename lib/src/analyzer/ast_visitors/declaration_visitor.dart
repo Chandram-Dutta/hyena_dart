@@ -5,6 +5,7 @@ import 'package:analyzer/source/line_info.dart';
 
 import '../../models/code_entity.dart';
 import '../source_suppression.dart';
+import 'ast_names.dart';
 import 'element_key.dart';
 import 'member_override.dart';
 
@@ -132,7 +133,8 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitClassDeclaration(ClassDeclaration node) {
-    final name = node.name.lexeme;
+    final nameToken = node.namePart.typeName;
+    final name = nameToken.lexeme;
     final isExported = exportedNames.contains(name);
     final isLive = liveNames.contains(name) || _isLiveDeclaration(name, node);
     final isIgnored = _ignoresDeadCode(node);
@@ -142,7 +144,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
         type: node.abstractKeyword != null
             ? EntityType.abstractClass
             : EntityType.classDecl,
-        offset: node.name.offset,
+        offset: nameToken.offset,
         isPublic: _isPublic(name),
         isExported: isExported,
       ),
@@ -216,7 +218,8 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitExtensionTypeDeclaration(ExtensionTypeDeclaration node) {
-    final name = node.name.lexeme;
+    final nameToken = node.namePart.typeName;
+    final name = nameToken.lexeme;
     final isExported = exportedNames.contains(name);
     final isLive = liveNames.contains(name) || _isLiveDeclaration(name, node);
     final isIgnored = _ignoresDeadCode(node);
@@ -224,7 +227,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
       _entity(
         name: name,
         type: EntityType.extensionType,
-        offset: node.name.offset,
+        offset: nameToken.offset,
         isPublic: _isPublic(name),
         isExported: isExported,
       ),
@@ -242,7 +245,8 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitEnumDeclaration(EnumDeclaration node) {
-    final name = node.name.lexeme;
+    final nameToken = node.namePart.typeName;
+    final name = nameToken.lexeme;
     final isExported = exportedNames.contains(name);
     final isLive = liveNames.contains(name) || _isLiveDeclaration(name, node);
     final isIgnored = _ignoresDeadCode(node);
@@ -250,7 +254,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
       _entity(
         name: name,
         type: EntityType.enum_,
-        offset: node.name.offset,
+        offset: nameToken.offset,
         isPublic: _isPublic(name),
         isExported: isExported,
       ),
@@ -264,7 +268,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
       isExported,
       isLive || isIgnored,
       () {
-        for (final constant in node.constants) {
+        for (final constant in node.body.constants) {
           final constantName = constant.name.lexeme;
           _record(
             _entity(
@@ -364,7 +368,7 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
       _entity(
         name: name,
         type: EntityType.constructor,
-        offset: node.name?.offset ?? node.returnType.offset,
+        offset: constructorNameOffset(node),
         parentName: _currentClass,
         isPublic: isPublic,
         isExported: _currentContainerExported && isPublic,

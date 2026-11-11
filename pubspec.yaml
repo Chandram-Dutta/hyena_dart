@@ -12,10 +12,10 @@ topics:
   - cli
 
 environment:
-  sdk: ^3.10.3
+  sdk: ^3.11.0
 
 dependencies:
-  analyzer: ^8.4.1
+  analyzer: ^14.0.0
   args: ^2.4.0
   dart_mcp: ^0.5.2
   path: ^1.9.0
@@ -23,5 +23,9 @@ dependencies:
   glob: ^2.1.1
 
 dev_dependencies:
+  # Not used directly: keeps `dart pub downgrade` from selecting
+  # frontend_server_client 3.x, which cannot start the test runner on
+  # current SDKs.
+  frontend_server_client: ^4.0.0
   lints: ^6.0.0
   test: ^1.25.6

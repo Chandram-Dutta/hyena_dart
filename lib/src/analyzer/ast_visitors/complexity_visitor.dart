@@ -8,6 +8,7 @@ import 'package:analyzer/source/line_info.dart';
 
 import '../../models/complexity_metrics.dart';
 import '../source_suppression.dart';
+import 'ast_names.dart';
 
 class ComplexityVisitor extends RecursiveAstVisitor<void> {
   final String filePath;
@@ -24,7 +25,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitClassDeclaration(ClassDeclaration node) {
-    _currentClass = node.name.lexeme;
+    _currentClass = node.namePart.typeName.lexeme;
     super.visitClassDeclaration(node);
     _currentClass = null;
   }
@@ -59,14 +60,14 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitExtensionTypeDeclaration(ExtensionTypeDeclaration node) {
-    _currentClass = node.name.lexeme;
+    _currentClass = node.namePart.typeName.lexeme;
     super.visitExtensionTypeDeclaration(node);
     _currentClass = null;
   }
 
   @override
   void visitEnumDeclaration(EnumDeclaration node) {
-    _currentClass = node.name.lexeme;
+    _currentClass = node.namePart.typeName.lexeme;
     super.visitEnumDeclaration(node);
     _currentClass = null;
   }
@@ -133,7 +134,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
         body: node.body,
         initializers: node.initializers,
         parameters: node.parameters,
-        offset: node.name?.offset ?? node.returnType.offset,
+        offset: constructorNameOffset(node),
         parentClass: _currentClass,
         fingerprintName: fingerprintName,
         suppressedRules: _complexitySuppressions(node),
