@@ -4,6 +4,11 @@ import 'package:hyena_dart/hyena_dart.dart';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 
+// Each `dart run bin/<script>.dart` compiles the CLI, including the analyzer
+// package, from source; with analyzer 14 that alone can take 10-20 seconds,
+// so tests that spawn several of them need more than the default 30 seconds.
+const _subprocessTimeout = Timeout(Duration(minutes: 3));
+
 void main() {
   test('runtime version matches package metadata', () {
     final pubspec =
@@ -21,7 +26,7 @@ void main() {
       expect(result.exitCode, 0, reason: result.stderr as String);
       expect(result.stdout as String, contains(hyenaVersion));
     }
-  });
+  }, timeout: _subprocessTimeout);
 
   test(
     'CLI reports invalid invocations without unhandled exceptions',
@@ -63,5 +68,6 @@ void main() {
         expect(stderr, isNot(contains('#0')));
       }
     },
+    timeout: _subprocessTimeout,
   );
 }

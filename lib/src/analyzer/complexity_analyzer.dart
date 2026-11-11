@@ -34,7 +34,6 @@ class ComplexityAnalyzer {
     )).map((file) => p.normalize(p.absolute(file))).toList()..sort();
     final collection = AnalysisContextCollection(
       includedPaths: [absoluteTarget],
-      excludedPaths: normalizedExcludedPaths,
     );
     dartFiles.removeWhere(
       (file) => !collection.contexts.any(

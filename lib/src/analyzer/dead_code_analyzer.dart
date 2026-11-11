@@ -78,10 +78,7 @@ class DeadCodeAnalyzer {
             );
           }).toList()
           ..sort();
-    final collection = AnalysisContextCollection(
-      includedPaths: [absTarget],
-      excludedPaths: normalizedExcludedPaths,
-    );
+    final collection = AnalysisContextCollection(includedPaths: [absTarget]);
     dartFiles.removeWhere(
       (file) => !collection.contexts.any(
         (context) => context.contextRoot.isAnalyzed(file),
@@ -400,8 +397,17 @@ class DeadCodeAnalyzer {
       } else if (declaration is ExtensionDeclaration) {
         final name = declaration.name?.lexeme;
         if (name != null) names.add(name);
-      } else if (declaration is NamedCompilationUnitMember) {
-        names.add(declaration.name.lexeme);
+      } else {
+        final name = switch (declaration) {
+          ClassDeclaration() => declaration.namePart.typeName,
+          EnumDeclaration() => declaration.namePart.typeName,
+          ExtensionTypeDeclaration() => declaration.namePart.typeName,
+          MixinDeclaration() => declaration.name,
+          FunctionDeclaration() => declaration.name,
+          TypeAlias() => declaration.name,
+          _ => null,
+        };
+        if (name != null) names.add(name.lexeme);
       }
     }
     return names.where((name) => !name.startsWith('_')).toSet();
