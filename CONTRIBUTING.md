@@ -4,7 +4,7 @@ Thanks for helping improve Hyena Dart.
 
 ## Development setup
 
-Use Dart 3.10.3 or newer, then run:
+Use Dart 3.11.0 or newer, then run:
 
 ```bash
 dart pub get
