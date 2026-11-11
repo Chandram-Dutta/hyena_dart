@@ -15,6 +15,7 @@ import '../reporters/markdown_reporter.dart';
 import '../reporters/reporter.dart';
 import '../reporters/sarif_reporter.dart';
 import '../version.dart';
+import 'cli_main.dart';
 
 class HyenaCommandRunner extends CommandRunner<int> {
   HyenaCommandRunner()
@@ -156,12 +157,12 @@ abstract class BaseAnalysisCommand extends Command<int> {
 
   int resultExitCode(AnalysisResult result, ArgResults results) {
     final failOn = (results['fail-on'] as List<String>).toSet();
-    if (failOn.isEmpty) return 0;
+    if (failOn.isEmpty) return HyenaExitCode.ok;
     return AnalysisFinding.fromResult(
           result,
         ).any((finding) => failOn.contains(finding.category))
-        ? 1
-        : 0;
+        ? HyenaExitCode.findings
+        : HyenaExitCode.ok;
   }
 }
 

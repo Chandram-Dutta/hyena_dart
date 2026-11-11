@@ -5,6 +5,8 @@
 - **Breaking:** Raise the minimum Dart SDK to 3.11.0, as required by analyzer 14
 - Migrate to the analyzer 14 AST: class, enum, and extension-type names come from `namePart`, enum constants from `body`, and constructor locations no longer use the removed `returnType`
 - Stop passing the removed `excludedPaths` to `AnalysisContextCollection`; nested workspace packages are still excluded by Hyena's own file filtering
+- **Exit codes changed (may affect CI scripts):** tool errors now exit `2` instead of `1`. This covers a missing or invalid config or baseline file, a missing or unreadable target path, analysis failures, and report write failures. Exit `1` now means only "findings tripped `--fail-on`". Unexpected internal errors also exit `2`, where previously they crashed with Dart's unhandled-exception code `255`. Usage errors still exit `64`, and successful runs still exit `0`.
+- `hyena_mcp` now exits `2` instead of `64` when the `--root` directory does not exist. Other startup failures also exit `2`. Usage errors still exit `64`.
 
 ### Added
 - `DeadCodeReport.skippedFiles` and `ComplexityReport.skippedFiles` (list of `SkippedFile` with `filePath` and `reason`), plus an aggregated `AnalysisResult.skippedFiles`
@@ -12,6 +14,7 @@
 - The console report lists skipped files and their reasons in the dead code and complexity sections
 - MCP structured output adds an optional `summary.skippedFiles` count and an optional `skippedFiles` list (`analysis`, `path`, `reason`; at most 200 entries)
 - Optional `resolveUnit` (`DeadCodeAnalyzer`) and `readSource` (`ComplexityAnalyzer`) constructor hooks, mainly for testing failure handling
+- Document exit codes in the README ("Exit codes" section)
 
 ### Fixed
 - Dead-code analysis of Dart 3.12 source using private named parameters, which analyzer 8.4 could not resolve
