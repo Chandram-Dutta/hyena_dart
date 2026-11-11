@@ -118,8 +118,9 @@ generators, custom lint plugins) must also accept analyzer 14.x; if one still
 requires an older analyzer, `pub get` reports a version conflict. Dart 3.12
 syntax such as private named parameters is analyzed normally. A source file
 using language features newer than the resolved analyzer understands produces
-error diagnostics; Hyena skips that file, prints a `Warning: skipped <path>:
-<reason>` line to stderr, and keeps analyzing the rest of the target.
+error diagnostics; Hyena skips non-generated files, prints a
+`Warning: skipped <path>: <reason>` line to stderr, and keeps analyzing the rest
+of the target.
 Upgrading Hyena's analyzer (`dart pub upgrade analyzer`) usually resolves this.
 
 ## Migrating from v1.x
@@ -150,7 +151,7 @@ Upgrading Hyena's analyzer (`dart pub upgrade analyzer`) usually resolves this.
   paths, use `package:path` (for example `p.relative(entity.filePath)`).
 - Exit codes: `0` ok, `1` findings tripped `--fail-on`, `2` tool error, `64`
   usage error. Tool errors used to exit `1`.
-- Broken or unresolvable files are now skipped with a
+- Broken or unresolvable non-generated files are now skipped with a
   `Warning: skipped <path>: <reason>` line on stderr, and the run continues.
   In 2.x such a file aborted the run.
 
@@ -363,8 +364,9 @@ hyena:
 ```
 
 Generated `.g.dart`, `.freezed.dart`, and `.mocks.dart` files are handled
-automatically: dead-code analysis counts references from them and never
-reports their declarations, and complexity analysis skips them.
+automatically: dead-code analysis counts references from them when resolution
+and reference collection succeed and never reports their declarations, and
+complexity analysis skips them.
 
 Entry points use exact declaration names. A simple name such as `register`
 matches declarations with that simple name; a qualified name such as
@@ -457,9 +459,9 @@ dart run hyena_dart analyze . \
   --fail-on=dead-code,complexity
 ```
 
-Baseline fingerprints use the rule, package-relative path, symbol type, and
-full symbol name. Moving a declaration to another line does not invalidate its
-baseline entry.
+Baseline fingerprints use the rule, project- or workspace-relative path, symbol
+type, and full symbol name. Moving a declaration to another line does not
+invalidate its baseline entry.
 
 ## Exit codes
 
@@ -476,12 +478,21 @@ broken setup:
 A tool error takes precedence. If Hyena fails, it exits `2` even when findings
 would have tripped `--fail-on`.
 
-Individual files that fail to resolve, contain analysis or syntax errors, or
-can't be read are not tool errors. Hyena skips them, prints a
-`Warning: skipped <path>: <reason>` line to stderr, lists them under
-`skippedFiles` in JSON output, and keeps analyzing the rest of the target, so
-they do not change the exit code. In CI, make sure generated code is up to
-date (for example, run `build_runner` first) and check stderr or the JSON
+Dead-code analysis skips files with resolution or semantic errors; complexity
+analysis skips files with read or syntax errors. Both skip files when per-file
+analysis throws and continue analyzing the remaining files. For non-generated
+files, Hyena prints a `Warning: skipped <path>: <reason>` line to stderr and
+lists them under `skippedFiles` in JSON output. Skips do not directly cause a
+tool-error exit, but can change the findings and therefore the exit code
+selected by `--fail-on`.
+
+Dead-code analysis preserves references from resolvable files with errors on a
+best-effort basis. Non-generated files that cannot be resolved or read, or
+whose visitors throw, contribute no references. Generated files that fail
+resolution or reference collection are silently ignored without a warning or
+`skippedFiles` entry and may contribute no references. Declarations used only by
+these files can be reported as dead code. In CI, make sure generated code is up
+to date (for example, run `build_runner` first) and check stderr or the JSON
 `skippedFiles` arrays if a skipped file should fail the build.
 
 `hyena_mcp` exits `64` for usage errors (such as a missing `--root`) and `2`
