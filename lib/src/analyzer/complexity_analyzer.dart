@@ -13,11 +13,19 @@ import '../config/analyzer_config.dart';
 import '../models/complexity_metrics.dart';
 import 'ast_visitors/complexity_visitor.dart';
 
+/// Computes per-function complexity metrics for Dart sources.
 class ComplexityAnalyzer {
+  /// Thresholds and exclusions used by this analyzer.
   final AnalyzerConfig config;
 
+  /// Creates an analyzer that uses [config].
   ComplexityAnalyzer(this.config);
 
+  /// Analyzes the Dart file or directory at [targetPath].
+  ///
+  /// Files under any of [excludedPaths] (for example nested workspace
+  /// packages) and files matching [AnalyzerConfig.excludePatterns] are
+  /// skipped.
   Future<ComplexityReport> analyze(
     String targetPath, {
     Iterable<String> excludedPaths = const [],

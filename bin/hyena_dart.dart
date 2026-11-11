@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:hyena_dart/hyena_dart.dart';
+import 'package:hyena_dart/src/cli/cli_runner.dart';
 
 Future<void> main(List<String> arguments) async {
   final runner = HyenaCommandRunner();

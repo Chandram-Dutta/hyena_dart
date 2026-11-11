@@ -9,10 +9,19 @@ import 'package:analyzer/source/line_info.dart';
 import '../../models/complexity_metrics.dart';
 import '../source_suppression.dart';
 
+/// Collects [FunctionMetrics] for every function-like declaration in a
+/// compilation unit.
 class ComplexityVisitor extends RecursiveAstVisitor<void> {
+  /// Path of the visited file.
   final String filePath;
+
+  /// Line information used to map offsets to line numbers.
   final LineInfo lineInfo;
+
+  /// Source text of the visited file.
   final String source;
+
+  /// Metrics collected so far, in visit order.
   final List<FunctionMetrics> functions = [];
   String? _currentClass;
   String? _currentContainerFingerprint;
@@ -20,6 +29,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
   final Map<String, int> _closureCounts = {};
   final Map<String, int> _unnamedExtensionCounts = {};
 
+  /// Creates a visitor for the file at [filePath].
   ComplexityVisitor(this.filePath, this.lineInfo, this.source);
 
   @override

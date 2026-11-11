@@ -11,11 +11,29 @@ import '../models/dead_code_report.dart';
 import 'complexity_analyzer.dart';
 import 'dead_code_analyzer.dart';
 
+/// Adjusts the [AnalyzerConfig] loaded for a package, for example to apply
+/// command-line overrides. Returns the configuration to use.
 typedef ConfigureAnalyzer = AnalyzerConfig Function(AnalyzerConfig config);
 
+/// Runs dead code and/or complexity analysis on a package or a Dart
+/// workspace.
+///
+/// This is the entry point the CLI uses. It loads configuration, finds
+/// workspace member packages, and combines the results into one
+/// [AnalysisResult].
 class AnalysisRunner {
+  /// Creates an analysis runner.
   const AnalysisRunner();
 
+  /// Analyzes [targetPath].
+  ///
+  /// If [targetPath] is the root of a Dart workspace, each member package is
+  /// analyzed with its own configuration and the result contains one
+  /// [AnalysisResult.packageResults] entry per package.
+  ///
+  /// [configPath] and [searchBoundary] are passed to [AnalyzerConfig.load].
+  /// [configure] can then change each loaded configuration.
+  /// [includeDeadCode] and [includeComplexity] choose which analyses run.
   Future<AnalysisResult> analyze(
     String targetPath, {
     String? configPath,

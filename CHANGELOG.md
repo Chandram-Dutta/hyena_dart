@@ -1,3 +1,21 @@
+## Unreleased
+
+### Breaking
+- `package:hyena_dart/hyena_dart.dart` no longer exports CLI wiring or internal path helpers. Code that imported these symbols from the public library must stop using them (or import `package:hyena_dart/src/...` at its own risk):
+  - `HyenaCommandRunner` (from `src/cli/cli_runner.dart`)
+  - `BaseAnalysisCommand` (from `src/cli/cli_runner.dart`)
+  - `AnalyzeCommand` (from `src/cli/cli_runner.dart`)
+  - `DeadCodeCommand` (from `src/cli/cli_runner.dart`)
+  - `ComplexityCommand` (from `src/cli/cli_runner.dart`)
+  - `analysisRootForTarget` (from `src/models/analysis_path.dart`)
+  - `relativeAnalysisPath` (from `src/models/analysis_path.dart`)
+  - `relativeFindingPath` (from `src/models/analysis_path.dart`)
+
+### Documentation
+- Add a library-level overview and API documentation for every exported type and member
+- Enable the `public_member_api_docs` lint so new public API must be documented
+- Update the package example to compute display paths with `package:path` instead of the removed helpers
+
 ## [2.0.1] - 2026-08-30
 
 ### Fixed

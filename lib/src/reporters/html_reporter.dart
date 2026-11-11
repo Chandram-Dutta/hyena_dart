@@ -5,6 +5,7 @@ import '../models/analysis_path.dart';
 import '../models/code_entity.dart';
 import 'reporter.dart';
 
+/// Renders an [AnalysisResult] as a self-contained HTML page.
 class HtmlReporter implements Reporter {
   @override
   Future<String> generate(AnalysisResult result) async {

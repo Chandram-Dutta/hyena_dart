@@ -7,13 +7,21 @@ import 'analysis_result.dart';
 import 'complexity_metrics.dart';
 import 'dead_code_report.dart';
 
+/// A set of known finding fingerprints used to hide pre-existing issues.
+///
+/// Create one from a result with [FindingBaseline.fromResult] and save it
+/// with [write]. Later, [load] it and [apply] it so only new findings remain.
 class FindingBaseline {
+  /// The baseline file format version written by [write].
   static const currentVersion = 1;
 
+  /// The [AnalysisFinding.fingerprint]s of the known findings.
   final Set<String> fingerprints;
 
+  /// Creates a baseline from a set of [fingerprints].
   FindingBaseline(this.fingerprints);
 
+  /// Creates a baseline containing every finding in [result].
   factory FindingBaseline.fromResult(AnalysisResult result) {
     return FindingBaseline(
       AnalysisFinding.fromResult(
@@ -22,6 +30,9 @@ class FindingBaseline {
     );
   }
 
+  /// Reads a baseline JSON file from [path].
+  ///
+  /// Throws a [FormatException] if the file is not a valid baseline.
   static Future<FindingBaseline> load(String path) async {
     final Object? decoded;
     try {
@@ -45,6 +56,7 @@ class FindingBaseline {
     return FindingBaseline(values.cast<String>().toSet());
   }
 
+  /// Writes this baseline as JSON to [path], with fingerprints sorted.
   Future<void> write(String path) async {
     final sorted = fingerprints.toList()..sort();
     final content = const JsonEncoder.withIndent(
@@ -53,6 +65,10 @@ class FindingBaseline {
     await File(path).writeAsString('$content\n');
   }
 
+  /// Returns a copy of [result] without the findings in this baseline.
+  ///
+  /// Baselined dead code entries are removed. Baselined complexity violations
+  /// stay in the report but are marked as suppressed.
   AnalysisResult apply(AnalysisResult result) {
     final rootPath = analysisRootForTarget(result.targetPath);
     return _apply(result, rootPath);

@@ -16,11 +16,20 @@ import '../models/dead_code_report.dart';
 import 'ast_visitors/declaration_visitor.dart';
 import 'ast_visitors/reference_visitor.dart';
 
+/// Finds declarations that are never referenced, using resolved analysis
+/// from the official `analyzer` package.
 class DeadCodeAnalyzer {
+  /// Options and exceptions used by this analyzer.
   final AnalyzerConfig config;
 
+  /// Creates an analyzer that uses [config].
   DeadCodeAnalyzer(this.config);
 
+  /// Analyzes the Dart package or directory at [targetPath].
+  ///
+  /// Files under any of [excludedPaths] (for example nested workspace
+  /// packages) and files matching [AnalyzerConfig.excludePatterns] are
+  /// skipped.
   Future<DeadCodeReport> analyze(
     String targetPath, {
     Iterable<String> excludedPaths = const [],
@@ -29,6 +38,12 @@ class DeadCodeAnalyzer {
     return _buildReports([analysis]).single;
   }
 
+  /// Analyzes several workspace packages together, sharing one reference
+  /// graph. A declaration counts as used if it is reachable from a root in
+  /// any of the packages.
+  ///
+  /// Returns one report, with its analysis duration, for each entry in
+  /// [packages], in the same order.
   static Future<List<({DeadCodeReport report, Duration duration})>>
   analyzeWorkspace(
     List<

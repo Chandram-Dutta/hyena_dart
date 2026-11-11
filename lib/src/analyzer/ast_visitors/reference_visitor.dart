@@ -5,12 +5,27 @@ import 'package:analyzer/dart/element/element.dart';
 import 'element_key.dart';
 import 'member_override.dart';
 
+/// Records the references made by a compilation unit and builds a reference
+/// graph between declarations.
 class ReferenceVisitor extends RecursiveAstVisitor<void> {
+  /// Names of referenced (non-type) identifiers.
   final Set<String> references = {};
+
+  /// Names of referenced types.
   final Set<String> typeReferences = {};
+
+  /// URIs named by import and export directives.
   final Set<String> imports = {};
+
+  /// Member names accessed on targets whose type could not be resolved; such
+  /// members are conservatively treated as used.
   final Set<String> unresolvedMemberNames = {};
+
+  /// Edges from a declaration's element key to the element keys it uses.
   final Map<String, Set<String>> referenceGraph = {};
+
+  /// Element keys of declarations that are reachability roots regardless of
+  /// references, such as `main` functions and overriding members.
   final Set<String> rootElementKeys = {};
   String? _currentDeclarationKey;
 
@@ -340,5 +355,6 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     super.visitMixinOnClause(node);
   }
 
+  /// The union of [references] and [typeReferences].
   Set<String> get allReferences => {...references, ...typeReferences};
 }

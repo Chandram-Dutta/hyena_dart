@@ -8,22 +8,45 @@ import '../source_suppression.dart';
 import 'element_key.dart';
 import 'member_override.dart';
 
+/// Collects the declarations in a compilation unit as [CodeEntity] values
+/// and records which of them are always live (entry points).
 class DeclarationVisitor extends RecursiveAstVisitor<void> {
+  /// Path of the visited file.
   final String filePath;
+
+  /// Line information used to map offsets to line and column numbers.
   final LineInfo lineInfo;
+
+  /// Names of top-level declarations reachable through a library export.
   final Set<String> exportedNames;
+
+  /// Names of declarations that must be treated as live, such as those
+  /// reached only through conditional imports.
   final Set<String> liveNames;
+
+  /// Whether `main` functions are treated as live.
   final bool ignoreMain;
+
+  /// Configured entry-point names (`name` or `Parent.name`).
   final Set<String> entryPoints;
+
+  /// Configured entry-point annotation names, without a leading `@`.
   final Set<String> entryPointAnnotations;
+
+  /// Declarations collected so far, in visit order.
   final List<CodeEntity> declarations = [];
+
+  /// Collected declarations keyed by their element key.
   final Map<String, CodeEntity> elementKeyToEntity = {};
+
+  /// Element keys of declarations that are live roots.
   final Set<String> liveElementKeys = {};
   String? _currentClass;
   String? _currentContainerElementKey;
   bool _currentContainerExported = false;
   bool _currentContainerLive = false;
 
+  /// Creates a visitor for the file at [filePath].
   DeclarationVisitor(
     this.filePath,
     this.lineInfo, {

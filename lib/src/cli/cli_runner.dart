@@ -15,7 +15,12 @@ import '../reporters/reporter.dart';
 import '../reporters/sarif_reporter.dart';
 import '../version.dart';
 
+/// The `hyena_dart` command-line runner, with the `analyze`, `dead-code` and
+/// `complexity` commands.
+///
+/// Internal to the CLI; not exported from `package:hyena_dart/hyena_dart.dart`.
 class HyenaCommandRunner extends CommandRunner<int> {
+  /// Creates the runner and registers all commands.
   HyenaCommandRunner()
     : super(
         'hyena',
@@ -41,7 +46,9 @@ class HyenaCommandRunner extends CommandRunner<int> {
   }
 }
 
+/// Shared options and helpers for the analysis commands.
 abstract class BaseAnalysisCommand extends Command<int> {
+  /// Registers the output, config, baseline and `--fail-on` options.
   void addCommonOptions() {
     argParser.addOption(
       'format',
@@ -81,6 +88,9 @@ abstract class BaseAnalysisCommand extends Command<int> {
     );
   }
 
+  /// Returns the single positional target path, defaulting to `.`.
+  ///
+  /// Throws a [UsageException] if more than one path was given.
   String getTargetPath() {
     if (argResults!.rest.length > 1) {
       throw UsageException(
@@ -92,6 +102,7 @@ abstract class BaseAnalysisCommand extends Command<int> {
     return argResults!.rest.isEmpty ? '.' : argResults!.rest.first;
   }
 
+  /// Returns the reporter selected by `--format` and `--no-color`.
   Reporter getReporter(ArgResults results) {
     final format = results['format'] as String;
     final noColor = results['no-color'] as bool;
@@ -105,6 +116,7 @@ abstract class BaseAnalysisCommand extends Command<int> {
     };
   }
 
+  /// Writes [content] to the `--output` file, or prints it to stdout.
   Future<void> outputResult(String content, ArgResults results) async {
     final outputPath = results['output'] as String?;
     if (outputPath != null) {
@@ -115,6 +127,8 @@ abstract class BaseAnalysisCommand extends Command<int> {
     }
   }
 
+  /// Handles `--write-baseline` and `--baseline`, returning [result] with
+  /// baselined findings removed when a baseline is applied.
   Future<AnalysisResult> applyBaselineOptions(
     AnalysisResult result,
     ArgResults results,
@@ -136,6 +150,7 @@ abstract class BaseAnalysisCommand extends Command<int> {
     return result;
   }
 
+  /// Returns 1 if [result] has findings in a `--fail-on` category, else 0.
   int resultExitCode(AnalysisResult result, ArgResults results) {
     final failOn = (results['fail-on'] as List<String>).toSet();
     if (failOn.isEmpty) return 0;
@@ -147,6 +162,7 @@ abstract class BaseAnalysisCommand extends Command<int> {
   }
 }
 
+/// `analyze`: runs dead code and complexity analysis together.
 class AnalyzeCommand extends BaseAnalysisCommand {
   @override
   String get name => 'analyze';
@@ -154,6 +170,7 @@ class AnalyzeCommand extends BaseAnalysisCommand {
   @override
   String get description => 'Run full analysis (dead code + complexity)';
 
+  /// Creates the command and registers its options.
   AnalyzeCommand() {
     addCommonOptions();
     argParser.addFlag(
@@ -217,6 +234,7 @@ class AnalyzeCommand extends BaseAnalysisCommand {
   }
 }
 
+/// `dead-code`: runs dead code analysis only.
 class DeadCodeCommand extends BaseAnalysisCommand {
   @override
   String get name => 'dead-code';
@@ -224,6 +242,7 @@ class DeadCodeCommand extends BaseAnalysisCommand {
   @override
   String get description => 'Analyze codebase for unused code';
 
+  /// Creates the command and registers its options.
   DeadCodeCommand() {
     addCommonOptions();
     argParser.addFlag(
@@ -268,6 +287,7 @@ class DeadCodeCommand extends BaseAnalysisCommand {
   }
 }
 
+/// `complexity`: runs complexity analysis only.
 class ComplexityCommand extends BaseAnalysisCommand {
   @override
   String get name => 'complexity';
@@ -275,6 +295,7 @@ class ComplexityCommand extends BaseAnalysisCommand {
   @override
   String get description => 'Analyze code complexity metrics';
 
+  /// Creates the command and registers its options.
   ComplexityCommand() {
     addCommonOptions();
     argParser.addOption(
