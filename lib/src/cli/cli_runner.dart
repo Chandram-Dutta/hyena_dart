@@ -5,6 +5,7 @@ import 'package:args/command_runner.dart';
 
 import '../analyzer/analysis_runner.dart';
 import '../models/analysis_finding.dart';
+import '../models/analysis_path.dart';
 import '../models/analysis_result.dart';
 import '../models/finding_baseline.dart';
 import '../reporters/console_reporter.dart';
@@ -136,6 +137,23 @@ abstract class BaseAnalysisCommand extends Command<int> {
     return result;
   }
 
+  /// Writes one warning line per skipped file to stderr so skips stay visible
+  /// even when the report itself goes to a file or a machine-readable format.
+  void warnAboutSkippedFiles(AnalysisResult result) {
+    final reasons = <String, String>{};
+    for (final skipped in result.skippedFiles) {
+      reasons.putIfAbsent(skipped.filePath, () => skipped.reason);
+    }
+    if (reasons.isEmpty) return;
+    final rootPath = analysisRootForTarget(result.targetPath);
+    for (final MapEntry(key: filePath, value: reason) in reasons.entries) {
+      stderr.writeln(
+        'Warning: skipped ${relativeAnalysisPath(filePath, rootPath)}: '
+        '$reason',
+      );
+    }
+  }
+
   int resultExitCode(AnalysisResult result, ArgResults results) {
     final failOn = (results['fail-on'] as List<String>).toSet();
     if (failOn.isEmpty) return 0;
@@ -209,6 +227,7 @@ class AnalyzeCommand extends BaseAnalysisCommand {
       },
     );
     result = await applyBaselineOptions(result, argResults!);
+    warnAboutSkippedFiles(result);
 
     final reporter = getReporter(argResults!);
     final output = await reporter.generate(result);
@@ -260,6 +279,7 @@ class DeadCodeCommand extends BaseAnalysisCommand {
       },
     );
     result = await applyBaselineOptions(result, argResults!);
+    warnAboutSkippedFiles(result);
 
     final reporter = getReporter(argResults!);
     final output = await reporter.generate(result);
@@ -307,6 +327,7 @@ class ComplexityCommand extends BaseAnalysisCommand {
       },
     );
     result = await applyBaselineOptions(result, argResults!);
+    warnAboutSkippedFiles(result);
 
     final reporter = getReporter(argResults!);
     final output = await reporter.generate(result);

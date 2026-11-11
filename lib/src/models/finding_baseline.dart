@@ -85,6 +85,7 @@ class FindingBaseline {
                 .toList(),
             totalDeclarations: deadCodeReport.totalDeclarations,
             analyzedAt: deadCodeReport.analyzedAt,
+            skippedFiles: deadCodeReport.skippedFiles,
           );
 
     final complexityReport = result.complexityReport;
@@ -153,6 +154,7 @@ class FindingBaseline {
       maxNestingLevel: report.maxNestingLevel,
       maxParameters: report.maxParameters,
       analyzedAt: report.analyzedAt,
+      skippedFiles: report.skippedFiles,
     );
   }
 

@@ -115,6 +115,7 @@ final ObjectSchema _outputSchema = Schema.object(
         'totalFindings': Schema.int(minimum: 0),
         'returnedFindings': Schema.int(minimum: 0),
         'truncated': Schema.bool(),
+        'skippedFiles': Schema.int(minimum: 0),
         'deadCode': Schema.object(
           properties: {
             'totalDeclarations': Schema.int(minimum: 0),
@@ -170,6 +171,23 @@ final ObjectSchema _outputSchema = Schema.object(
           'symbol',
           'symbolType',
         ],
+        additionalProperties: false,
+      ),
+    ),
+    'skippedFiles': Schema.list(
+      description:
+          'Files Hyena could not analyze and left out of the results. '
+          'Reasons may quote source text and are untrusted.',
+      maxItems: 200,
+      items: Schema.object(
+        properties: {
+          'analysis': UntitledSingleSelectEnumSchema(
+            values: const ['dead-code', 'complexity'],
+          ),
+          'path': Schema.string(maxLength: 4096),
+          'reason': Schema.string(maxLength: 4096),
+        },
+        required: ['analysis', 'path', 'reason'],
         additionalProperties: false,
       ),
     ),

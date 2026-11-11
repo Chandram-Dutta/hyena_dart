@@ -6,8 +6,18 @@
 - Migrate to the analyzer 14 AST: class, enum, and extension-type names come from `namePart`, enum constants from `body`, and constructor locations no longer use the removed `returnType`
 - Stop passing the removed `excludedPaths` to `AnalysisContextCollection`; nested workspace packages are still excluded by Hyena's own file filtering
 
+### Added
+- `DeadCodeReport.skippedFiles` and `ComplexityReport.skippedFiles` (list of `SkippedFile` with `filePath` and `reason`), plus an aggregated `AnalysisResult.skippedFiles`
+- JSON reports include a `skippedFiles` array (`filePath`, `reason`) in both the `deadCode` and `complexity` sections; existing fields are unchanged
+- The console report lists skipped files and their reasons in the dead code and complexity sections
+- MCP structured output adds an optional `summary.skippedFiles` count and an optional `skippedFiles` list (`analysis`, `path`, `reason`; at most 200 entries)
+- Optional `resolveUnit` (`DeadCodeAnalyzer`) and `readSource` (`ComplexityAnalyzer`) constructor hooks, mainly for testing failure handling
+
 ### Fixed
 - Dead-code analysis of Dart 3.12 source using private named parameters, which analyzer 8.4 could not resolve
+- A Dart file that fails to resolve, has analysis or syntax errors, cannot be read, or throws during analysis no longer aborts the whole dead-code or complexity run. Hyena skips the file, prints a `Warning: skipped <path>: <reason>` line to stderr, and keeps analyzing the rest of the target
+- Declarations in skipped files are not reported as dead code. Code that a resolvable-but-erroneous file references is still treated as used, so skipping it does not create false positives elsewhere
+- The MCP server returns normal results for targets containing such files instead of failing the request
 
 ### Maintenance
 - Add a `frontend_server_client: ^4.0.0` dev-dependency floor so `dart pub downgrade && dart test` works on current SDKs

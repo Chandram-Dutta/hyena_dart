@@ -11,12 +11,28 @@ import 'package:path/path.dart' as p;
 
 import '../config/analyzer_config.dart';
 import '../models/complexity_metrics.dart';
+import '../models/skipped_file.dart';
 import 'ast_visitors/complexity_visitor.dart';
+
+/// Reads the source text of a Dart file. Used by [ComplexityAnalyzer] and
+/// replaceable in tests to simulate unreadable files.
+typedef ReadDartSource = Future<String> Function(String path);
 
 class ComplexityAnalyzer {
   final AnalyzerConfig config;
+  final ReadDartSource _readSource;
 
-  ComplexityAnalyzer(this.config);
+  /// Creates a complexity analyzer.
+  ///
+  /// Files that cannot be read, contain syntax errors, or throw during
+  /// analysis are skipped and listed in [ComplexityReport.skippedFiles]
+  /// instead of aborting the run. [readSource] overrides how each file is read
+  /// and exists mainly for tests.
+  ComplexityAnalyzer(this.config, {ReadDartSource? readSource})
+    : _readSource = readSource ?? _defaultReadSource;
+
+  static Future<String> _defaultReadSource(String path) =>
+      File(path).readAsString();
 
   Future<ComplexityReport> analyze(
     String targetPath, {
@@ -41,6 +57,7 @@ class ComplexityAnalyzer {
       ),
     );
     final fileMetrics = <FileMetrics>[];
+    final skippedFiles = <SkippedFile>[];
 
     for (final file in dartFiles) {
       if (_shouldExclude(
@@ -51,8 +68,18 @@ class ComplexityAnalyzer {
         continue;
       }
 
-      final metrics = await _analyzeFile(file);
-      fileMetrics.add(metrics);
+      try {
+        fileMetrics.add(await _analyzeFile(file));
+      } on _SkipFile catch (skip) {
+        skippedFiles.add(SkippedFile(filePath: file, reason: skip.reason));
+      } catch (error) {
+        skippedFiles.add(
+          SkippedFile(
+            filePath: file,
+            reason: singleLineReason('Analysis failed: $error'),
+          ),
+        );
+      }
     }
 
     return ComplexityReport(
@@ -60,6 +87,7 @@ class ComplexityAnalyzer {
       cyclomaticThreshold: config.cyclomaticThreshold,
       maxNestingLevel: config.maxNestingLevel,
       maxParameters: config.maxParameters,
+      skippedFiles: skippedFiles,
     );
   }
 
@@ -130,8 +158,19 @@ class ComplexityAnalyzer {
   }
 
   Future<FileMetrics> _analyzeFile(String filePath) async {
-    final content = await File(filePath).readAsString();
-    late final ParseStringResult result;
+    final String content;
+    try {
+      content = await _readSource(filePath);
+    } on FileSystemException catch (error) {
+      final osMessage = error.osError?.message;
+      throw _SkipFile(
+        singleLineReason(
+          'Could not read file: ${error.message}'
+          '${osMessage == null || osMessage.isEmpty ? '' : ' ($osMessage)'}',
+        ),
+      );
+    }
+    final ParseStringResult result;
     try {
       result = parseString(
         content: content,
@@ -139,15 +178,22 @@ class ComplexityAnalyzer {
         throwIfDiagnostics: false,
       );
     } on ArgumentError catch (error) {
-      throw FormatException('Could not parse $filePath: ${error.message}');
+      throw _SkipFile(singleLineReason('Could not parse: ${error.message}'));
     }
-    final errors = result.errors.where(
-      (diagnostic) =>
-          diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
-    );
+    final errors = result.errors
+        .where(
+          (diagnostic) =>
+              diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
+        )
+        .toList();
     if (errors.isNotEmpty) {
-      throw FormatException(
-        'Could not parse $filePath: ${errors.first.message}',
+      final first = errors.first;
+      final line = result.lineInfo.getLocation(first.offset).lineNumber;
+      throw _SkipFile(
+        singleLineReason(
+          '${errors.length} syntax error${errors.length == 1 ? '' : 's'}'
+          '; first at line $line: ${first.message}',
+        ),
       );
     }
 
@@ -215,6 +261,13 @@ class ComplexityAnalyzer {
       blankLines: blankLines,
     );
   }
+}
+
+/// Signals that a file cannot be analyzed and should be reported as skipped.
+class _SkipFile implements Exception {
+  final String reason;
+
+  const _SkipFile(this.reason);
 }
 
 class _LineStats {

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'analysis_path.dart';
+import 'skipped_file.dart';
 
 abstract final class ComplexityRule {
   static const cyclomaticComplexity = 'cyclomatic-complexity';
@@ -132,12 +133,16 @@ class ComplexityReport {
   final int maxParameters;
   final DateTime analyzedAt;
 
+  /// Files that could not be analyzed and were left out of this report.
+  final List<SkippedFile> skippedFiles;
+
   ComplexityReport({
     required this.files,
     this.cyclomaticThreshold = 20,
     this.maxNestingLevel = 5,
     this.maxParameters = 6,
     DateTime? analyzedAt,
+    this.skippedFiles = const [],
   }) : analyzedAt = analyzedAt ?? DateTime.now();
 
   int get totalFiles => files.length;
@@ -214,5 +219,8 @@ class ComplexityReport {
       'thresholdViolations': thresholdViolations.length,
     },
     'files': files.map((f) => f.toJson(rootPath: rootPath)).toList(),
+    'skippedFiles': skippedFiles
+        .map((file) => file.toJson(rootPath: rootPath))
+        .toList(),
   };
 }

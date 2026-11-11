@@ -9,6 +9,7 @@ export 'src/models/code_entity.dart';
 export 'src/models/complexity_metrics.dart';
 export 'src/models/dead_code_report.dart';
 export 'src/models/finding_baseline.dart';
+export 'src/models/skipped_file.dart';
 export 'src/reporters/reporter.dart';
 export 'src/reporters/console_reporter.dart';
 export 'src/reporters/json_reporter.dart';

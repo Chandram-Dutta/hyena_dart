@@ -1080,19 +1080,16 @@ void main() {
       );
     });
 
-    test('fails instead of silently skipping unresolved source', () async {
+    test('reports unresolved source as skipped instead of hiding it', () async {
       final libPath = await makeFixture('void broken( {');
 
-      await expectLater(
-        DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains('lib.dart'),
-          ),
-        ),
-      );
+      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(libPath);
+
+      expect(report.unusedEntities, isEmpty);
+      expect(report.skippedFiles.map((file) => p.basename(file.filePath)), [
+        'lib.dart',
+      ]);
+      expect(report.skippedFiles.single.reason, contains('line 1'));
     });
 
     test('skips files outside the analyzer context', () async {
@@ -1117,6 +1114,11 @@ void main() {}
       ).analyze(root);
 
       expect(report.unusedEntities.map((entity) => entity.name), ['unused']);
+      expect(
+        report.skippedFiles,
+        isEmpty,
+        reason: 'intentionally excluded files are not reported as skipped',
+      );
     });
 
     test('analyzes an explicitly targeted tool-named directory', () async {
@@ -1552,20 +1554,22 @@ void documented() {}
       expect(report.totalFunctions, 1);
     });
 
-    test('fails instead of silently omitting invalid files', () async {
+    test('reports invalid files as skipped instead of hiding them', () async {
       final source = File(p.join(fixture.path, 'broken.dart'))
         ..writeAsStringSync('void broken( {');
 
-      await expectLater(
-        ComplexityAnalyzer(AnalyzerConfig()).analyze(fixture.path),
-        throwsA(
-          isA<FormatException>().having(
-            (error) => error.message,
-            'message',
-            contains(source.path),
-          ),
-        ),
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+
+      expect(
+        report.files.map((file) => file.filePath),
+        isNot(contains(source.path)),
       );
+      expect(report.skippedFiles.map((file) => file.filePath), [
+        p.normalize(p.absolute(source.path)),
+      ]);
+      expect(report.skippedFiles.single.reason, contains('line 1'));
     });
   });
 

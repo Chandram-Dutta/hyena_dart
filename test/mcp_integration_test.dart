@@ -334,13 +334,25 @@ hyena:
       File(p.join(project.path, 'lib', 'example.dart')).writeAsStringSync('''
 import '$untrustedMarker.dart';
 ''');
-      final analysisError = await connection.callTool(
+      // A file that fails to resolve is skipped and reported instead of
+      // failing the whole request.
+      final withBrokenFile = await connection.callTool(
         CallToolRequest(
           name: tool.name,
           arguments: {'path': 'lib', 'checks': 'dead-code'},
         ),
       );
-      expect(analysisError.isError, isTrue);
+      expect(withBrokenFile.isError, isNot(isTrue));
+      final brokenStructured = withBrokenFile.structuredContent;
+      expect(tool.outputSchema!.validate(brokenStructured), isEmpty);
+      expect(
+        (brokenStructured!['summary'] as Map<String, Object?>)['skippedFiles'],
+        1,
+      );
+      final skipped = (brokenStructured['skippedFiles'] as List).single as Map;
+      expect(skipped['analysis'], 'dead-code');
+      expect(skipped['path'], 'lib/example.dart');
+      expect(skipped['reason'], isA<String>());
 
       await client.shutdown().timeout(const Duration(seconds: 10));
       final processExitCode = await process.exitCode.timeout(
