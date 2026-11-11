@@ -1,3 +1,9 @@
+## Unreleased
+
+### Documentation
+- Add README badges, an audience summary, a two-command quick try, and real sample output; move the compatibility note below the quickstart
+- Shrink the README logo from 4.8 MB to about 46 KB
+
 ## [2.0.1] - 2026-08-30
 
 ### Fixed
