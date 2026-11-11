@@ -168,7 +168,7 @@ void main() {
     });
 
     // Usage errors through bin/ are covered by test/version_test.dart.
-    test('bin/hyena_dart.dart propagates tool-error exit code', () async {
+    Future<void> expectToolErrorExit() async {
       final result = await Process.run(Platform.resolvedExecutable, [
         'run',
         'bin/hyena_dart.dart',
@@ -181,7 +181,13 @@ void main() {
         HyenaExitCode.toolError,
         reason: result.stderr as String,
       );
-    }, timeout: const Timeout(Duration(minutes: 2)));
+    }
+
+    test(
+      'bin/hyena_dart.dart propagates tool-error exit code',
+      expectToolErrorExit,
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
   });
 
   test(
