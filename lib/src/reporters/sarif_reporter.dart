@@ -7,6 +7,9 @@ import 'reporter.dart';
 /// Renders the findings in an [AnalysisResult] as a SARIF 2.1.0 log, for
 /// code-scanning tools such as GitHub code scanning.
 class SarifReporter implements Reporter {
+  /// Creates a SARIF reporter.
+  SarifReporter();
+
   static const _ruleOrder = [
     FindingRule.deadCode,
     FindingRule.cyclomaticComplexity,

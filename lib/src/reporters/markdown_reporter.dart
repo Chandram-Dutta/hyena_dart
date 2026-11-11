@@ -7,6 +7,9 @@ import 'reporter.dart';
 ///
 /// Paths and symbol names come from the analyzed sources and are escaped.
 class MarkdownReporter implements Reporter {
+  /// Creates a Markdown reporter.
+  MarkdownReporter();
+
   @override
   Future<String> generate(AnalysisResult result) async {
     final buffer = StringBuffer();
