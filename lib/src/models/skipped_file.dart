@@ -12,8 +12,12 @@ class SkippedFile {
   /// Human-readable, single-line explanation of why the file was skipped.
   final String reason;
 
+  /// Creates a record that [filePath] was skipped because of [reason].
   const SkippedFile({required this.filePath, required this.reason});
 
+  /// Serializes this entry to JSON.
+  ///
+  /// When [rootPath] is given, [filePath] is emitted relative to it.
   Map<String, dynamic> toJson({String? rootPath}) => {
     'filePath': rootPath == null
         ? filePath
