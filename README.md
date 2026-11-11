@@ -451,11 +451,19 @@ broken setup:
 |------|---------|
 | `0` | Analysis completed. Either there were no findings, or no finding matched a `--fail-on` category (findings never fail the run without `--fail-on`). |
 | `1` | Analysis completed and findings matched a `--fail-on` category. |
-| `2` | Tool error: Hyena could not finish. Causes include a missing or invalid config or baseline file, a target path that doesn't exist or can't be read, an analysis or resolution failure, a report that can't be written, or an unexpected internal error. |
+| `2` | Tool error: Hyena could not finish. Causes include a missing or invalid config or baseline file, a target path that doesn't exist or can't be read, an analysis failure that stops the whole run, a report that can't be written, or an unexpected internal error. |
 | `64` | Usage error: unknown command or flag, invalid option value, or conflicting options (`EX_USAGE` from `sysexits.h`). |
 
 A tool error takes precedence. If Hyena fails, it exits `2` even when findings
 would have tripped `--fail-on`.
+
+Individual files that fail to resolve, contain analysis or syntax errors, or
+can't be read are not tool errors. Hyena skips them, prints a
+`Warning: skipped <path>: <reason>` line to stderr, lists them under
+`skippedFiles` in JSON output, and keeps analyzing the rest of the target, so
+they do not change the exit code. In CI, make sure generated code is up to
+date (for example, run `build_runner` first) and check stderr or the JSON
+`skippedFiles` arrays if a skipped file should fail the build.
 
 `hyena_mcp` exits `64` for usage errors (such as a missing `--root`) and `2`
 when the server can't start (such as a `--root` directory that doesn't exist).

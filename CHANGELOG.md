@@ -16,7 +16,7 @@
 - **Breaking:** Raise the minimum Dart SDK to 3.11.0, as required by analyzer 14
 - Migrate to the analyzer 14 AST: class, enum, and extension-type names come from `namePart`, enum constants from `body`, and constructor locations no longer use the removed `returnType`
 - Stop passing the removed `excludedPaths` to `AnalysisContextCollection`; nested workspace packages are still excluded by Hyena's own file filtering
-- **Exit codes changed (may affect CI scripts):** tool errors now exit `2` instead of `1`. This covers a missing or invalid config or baseline file, a missing or unreadable target path, analysis failures, and report write failures. Exit `1` now means only "findings tripped `--fail-on`". Unexpected internal errors also exit `2`, where previously they crashed with Dart's unhandled-exception code `255`. Usage errors still exit `64`, and successful runs still exit `0`.
+- **Exit codes changed (may affect CI scripts):** tool errors now exit `2` instead of `1`. This covers a missing or invalid config or baseline file, a missing or unreadable target path, analysis failures that stop the whole run, and report write failures. Individual files that fail to analyze are skipped with a warning and do not change the exit code (see Fixed). Exit `1` now means only "findings tripped `--fail-on`". Unexpected internal errors also exit `2`, where previously they crashed with Dart's unhandled-exception code `255`. Usage errors still exit `64`, and successful runs still exit `0`.
 - `hyena_mcp` now exits `2` instead of `64` when the `--root` directory does not exist. Other startup failures also exit `2`. Usage errors still exit `64`.
 
 ### Added
