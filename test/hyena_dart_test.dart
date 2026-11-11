@@ -198,6 +198,164 @@ void main() {
       expect(names, isNot(contains('Used.hello')));
     });
 
+    group('generated files', () {
+      Future<Set<String>> unusedNames(
+        String libSource,
+        Map<String, String> files, {
+        List<String> excludePatterns = const [],
+      }) async {
+        final libPath = await makeFixture(libSource, additionalFiles: files);
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(
+            ignoreExports: false,
+            excludePatterns: excludePatterns,
+          ),
+        ).analyze(libPath);
+        return report.unusedEntities.map((e) => e.fullName).toSet();
+      }
+
+      test('.g.dart part contributes references only', () async {
+        final names = await unusedNames(
+          '''
+part 'lib.g.dart';
+
+class User {
+  final String name;
+  User(this.name);
+  factory User.fromJson(Map<String, dynamic> json) => _\$UserFromJson(json);
+  Map<String, dynamic> toJson() => _\$UserToJson(this);
+}
+
+String _onlyUsedByGenerated(Object? value) => value as String;
+
+class TrulyDead {}
+
+void main() {
+  print(User.fromJson({'name': 'a'}).toJson());
+}
+''',
+          {
+            'lib.g.dart': r'''
+part of 'lib.dart';
+
+User _$UserFromJson(Map<String, dynamic> json) =>
+    User(_onlyUsedByGenerated(json['name']));
+
+Map<String, dynamic> _$UserToJson(User instance) => {'name': instance.name};
+
+void _$generatedButUnused() {}
+''',
+          },
+        );
+        expect(names, isNot(contains('_onlyUsedByGenerated')));
+        expect(names, isNot(contains('User.name')));
+        expect(names, isNot(contains(r'_$UserFromJson')));
+        expect(names, isNot(contains(r'_$UserToJson')));
+        expect(names, isNot(contains(r'_$generatedButUnused')));
+        expect(names, contains('TrulyDead'));
+      });
+
+      test('.freezed.dart part contributes references only', () async {
+        final names = await unusedNames(
+          '''
+part 'lib.freezed.dart';
+
+abstract class Point with _\$Point {
+  const Point._();
+  const factory Point(int x) = _Point;
+}
+
+int _helperOnlyUsedByGenerated(int value) => value;
+
+class TrulyDead {}
+
+void main() {
+  print(const Point(1).x);
+}
+''',
+          {
+            'lib.freezed.dart': r'''
+part of 'lib.dart';
+
+mixin _$Point {
+  int get x;
+}
+
+class _Point extends Point {
+  const _Point(this._x) : super._();
+  final int _x;
+  @override
+  int get x => _helperOnlyUsedByGenerated(_x);
+}
+
+class _$GeneratedButUnused {}
+''',
+          },
+        );
+        expect(names, isNot(contains('Point._')));
+        expect(names, isNot(contains('_helperOnlyUsedByGenerated')));
+        expect(names, isNot(contains('_Point')));
+        expect(names, isNot(contains(r'_$GeneratedButUnused')));
+        expect(names, contains('TrulyDead'));
+      });
+
+      test('.mocks.dart library contributes references only', () async {
+        final names = await unusedNames(
+          '''
+abstract class Repository {
+  String load();
+}
+
+class TrulyDead {}
+
+void main() {}
+''',
+          {
+            'lib.mocks.dart': r'''
+import 'lib.dart';
+
+class MockRepository implements Repository {
+  @override
+  String load() => '';
+}
+
+class _$GeneratedButUnused {}
+''',
+          },
+        );
+        expect(names, isNot(contains('Repository')));
+        expect(names, isNot(contains('Repository.load')));
+        expect(names, isNot(contains('MockRepository')));
+        expect(names, isNot(contains(r'_$GeneratedButUnused')));
+        expect(names, contains('TrulyDead'));
+      });
+
+      test('user exclude patterns still drop generated files', () async {
+        final names = await unusedNames(
+          '''
+abstract class Repository {
+  String load();
+}
+
+void main() {}
+''',
+          {
+            'lib.mocks.dart': r'''
+import 'lib.dart';
+
+class MockRepository implements Repository {
+  @override
+  String load() => '';
+}
+''',
+          },
+          excludePatterns: ['**/*.mocks.dart'],
+        );
+        expect(names, contains('Repository'));
+        expect(names, isNot(contains('MockRepository')));
+      });
+    });
+
     test('distinguishes same-named fields across classes', () async {
       final libPath = await makeFixture('''
 class Foo {

@@ -14,6 +14,7 @@ import '../config/analyzer_config.dart';
 import '../models/code_entity.dart';
 import '../models/dead_code_report.dart';
 import 'ast_visitors/declaration_visitor.dart';
+import 'ast_visitors/member_override.dart';
 import 'ast_visitors/reference_visitor.dart';
 
 class DeadCodeAnalyzer {
@@ -103,15 +104,18 @@ class DeadCodeAnalyzer {
           .contextFor(file)
           .currentSession
           .getResolvedUnit(file);
+      final isGenerated = _isGeneratedFile(file);
       if (result is! ResolvedUnitResult) {
-        resolutionFailures.add(file);
+        // Generated files only contribute references; a stale or missing
+        // generated file must not abort the whole run.
+        if (!isGenerated) resolutionFailures.add(file);
         continue;
       }
       final errors = result.diagnostics.where(
         (diagnostic) =>
             diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
       );
-      if (errors.isNotEmpty) {
+      if (errors.isNotEmpty && !isGenerated) {
         resolutionFailures.add('$file: ${errors.first.message}');
         continue;
       }
@@ -136,7 +140,18 @@ class DeadCodeAnalyzer {
     for (final file in dartFiles) {
       final unit = parsedUnits[file];
       if (unit == null) {
+        if (_isGeneratedFile(file)) continue;
         throw StateError('Missing resolved unit for $file');
+      }
+
+      if (_isGeneratedFile(file)) {
+        _collectGeneratedReferences(
+          unit,
+          references: allReferences,
+          unresolvedMemberNames: unresolvedMemberNames,
+          rootElementKeys: rootElementKeys,
+        );
+        continue;
       }
 
       final fileExports = exportedNames[file] ?? <String>{};
@@ -175,6 +190,37 @@ class DeadCodeAnalyzer {
       unresolvedMemberNames: unresolvedMemberNames,
       duration: stopwatch.elapsed,
     );
+  }
+
+  /// Whether [filePath] is code-generator output (json_serializable, freezed,
+  /// mockito, ...). Such files are analyzed for references only; their own
+  /// declarations are never reported.
+  static bool _isGeneratedFile(String filePath) =>
+      filePath.endsWith('.g.dart') ||
+      filePath.endsWith('.freezed.dart') ||
+      filePath.endsWith('.mocks.dart');
+
+  /// Treats everything referenced from a generated [unit] as live.
+  ///
+  /// Generated declarations are not tracked, so they cannot act as graph
+  /// sources; every element they reference becomes a root instead.
+  void _collectGeneratedReferences(
+    CompilationUnit unit, {
+    required Set<String> references,
+    required Set<String> unresolvedMemberNames,
+    required Set<String> rootElementKeys,
+  }) {
+    final referenceVisitor = ReferenceVisitor();
+    unit.accept(referenceVisitor);
+    references.addAll(referenceVisitor.allReferences);
+    unresolvedMemberNames.addAll(referenceVisitor.unresolvedMemberNames);
+    rootElementKeys.addAll(referenceVisitor.rootElementKeys);
+    for (final targets in referenceVisitor.referenceGraph.values) {
+      rootElementKeys.addAll(targets);
+    }
+    // Generated overrides (mocks, freezed impls) keep the members they
+    // implement alive.
+    rootElementKeys.addAll(overriddenMemberKeys(unit));
   }
 
   Future<List<String>> _collectDartFiles(String targetPath) async {
@@ -225,12 +271,6 @@ class DeadCodeAnalyzer {
       if (glob.matches(relativePath) || glob.matches(absolutePath)) {
         return true;
       }
-    }
-
-    if (normalizedPath.endsWith('.g.dart') ||
-        normalizedPath.endsWith('.freezed.dart') ||
-        normalizedPath.endsWith('.mocks.dart')) {
-      return true;
     }
 
     final segments = p.split(normalizedPath);

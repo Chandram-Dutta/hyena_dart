@@ -1,3 +1,8 @@
+## Unreleased
+
+### Fixed
+- Dead code analysis now collects references from generated files (`.g.dart`, `.freezed.dart`, `.mocks.dart`, including `part` files) instead of skipping them, so declarations used only by generated code (e.g. helpers called from `_$UserFromJson`, private freezed constructors, interfaces implemented by mocks) are no longer reported as unused. Declarations inside generated files are still never reported, stale generated files with errors no longer abort the run, and user `exclude` patterns still remove generated files entirely.
+
 ## [2.0.1] - 2026-08-30
 
 ### Fixed
