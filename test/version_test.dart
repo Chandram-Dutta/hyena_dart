@@ -46,7 +46,7 @@ void main() {
         ),
         (
           ['run', 'bin/hyena_dart.dart', 'analyze', 'does-not-exist'],
-          1,
+          2,
           'Target path does not exist',
         ),
       ];
@@ -63,5 +63,8 @@ void main() {
         expect(stderr, isNot(contains('#0')));
       }
     },
+    // Each case spawns `dart run`, which can exceed the 30s default under
+    // parallel test load.
+    timeout: const Timeout(Duration(minutes: 2)),
   );
 }

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:dart_mcp/stdio.dart';
+import 'package:hyena_dart/src/cli/cli_main.dart';
 import 'package:hyena_dart/src/mcp/hyena_mcp_server.dart';
 import 'package:hyena_dart/src/mcp/mcp_analysis_service.dart';
 import 'package:hyena_dart/src/version.dart';
@@ -46,12 +47,24 @@ Future<void> main(List<String> arguments) async {
   } on FormatException catch (error) {
     _reportUsageError(error.message, parser);
   } on ArgumentError catch (error) {
+    // Startup failure, e.g. the --root directory does not exist.
     stderr.writeln('hyena_mcp: ${error.message}');
-    exitCode = 64;
+    exitCode = HyenaExitCode.toolError;
+  } on FileSystemException catch (error) {
+    stderr.writeln(
+      'hyena_mcp: ${error.message}'
+      '${error.path == null ? '' : ': ${error.path}'}',
+    );
+    exitCode = HyenaExitCode.toolError;
+  } catch (error, stackTrace) {
+    stderr
+      ..writeln('hyena_mcp: unexpected error: $error')
+      ..writeln(stackTrace);
+    exitCode = HyenaExitCode.toolError;
   }
 }
 
 void _reportUsageError(String message, ArgParser parser) {
   stderr.writeln('hyena_mcp: $message\n\n${parser.usage}');
-  exitCode = 64;
+  exitCode = HyenaExitCode.usage;
 }

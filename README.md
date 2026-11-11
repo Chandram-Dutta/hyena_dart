@@ -376,6 +376,24 @@ Baseline fingerprints use the rule, package-relative path, symbol type, and
 full symbol name. Moving a declaration to another line does not invalidate its
 baseline entry.
 
+## Exit codes
+
+`hyena_dart` uses these exit codes, so CI can tell real findings apart from a
+broken setup:
+
+| Code | Meaning |
+|------|---------|
+| `0` | Analysis completed. Either there were no findings, or no finding matched a `--fail-on` category (findings never fail the run without `--fail-on`). |
+| `1` | Analysis completed and findings matched a `--fail-on` category. |
+| `2` | Tool error: Hyena could not finish. Causes include a missing or invalid config or baseline file, a target path that doesn't exist or can't be read, an analysis or resolution failure, a report that can't be written, or an unexpected internal error. |
+| `64` | Usage error: unknown command or flag, invalid option value, or conflicting options (`EX_USAGE` from `sysexits.h`). |
+
+A tool error takes precedence. If Hyena fails, it exits `2` even when findings
+would have tripped `--fail-on`.
+
+`hyena_mcp` exits `64` for usage errors (such as a missing `--root`) and `2`
+when the server can't start (such as a `--root` directory that doesn't exist).
+
 ## Performance Benchmarks
 
 The source repository includes deterministic single-package and workspace

@@ -1,3 +1,12 @@
+## Unreleased
+
+### Changed
+- **Exit codes changed (may affect CI scripts):** tool errors now exit `2` instead of `1`. This covers a missing or invalid config or baseline file, a missing or unreadable target path, analysis failures, and report write failures. Exit `1` now means only "findings tripped `--fail-on`". Unexpected internal errors also exit `2`, where previously they crashed with Dart's unhandled-exception code `255`. Usage errors still exit `64`, and successful runs still exit `0`.
+- `hyena_mcp` now exits `2` instead of `64` when the `--root` directory does not exist. Other startup failures also exit `2`. Usage errors still exit `64`.
+
+### Added
+- Document exit codes in the README ("Exit codes" section)
+
 ## [2.0.1] - 2026-08-30
 
 ### Fixed
