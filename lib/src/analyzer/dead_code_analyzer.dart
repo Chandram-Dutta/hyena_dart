@@ -16,6 +16,7 @@ import '../models/code_entity.dart';
 import '../models/dead_code_report.dart';
 import '../models/skipped_file.dart';
 import 'ast_visitors/declaration_visitor.dart';
+import 'ast_visitors/member_override.dart';
 import 'ast_visitors/reference_visitor.dart';
 
 /// Resolves a single Dart file. Used by [DeadCodeAnalyzer] and replaceable in
@@ -122,6 +123,7 @@ class DeadCodeAnalyzer {
     final brokenUnits = <String, CompilationUnit>{};
     final skippedFiles = <SkippedFile>[];
     for (final file in dartFiles) {
+      final isGenerated = _isGeneratedFile(file);
       final SomeResolvedUnitResult result;
       try {
         result = await _resolveUnit(
@@ -129,6 +131,9 @@ class DeadCodeAnalyzer {
           file,
         );
       } catch (error) {
+        // Generated files only contribute references; a stale or broken
+        // generated file is ignored rather than reported.
+        if (isGenerated) continue;
         skippedFiles.add(
           SkippedFile(
             filePath: file,
@@ -138,6 +143,7 @@ class DeadCodeAnalyzer {
         continue;
       }
       if (result is! ResolvedUnitResult) {
+        if (isGenerated) continue;
         skippedFiles.add(
           SkippedFile(
             filePath: file,
@@ -154,7 +160,7 @@ class DeadCodeAnalyzer {
                 diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
           )
           .toList();
-      if (errors.isNotEmpty) {
+      if (errors.isNotEmpty && !isGenerated) {
         final first = errors.first;
         final line = result.lineInfo.getLocation(first.offset).lineNumber;
         skippedFiles.add(
@@ -181,6 +187,20 @@ class DeadCodeAnalyzer {
     );
 
     for (final MapEntry(key: file, value: unit) in parsedUnits.entries) {
+      if (_isGeneratedFile(file)) {
+        try {
+          _collectGeneratedReferences(
+            unit,
+            references: allReferences,
+            unresolvedMemberNames: unresolvedMemberNames,
+            rootElementKeys: rootElementKeys,
+          );
+        } catch (_) {
+          // Best effort, like broken units: generated code never aborts a run.
+        }
+        continue;
+      }
+
       final DeclarationVisitor declarationVisitor;
       final ReferenceVisitor referenceVisitor;
       try {
@@ -259,6 +279,37 @@ class DeadCodeAnalyzer {
         _ => 'unexpected result ${result.runtimeType}',
       };
 
+  /// Whether [filePath] is code-generator output (json_serializable, freezed,
+  /// mockito, ...). Such files are analyzed for references only; their own
+  /// declarations are never reported.
+  static bool _isGeneratedFile(String filePath) =>
+      filePath.endsWith('.g.dart') ||
+      filePath.endsWith('.freezed.dart') ||
+      filePath.endsWith('.mocks.dart');
+
+  /// Treats everything referenced from a generated [unit] as live.
+  ///
+  /// Generated declarations are not tracked, so they cannot act as graph
+  /// sources; every element they reference becomes a root instead.
+  void _collectGeneratedReferences(
+    CompilationUnit unit, {
+    required Set<String> references,
+    required Set<String> unresolvedMemberNames,
+    required Set<String> rootElementKeys,
+  }) {
+    final referenceVisitor = ReferenceVisitor();
+    unit.accept(referenceVisitor);
+    references.addAll(referenceVisitor.allReferences);
+    unresolvedMemberNames.addAll(referenceVisitor.unresolvedMemberNames);
+    rootElementKeys.addAll(referenceVisitor.rootElementKeys);
+    for (final targets in referenceVisitor.referenceGraph.values) {
+      rootElementKeys.addAll(targets);
+    }
+    // Generated overrides (mocks, freezed impls) keep the members they
+    // implement alive.
+    rootElementKeys.addAll(overriddenMemberKeys(unit));
+  }
+
   Future<List<String>> _collectDartFiles(String targetPath) async {
     final file = File(targetPath);
     if (await file.exists()) {
@@ -307,12 +358,6 @@ class DeadCodeAnalyzer {
       if (glob.matches(relativePath) || glob.matches(absolutePath)) {
         return true;
       }
-    }
-
-    if (normalizedPath.endsWith('.g.dart') ||
-        normalizedPath.endsWith('.freezed.dart') ||
-        normalizedPath.endsWith('.mocks.dart')) {
-      return true;
     }
 
     final segments = p.split(normalizedPath);
