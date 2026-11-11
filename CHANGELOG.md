@@ -1,7 +1,8 @@
-## Unreleased
+## [3.0.0] - 2026-11-11
 
-### Breaking
-- `package:hyena_dart/hyena_dart.dart` no longer exports CLI wiring or internal path helpers. Code that imported these symbols from the public library must stop using them (or import `package:hyena_dart/src/...` at its own risk):
+### Breaking changes
+- **Dart SDK 3.11+ and analyzer 14.** Hyena now depends on `analyzer: ^14.0.0` (was `^8.4.1`) and requires Dart SDK 3.11.0 or newer (was 3.10.3). Because Hyena is a dev dependency, other dev tools in the same project (code generators, custom lint plugins) must also accept analyzer 14.x, or `pub get` reports a version conflict.
+- **Removed exports.** `package:hyena_dart/hyena_dart.dart` no longer exports CLI wiring or internal path helpers. Code that imported these symbols from the public library must stop using them (or import `package:hyena_dart/src/...` at its own risk):
   - `HyenaCommandRunner` (from `src/cli/cli_runner.dart`)
   - `BaseAnalysisCommand` (from `src/cli/cli_runner.dart`)
   - `AnalyzeCommand` (from `src/cli/cli_runner.dart`)
@@ -10,14 +11,14 @@
   - `analysisRootForTarget` (from `src/models/analysis_path.dart`)
   - `relativeAnalysisPath` (from `src/models/analysis_path.dart`)
   - `relativeFindingPath` (from `src/models/analysis_path.dart`)
+- **Tool errors now exit `2` (may affect CI scripts).** `hyena_dart` used to exit `1` both for findings and for tool errors. Tool errors now exit `2`: a missing or invalid config or baseline file, a missing or unreadable target path, analysis failures that stop the whole run, and report write failures. Exit `1` now means only "findings tripped `--fail-on`". Usage errors still exit `64`, and successful runs still exit `0`.
+- **Crashes now exit `2`.** Unexpected internal errors exit `2` with a message, where previously they crashed with Dart's unhandled-exception code `255`.
+- **`hyena_mcp` startup failures exit `2`.** `hyena_mcp` now exits `2` instead of `64` when the `--root` directory does not exist, and other startup failures also exit `2`. Usage errors, such as omitting `--root`, still exit `64`.
+- **Files that fail to analyze no longer fail the run.** A file that fails to resolve, has analysis or syntax errors, cannot be read, or throws during analysis is now skipped with a `Warning: skipped <path>: <reason>` line on stderr, and the run continues with its normal exit code. In 2.0.1 such a file aborted the run. Library callers no longer get a `StateError` from `DeadCodeAnalyzer.analyze` or a `FormatException` from `ComplexityAnalyzer.analyze` for such files; check `skippedFiles` on the reports instead. CI jobs should make sure generated code is up to date and can check stderr or the JSON `skippedFiles` arrays.
 
 ### Changed
-- **Breaking:** Upgrade to `analyzer: ^14.0.0` (from `^8.4.1`). Projects whose other dev tools still require an older analyzer will no longer resolve alongside Hyena
-- **Breaking:** Raise the minimum Dart SDK to 3.11.0, as required by analyzer 14
 - Migrate to the analyzer 14 AST: class, enum, and extension-type names come from `namePart`, enum constants from `body`, and constructor locations no longer use the removed `returnType`
 - Stop passing the removed `excludedPaths` to `AnalysisContextCollection`; nested workspace packages are still excluded by Hyena's own file filtering
-- **Exit codes changed (may affect CI scripts):** tool errors now exit `2` instead of `1`. This covers a missing or invalid config or baseline file, a missing or unreadable target path, analysis failures that stop the whole run, and report write failures. Individual files that fail to analyze are skipped with a warning and do not change the exit code (see Fixed). Exit `1` now means only "findings tripped `--fail-on`". Unexpected internal errors also exit `2`, where previously they crashed with Dart's unhandled-exception code `255`. Usage errors still exit `64`, and successful runs still exit `0`.
-- `hyena_mcp` now exits `2` instead of `64` when the `--root` directory does not exist. Other startup failures also exit `2`. Usage errors still exit `64`.
 
 ### Added
 - `DeadCodeReport.skippedFiles` and `ComplexityReport.skippedFiles` (list of `SkippedFile` with `filePath` and `reason`), plus an aggregated `AnalysisResult.skippedFiles`
