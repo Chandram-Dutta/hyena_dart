@@ -1,6 +1,7 @@
 import '../models/analysis_result.dart';
 import '../models/analysis_path.dart';
 import '../models/code_entity.dart';
+import '../models/skipped_file.dart';
 import 'reporter.dart';
 
 class ConsoleReporter implements Reporter {
@@ -100,6 +101,7 @@ class ConsoleReporter implements Reporter {
       '${_dim("Dead code percentage:")} ${_colorizePercentage(report.deadCodePercentage)}',
     );
     buffer.writeln();
+    _writeSkippedFiles(buffer, report.skippedFiles, rootPath);
 
     if (report.unusedEntities.isEmpty) {
       buffer.writeln(_green('✓ No dead code detected!'));
@@ -150,6 +152,7 @@ class ConsoleReporter implements Reporter {
     buffer.writeln('${_dim("Functions analyzed:")} ${report.totalFunctions}');
     buffer.writeln('${_dim("Total lines:")} ${report.totalLines}');
     buffer.writeln();
+    _writeSkippedFiles(buffer, report.skippedFiles, rootPath);
 
     final violations = report.thresholdViolations;
     if (violations.isEmpty) {
@@ -192,6 +195,27 @@ class ConsoleReporter implements Reporter {
       );
       buffer.writeln();
     }
+  }
+
+  void _writeSkippedFiles(
+    StringBuffer buffer,
+    List<SkippedFile> skippedFiles,
+    String rootPath,
+  ) {
+    if (skippedFiles.isEmpty) return;
+    final noun = skippedFiles.length == 1 ? 'file' : 'files';
+    buffer.writeln(
+      _yellow(
+        '⚠ Skipped ${skippedFiles.length} $noun that could not be analyzed:',
+      ),
+    );
+    for (final file in skippedFiles) {
+      buffer.writeln(
+        '  ${_dim("•")} ${relativeAnalysisPath(file.filePath, rootPath)}',
+      );
+      buffer.writeln('    ${_dim(file.reason)}');
+    }
+    buffer.writeln();
   }
 
   String _colorizeCount(int count) {

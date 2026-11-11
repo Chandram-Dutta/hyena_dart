@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
+import 'package:analyzer/dart/analysis/session.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/error/error.dart';
 import 'package:analyzer/source/line_info.dart';
@@ -13,13 +14,35 @@ import 'package:path/path.dart' as p;
 import '../config/analyzer_config.dart';
 import '../models/code_entity.dart';
 import '../models/dead_code_report.dart';
+import '../models/skipped_file.dart';
 import 'ast_visitors/declaration_visitor.dart';
 import 'ast_visitors/reference_visitor.dart';
 
+/// Resolves a single Dart file. Used by [DeadCodeAnalyzer] and replaceable in
+/// tests to simulate analyzer failures.
+typedef ResolveDartUnit =
+    Future<SomeResolvedUnitResult> Function(
+      AnalysisSession session,
+      String path,
+    );
+
 class DeadCodeAnalyzer {
   final AnalyzerConfig config;
+  final ResolveDartUnit _resolveUnit;
 
-  DeadCodeAnalyzer(this.config);
+  /// Creates a dead-code analyzer.
+  ///
+  /// Files that fail to resolve, contain analysis errors, or throw during
+  /// analysis are skipped and listed in [DeadCodeReport.skippedFiles] instead
+  /// of aborting the run. [resolveUnit] overrides how each file is resolved
+  /// and exists mainly for tests.
+  DeadCodeAnalyzer(this.config, {ResolveDartUnit? resolveUnit})
+    : _resolveUnit = resolveUnit ?? _defaultResolveUnit;
+
+  static Future<SomeResolvedUnitResult> _defaultResolveUnit(
+    AnalysisSession session,
+    String path,
+  ) => session.getResolvedUnit(path);
 
   Future<DeadCodeReport> analyze(
     String targetPath, {
@@ -97,33 +120,60 @@ class DeadCodeAnalyzer {
 
     final parsedUnits = <String, CompilationUnit>{};
     final lineInfos = <String, LineInfo>{};
-    final resolutionFailures = <String>[];
+    // Units that resolved but contain errors. Their declarations are not
+    // reported, but their references still keep other code alive.
+    final brokenUnits = <String, CompilationUnit>{};
+    final skippedFiles = <SkippedFile>[];
     for (final file in dartFiles) {
-      final result = await collection
-          .contextFor(file)
-          .currentSession
-          .getResolvedUnit(file);
-      if (result is! ResolvedUnitResult) {
-        resolutionFailures.add(file);
+      final SomeResolvedUnitResult result;
+      try {
+        result = await _resolveUnit(
+          collection.contextFor(file).currentSession,
+          file,
+        );
+      } catch (error) {
+        skippedFiles.add(
+          SkippedFile(
+            filePath: file,
+            reason: singleLineReason('Analyzer failed: $error'),
+          ),
+        );
         continue;
       }
-      final errors = result.diagnostics.where(
-        (diagnostic) =>
-            diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
-      );
+      if (result is! ResolvedUnitResult) {
+        skippedFiles.add(
+          SkippedFile(
+            filePath: file,
+            reason:
+                'The analyzer could not resolve this file '
+                '(${_describeInvalidResult(result)}).',
+          ),
+        );
+        continue;
+      }
+      final errors = result.diagnostics
+          .where(
+            (diagnostic) =>
+                diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
+          )
+          .toList();
       if (errors.isNotEmpty) {
-        resolutionFailures.add('$file: ${errors.first.message}');
+        final first = errors.first;
+        final line = result.lineInfo.getLocation(first.offset).lineNumber;
+        skippedFiles.add(
+          SkippedFile(
+            filePath: file,
+            reason: singleLineReason(
+              '${errors.length} analysis error${errors.length == 1 ? '' : 's'}'
+              '; first at line $line: ${first.message}',
+            ),
+          ),
+        );
+        brokenUnits[file] = result.unit;
         continue;
       }
       parsedUnits[file] = result.unit;
       lineInfos[file] = result.lineInfo;
-    }
-
-    if (resolutionFailures.isNotEmpty) {
-      throw StateError(
-        'Could not resolve every Dart file under $targetPath:\n'
-        '${resolutionFailures.join('\n')}',
-      );
     }
 
     final packageRoots = await _loadPackageRoots(absTarget);
@@ -133,29 +183,35 @@ class DeadCodeAnalyzer {
       packageRoots,
     );
 
-    for (final file in dartFiles) {
-      final unit = parsedUnits[file];
-      if (unit == null) {
-        throw StateError('Missing resolved unit for $file');
+    for (final MapEntry(key: file, value: unit) in parsedUnits.entries) {
+      final DeclarationVisitor declarationVisitor;
+      final ReferenceVisitor referenceVisitor;
+      try {
+        declarationVisitor = DeclarationVisitor(
+          file,
+          lineInfos[file]!,
+          exportedNames: exportedNames[file] ?? <String>{},
+          liveNames: conditionallyLiveNames[file] ?? const {},
+          ignoreMain: config.ignoreMain,
+          entryPoints: config.entryPoints,
+          entryPointAnnotations: config.entryPointAnnotations,
+        );
+        unit.accept(declarationVisitor);
+        referenceVisitor = ReferenceVisitor();
+        unit.accept(referenceVisitor);
+      } catch (error) {
+        skippedFiles.add(
+          SkippedFile(
+            filePath: file,
+            reason: singleLineReason('Analysis failed: $error'),
+          ),
+        );
+        continue;
       }
-
-      final fileExports = exportedNames[file] ?? <String>{};
-      final declarationVisitor = DeclarationVisitor(
-        file,
-        lineInfos[file]!,
-        exportedNames: fileExports,
-        liveNames: conditionallyLiveNames[file] ?? const {},
-        ignoreMain: config.ignoreMain,
-        entryPoints: config.entryPoints,
-        entryPointAnnotations: config.entryPointAnnotations,
-      );
-      unit.accept(declarationVisitor);
       allDeclarations.addAll(declarationVisitor.declarations);
       elementKeyToEntity.addAll(declarationVisitor.elementKeyToEntity);
       rootElementKeys.addAll(declarationVisitor.liveElementKeys);
 
-      final referenceVisitor = ReferenceVisitor();
-      unit.accept(referenceVisitor);
       allReferences.addAll(referenceVisitor.allReferences);
       unresolvedMemberNames.addAll(referenceVisitor.unresolvedMemberNames);
       rootElementKeys.addAll(referenceVisitor.rootElementKeys);
@@ -164,6 +220,23 @@ class DeadCodeAnalyzer {
       }
     }
 
+    for (final unit in brokenUnits.values) {
+      // Best effort: anything a broken file references is treated as used, so
+      // skipping it does not turn its dependencies into false positives.
+      final referenceVisitor = ReferenceVisitor();
+      try {
+        unit.accept(referenceVisitor);
+      } catch (_) {
+        continue;
+      }
+      allReferences.addAll(referenceVisitor.allReferences);
+      unresolvedMemberNames.addAll(referenceVisitor.unresolvedMemberNames);
+      rootElementKeys
+        ..addAll(referenceVisitor.rootElementKeys)
+        ..addAll(referenceVisitor.referenceGraph.values.expand((keys) => keys));
+    }
+
+    skippedFiles.sort((a, b) => a.filePath.compareTo(b.filePath));
     stopwatch.stop();
     return _DeadCodeAnalysis(
       config: config,
@@ -173,9 +246,21 @@ class DeadCodeAnalyzer {
       referenceGraph: referenceGraph,
       rootElementKeys: rootElementKeys,
       unresolvedMemberNames: unresolvedMemberNames,
+      skippedFiles: skippedFiles,
       duration: stopwatch.elapsed,
     );
   }
+
+  static String _describeInvalidResult(SomeResolvedUnitResult result) =>
+      switch (result) {
+        InvalidPathResult() => 'invalid path',
+        NotPathOfUriResult() => 'path does not match its URI',
+        UriOfExternalLibraryResult() => 'file belongs to an external library',
+        DisposedAnalysisContextResult() => 'analysis context was disposed',
+        MissingSdkLibraryResult(:final missingUri) =>
+          'missing SDK library $missingUri',
+        _ => 'unexpected result ${result.runtimeType}',
+      };
 
   Future<List<String>> _collectDartFiles(String targetPath) async {
     final file = File(targetPath);
@@ -503,6 +588,7 @@ class DeadCodeAnalyzer {
       return DeadCodeReport(
         unusedEntities: unused,
         totalDeclarations: analysis.declarations.length,
+        skippedFiles: analysis.skippedFiles,
       );
     }).toList();
   }
@@ -556,6 +642,7 @@ class _DeadCodeAnalysis {
   final Map<String, Set<String>> referenceGraph;
   final Set<String> rootElementKeys;
   final Set<String> unresolvedMemberNames;
+  final List<SkippedFile> skippedFiles;
   final Duration duration;
 
   const _DeadCodeAnalysis({
@@ -566,6 +653,7 @@ class _DeadCodeAnalysis {
     required this.referenceGraph,
     required this.rootElementKeys,
     required this.unresolvedMemberNames,
+    required this.skippedFiles,
     required this.duration,
   });
 }

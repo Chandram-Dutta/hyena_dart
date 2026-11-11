@@ -1,6 +1,7 @@
 import 'analysis_path.dart';
 import 'dead_code_report.dart';
 import 'complexity_metrics.dart';
+import 'skipped_file.dart';
 
 class AnalysisResult {
   final DeadCodeReport? deadCodeReport;
@@ -28,6 +29,15 @@ class AnalysisResult {
     }
     for (final result in packageResults) {
       yield* result.packageAnalyses;
+    }
+  }
+
+  /// Every file skipped by any analyzer in this result, including workspace
+  /// packages. A file skipped by both analyzers appears once per analyzer.
+  Iterable<SkippedFile> get skippedFiles sync* {
+    for (final result in packageAnalyses) {
+      yield* result.deadCodeReport?.skippedFiles ?? const <SkippedFile>[];
+      yield* result.complexityReport?.skippedFiles ?? const <SkippedFile>[];
     }
   }
 

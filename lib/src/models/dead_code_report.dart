@@ -1,15 +1,23 @@
 import 'analysis_path.dart';
 import 'code_entity.dart';
+import 'skipped_file.dart';
 
 class DeadCodeReport {
   final List<CodeEntity> unusedEntities;
   final int totalDeclarations;
   final DateTime analyzedAt;
 
+  /// Files that could not be analyzed and were left out of this report.
+  ///
+  /// Declarations in these files are not reported. Code they reference is
+  /// treated as used wherever the analyzer could still determine it.
+  final List<SkippedFile> skippedFiles;
+
   DeadCodeReport({
     required this.unusedEntities,
     required this.totalDeclarations,
     DateTime? analyzedAt,
+    this.skippedFiles = const [],
   }) : analyzedAt = analyzedAt ?? DateTime.now();
 
   int get unusedCount => unusedEntities.length;
@@ -53,6 +61,9 @@ class DeadCodeReport {
             'isPublic': e.isPublic,
           },
         )
+        .toList(),
+    'skippedFiles': skippedFiles
+        .map((file) => file.toJson(rootPath: rootPath))
         .toList(),
   };
 }

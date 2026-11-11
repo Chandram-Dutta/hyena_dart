@@ -8,9 +8,11 @@ import '../analyzer/analysis_runner.dart';
 import '../models/analysis_finding.dart';
 import '../models/complexity_metrics.dart';
 import '../models/dead_code_report.dart';
+import '../models/skipped_file.dart';
 
 const _maxPathLength = 4096;
 const _maxOutputTextLength = 4096;
+const _maxSkippedFiles = 200;
 
 class McpAnalysisLimits {
   final int maxDartFiles;
@@ -336,11 +338,20 @@ Future<Map<String, Object?>> _performAnalysis({
           return left.ruleId.compareTo(right.ruleId);
         });
   final returnedFindings = findings.take(maxFindings).toList();
+  final skippedFiles = <Map<String, Object?>>[
+    for (final report in deadCodeReports)
+      for (final skipped in report.skippedFiles)
+        _skippedFileToJson('dead-code', skipped, rootPath),
+    for (final report in complexityReports)
+      for (final skipped in report.skippedFiles)
+        _skippedFileToJson('complexity', skipped, rootPath),
+  ];
 
   final summary = <String, Object?>{
     'totalFindings': findings.length,
     'returnedFindings': returnedFindings.length,
     'truncated': findings.length > returnedFindings.length,
+    'skippedFiles': skippedFiles.length,
     if (includeDeadCode)
       'deadCode': <String, Object?>{
         'totalDeclarations': deadCodeReports.fold<int>(
@@ -390,8 +401,20 @@ Future<Map<String, Object?>> _performAnalysis({
     'findings': returnedFindings
         .map((finding) => _findingToJson(finding, rootPath))
         .toList(),
+    if (skippedFiles.isNotEmpty)
+      'skippedFiles': skippedFiles.take(_maxSkippedFiles).toList(),
   };
 }
+
+Map<String, Object?> _skippedFileToJson(
+  String analysis,
+  SkippedFile skipped,
+  String rootPath,
+) => <String, Object?>{
+  'analysis': analysis,
+  'path': _boundedText(_relativePath(skipped.filePath, rootPath)),
+  'reason': _boundedText(skipped.reason),
+};
 
 Map<String, Object?> _findingToJson(AnalysisFinding finding, String rootPath) =>
     <String, Object?>{
