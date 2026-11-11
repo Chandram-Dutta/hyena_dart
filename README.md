@@ -1,8 +1,68 @@
 # Hyena Dart
 
+[![pub package](https://img.shields.io/pub/v/hyena_dart)](https://pub.dev/packages/hyena_dart)
+[![CI](https://github.com/Chandram-Dutta/hyena_dart/actions/workflows/ci.yml/badge.svg)](https://github.com/Chandram-Dutta/hyena_dart/actions/workflows/ci.yml)
+[![pub likes](https://img.shields.io/pub/likes/hyena_dart)](https://pub.dev/packages/hyena_dart/score)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/Chandram-Dutta/hyena_dart/blob/main/LICENSE)
+
 <img src="https://raw.githubusercontent.com/Chandram-Dutta/hyena_dart/main/hyena_dart_logo.png" width="200" alt="Hyena Logo">
 
 A Dart and Flutter codebase analyzer for finding unused declarations and measuring code complexity. Hyena uses the official Dart `analyzer` package for AST-based analysis.
+
+**Who it's for:** Dart and Flutter developers who want to find code nothing
+uses anymore and spot functions that have grown too complex, either locally
+or in CI.
+
+### Try it
+
+From the root of your Dart or Flutter package:
+
+```bash
+dart pub add dev:hyena_dart
+dart run hyena_dart analyze .
+```
+
+Sample output for a small package where `lib/src/pricing.dart` has an unused
+function and an unused class (run with `--no-color`):
+
+```text
+═══════════════════════════════════════════════════════════════
+                    HYENA CODE ANALYSIS REPORT                  
+═══════════════════════════════════════════════════════════════
+
+Target: .
+Duration: 2558ms
+
+───────────────────────────────────────────────────────────────
+                         DEAD CODE REPORT                       
+───────────────────────────────────────────────────────────────
+
+Total declarations: 4
+Unused entities: 3
+Dead code percentage: 75.0%
+
+📦 1 unused class:
+  • OldInvoiceFormatter
+    lib/src/pricing.dart
+
+⚡ 1 unused function:
+  • legacyDiscount
+    lib/src/pricing.dart
+
+🔹 1 unused method:
+  • OldInvoiceFormatter.format
+    lib/src/pricing.dart
+
+───────────────────────────────────────────────────────────────
+                      COMPLEXITY REPORT                         
+───────────────────────────────────────────────────────────────
+
+Files analyzed: 2
+Functions analyzed: 4
+Total lines: 25
+
+✓ No complexity threshold violations detected!
+```
 
 ## Features
 
@@ -30,16 +90,6 @@ For a Flutter project, use `flutter pub add dev:hyena_dart` and then the same
 `dart run` commands. Hyena supports project-local execution only, keeping its
 version in the project's dependency resolution and lockfile.
 
-Compatibility note: Hyena depends on `analyzer: ^14.0.0` and requires Dart SDK
-3.11 or newer. Because Hyena is a dev dependency, other dev tools in the same
-project (code generators, custom lint plugins) must also accept analyzer 14.x;
-if one still requires an older analyzer, `pub get` reports a version conflict.
-Dart 3.12 syntax such as private named parameters is analyzed normally. A
-source file using language features newer than the resolved analyzer
-understands produces error diagnostics, and Hyena fails rather than silently
-omitting it; upgrading Hyena's analyzer (`dart pub upgrade analyzer`) usually
-resolves this.
-
 ## Quick Start
 
 ```bash
@@ -59,6 +109,18 @@ dart run hyena_dart complexity lib
 Dead-code analysis reports unused public and private declarations by default.
 Reusable package authors can preserve exported public APIs with
 `--ignore-exports` or `hyena.dead_code.ignore_exports: true`.
+
+## Compatibility and Limitations
+
+Hyena depends on `analyzer: ^14.0.0` and requires Dart SDK 3.11 or newer.
+Because Hyena is a dev dependency, other dev tools in the same project (code
+generators, custom lint plugins) must also accept analyzer 14.x; if one still
+requires an older analyzer, `pub get` reports a version conflict. Dart 3.12
+syntax such as private named parameters is analyzed normally. A source file
+using language features newer than the resolved analyzer understands produces
+error diagnostics; Hyena skips that file, prints a `Warning: skipped <path>:
+<reason>` line to stderr, and keeps analyzing the rest of the target.
+Upgrading Hyena's analyzer (`dart pub upgrade analyzer`) usually resolves this.
 
 ## Migrating from v1.x
 
