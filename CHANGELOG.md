@@ -40,6 +40,7 @@
 - Update the package example to compute display paths with `package:path` instead of the removed helpers
 - Add README badges, an audience summary, a two-command quick try, and real sample output; move the compatibility note below the quickstart
 - Shrink the README logo from 4.8 MB to about 46 KB
+- Add a [Migrating from 2.x to 3.0](README.md#migrating-from-2x-to-30) README section, and remove generated-file suffix excludes from the sample config
 
 ### Maintenance
 - Add a `frontend_server_client: ^4.0.0` dev-dependency floor so `dart pub downgrade && dart test` works on current SDKs

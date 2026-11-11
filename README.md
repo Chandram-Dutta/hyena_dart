@@ -136,6 +136,24 @@ Upgrading Hyena's analyzer (`dart pub upgrade analyzer`) usually resolves this.
   MCP results, and baseline fingerprints were already relative and remain
   compatible.
 
+## Migrating from 2.x to 3.0
+
+- Hyena now requires Dart SDK 3.11 or newer and `analyzer: ^14.0.0`. Other
+  dev tools in the same project must also accept analyzer 14.x, or `pub get`
+  reports a version conflict.
+- `package:hyena_dart/hyena_dart.dart` no longer exports the CLI runner
+  (`HyenaCommandRunner`, `BaseAnalysisCommand`, `AnalyzeCommand`,
+  `DeadCodeCommand`, `ComplexityCommand`) or the path helpers
+  (`analysisRootForTarget`, `relativeAnalysisPath`, `relativeFindingPath`).
+  Use the CLI (`dart run hyena_dart`) or the still-public `AnalysisRunner`,
+  `DeadCodeAnalyzer`, `ComplexityAnalyzer`, and reporter APIs. For display
+  paths, use `package:path` (for example `p.relative(entity.filePath)`).
+- Exit codes: `0` ok, `1` findings tripped `--fail-on`, `2` tool error, `64`
+  usage error. Tool errors used to exit `1`.
+- Broken or unresolvable files are now skipped with a
+  `Warning: skipped <path>: <reason>` line on stderr, and the run continues.
+  In 2.x such a file aborted the run.
+
 ### Dart Workspaces and Monorepos
 
 Point Hyena at a directory whose `pubspec.yaml` declares a Dart workspace to
@@ -313,11 +331,10 @@ Create a `hyena.yaml` file in your project root:
 
 ```yaml
 hyena:
-  # Glob patterns to exclude from analysis
+  # Glob patterns to exclude from analysis.
+  # Do not list *.g.dart, *.freezed.dart, or *.mocks.dart here: those
+  # generated files are handled automatically (see note below).
   exclude:
-    - "**/*.g.dart"
-    - "**/*.freezed.dart"
-    - "**/*.mocks.dart"
     - "**/generated/**"
 
   # Complexity thresholds
@@ -345,6 +362,10 @@ hyena:
       - riverpod.Riverpod
 ```
 
+Generated `.g.dart`, `.freezed.dart`, and `.mocks.dart` files are handled
+automatically: dead-code analysis counts references from them and never
+reports their declarations, and complexity analysis skips them.
+
 Entry points use exact declaration names. A simple name such as `register`
 matches declarations with that simple name; a qualified name such as
 `ServiceRegistry.register` targets one member. Annotation names can omit a
@@ -368,8 +389,6 @@ linter:
 
 # Hyena configuration
 hyena:
-  exclude:
-    - "**/*.g.dart"
   complexity:
     cyclomatic_threshold: 15
 ```
