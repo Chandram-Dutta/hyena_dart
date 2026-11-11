@@ -308,7 +308,7 @@ void callsHelper() => helper();
   });
 
   group('CLI skipped files', () {
-    test('warns on stderr and still writes a full report', () async {
+    Future<void> expectSkippedFileWarning() async {
       final root = await _createPackage({'broken.dart': 'void broken( {'});
 
       final result = await Process.run(Platform.resolvedExecutable, [
@@ -329,6 +329,12 @@ void callsHelper() => helper();
       final json = jsonDecode(result.stdout as String) as Map;
       expect((json['deadCode'] as Map)['skippedFiles'], hasLength(1));
       expect((json['complexity'] as Map)['skippedFiles'], hasLength(1));
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }
+
+    test(
+      'warns on stderr and still writes a full report',
+      expectSkippedFileWarning,
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
   });
 }
