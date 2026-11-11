@@ -148,7 +148,9 @@ Upgrading Hyena's analyzer (`dart pub upgrade analyzer`) usually resolves this.
   (`analysisRootForTarget`, `relativeAnalysisPath`, `relativeFindingPath`).
   Use the CLI (`dart run hyena_dart`) or the still-public `AnalysisRunner`,
   `DeadCodeAnalyzer`, `ComplexityAnalyzer`, and reporter APIs. For display
-  paths, use `package:path` (for example `p.relative(entity.filePath)`).
+  paths, use `package:path` (for example
+  `p.relative(entity.filePath, from: projectRoot)`, where `projectRoot` is the
+  package or workspace root).
 - Exit codes: `0` ok, `1` findings tripped `--fail-on`, `2` tool error, `64`
   usage error. Tool errors used to exit `1`.
 - Broken or unresolvable non-generated files are now skipped with a
