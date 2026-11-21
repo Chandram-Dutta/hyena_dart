@@ -60,6 +60,17 @@ class AnalysisResult {
     }
   }
 
+  /// Whether files were skipped and no analyzer successfully analyzed a file.
+  bool get allFilesSkipped =>
+      skippedFiles.isNotEmpty &&
+      packageAnalyses.every(
+        (result) =>
+            (result.deadCodeReport?.analyzedFileCount ?? 0) == 0 &&
+            (result.deadCodeReport?.totalDeclarations ?? 0) == 0 &&
+            (result.deadCodeReport?.unusedEntities.isEmpty ?? true) &&
+            (result.complexityReport?.totalFiles ?? 0) == 0,
+      );
+
   /// Serializes this result to JSON.
   ///
   /// Paths are emitted relative to [rootPath], which defaults to the package
