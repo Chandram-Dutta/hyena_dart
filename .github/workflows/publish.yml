@@ -25,6 +25,9 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match pubspec version $package_version"
             exit 1
           fi
+      - name: Verify CHANGELOG release notes
+        shell: bash
+        run: tool/release_notes.sh "${GITHUB_REF_NAME#v}" > /dev/null
       - run: dart pub get
       - run: dart run tool/check_version.dart
       - run: dart format --output=none --set-exit-if-changed .
@@ -59,14 +62,6 @@ jobs:
             echo "Release $GITHUB_REF_NAME already exists; skipping."
             exit 0
           fi
-          awk -v v="$version" '
-            $0 ~ "^## \\[" v "\\]" { found = 1; next }
-            found && /^## \[/ { exit }
-            found { print }
-          ' CHANGELOG.md > release-notes.md
-          if [[ ! -s release-notes.md ]]; then
-            echo "No CHANGELOG entry for $version"
-            exit 1
-          fi
+          tool/release_notes.sh "$version" > release-notes.md
           printf '\nPublished to pub.dev: https://pub.dev/packages/hyena_dart/versions/%s\n' "$version" >> release-notes.md
           gh release create "$GITHUB_REF_NAME" --verify-tag --title "Hyena Dart $GITHUB_REF_NAME" --notes-file release-notes.md
