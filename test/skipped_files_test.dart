@@ -279,7 +279,7 @@ void callsHelper() => helper();
       duration: const Duration(milliseconds: 5),
       deadCodeReport: DeadCodeReport(
         unusedEntities: const [],
-        totalDeclarations: 3,
+        totalDeclarations: 0,
         skippedFiles: skipped,
       ),
       complexityReport: ComplexityReport(
