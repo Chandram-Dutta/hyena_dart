@@ -12,8 +12,11 @@ String? extractReleaseNotes(String changelog, String version) {
     if (line.startsWith('## [')) break;
     body.add(line);
   }
-  final notes = body.join('\n').trim();
-  return notes.isEmpty ? null : notes;
+  bool isBlank(String line) => line.trim().isEmpty;
+  final first = body.indexWhere((line) => !isBlank(line));
+  if (first == -1) return null;
+  final last = body.lastIndexWhere((line) => !isBlank(line));
+  return body.sublist(first, last + 1).join('\n');
 }
 
 /// Prints the CHANGELOG.md release notes for `version`, failing when the

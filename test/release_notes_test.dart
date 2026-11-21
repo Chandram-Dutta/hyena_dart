@@ -47,6 +47,16 @@ void main() {
       expect(extractReleaseNotes(_changelog, '3.0'), isNull);
     });
 
+    test('keeps indentation of a leading code block', () {
+      expect(
+        extractReleaseNotes(
+          '## [1.0.0]\n\n    dart run hyena_dart\n    more\n\n## [0.9.0]\n',
+          '1.0.0',
+        ),
+        '    dart run hyena_dart\n    more',
+      );
+    });
+
     test('handles CRLF line endings', () {
       expect(
         extractReleaseNotes('## [1.0.0]\r\n- Fix.\r\n## [0.9.0]\r\n', '1.0.0'),
