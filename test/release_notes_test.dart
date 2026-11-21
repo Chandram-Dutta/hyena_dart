@@ -31,10 +31,7 @@ void main() {
     });
 
     test('returns the last section up to end of file', () {
-      expect(
-        extractReleaseNotes(_changelog, '2.0.0'),
-        '### Added\n- Feature.',
-      );
+      expect(extractReleaseNotes(_changelog, '2.0.0'), '### Added\n- Feature.');
     });
 
     test('rejects a whitespace-only section', () {
