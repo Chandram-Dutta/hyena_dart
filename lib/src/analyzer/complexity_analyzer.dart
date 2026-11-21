@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
+import 'package:analyzer/dart/analysis/session.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/error/error.dart';
 import 'package:glob/glob.dart';
@@ -76,7 +77,9 @@ class ComplexityAnalyzer {
       }
 
       try {
-        fileMetrics.add(await _analyzeFile(file));
+        fileMetrics.add(
+          await _analyzeFile(file, collection.contextFor(file).currentSession),
+        );
       } on _SkipFile catch (skip) {
         skippedFiles.add(SkippedFile(filePath: file, reason: skip.reason));
       } catch (error) {
@@ -164,7 +167,10 @@ class ComplexityAnalyzer {
     return false;
   }
 
-  Future<FileMetrics> _analyzeFile(String filePath) async {
+  Future<FileMetrics> _analyzeFile(
+    String filePath,
+    AnalysisSession session,
+  ) async {
     final String content;
     try {
       content = await _readSource(filePath);
@@ -179,9 +185,14 @@ class ComplexityAnalyzer {
     }
     final ParseStringResult result;
     try {
+      final parsed = session.getParsedUnit(filePath);
+      if (parsed is! ParsedUnitResult) {
+        throw _SkipFile('The analyzer could not parse this file.');
+      }
       result = parseString(
         content: content,
         path: filePath,
+        featureSet: parsed.unit.featureSet,
         throwIfDiagnostics: false,
       );
     } on ArgumentError catch (error) {

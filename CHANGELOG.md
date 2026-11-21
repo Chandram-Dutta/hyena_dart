@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Respect package language versions and per-file language overrides when computing complexity metrics instead of skipping valid older Dart syntax.
 - Do not report enhanced enum constructors as unused when invoked by reachable enum constants.
 - Keep const constructors used only as annotations, such as `@Foo()` or `@Foo.named()`, reachable when the annotated declaration is live. ([#31](https://github.com/Chandram-Dutta/hyena_dart/pull/31))
 
