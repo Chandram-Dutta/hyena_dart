@@ -6,6 +6,7 @@
 
 ### Fixed
 - Runs with `--fail-on` now exit `2` when every file is skipped, instead of passing a finding gate without analyzing any files
+- Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings.
 
 ## [3.0.1] - 2026-11-21
 

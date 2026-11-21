@@ -51,8 +51,9 @@ class DeadCodeAnalyzer {
   /// Analyzes the Dart package or directory at [targetPath].
   ///
   /// Files under any of [excludedPaths] (for example nested workspace
-  /// packages) and files matching [AnalyzerConfig.excludePatterns] are
-  /// skipped.
+  /// packages) are skipped. Files matching [AnalyzerConfig.excludePatterns]
+  /// are skipped unless generated, in which case they contribute references
+  /// only.
   Future<DeadCodeReport> analyze(
     String targetPath, {
     Iterable<String> excludedPaths = const [],
@@ -365,6 +366,12 @@ class DeadCodeAnalyzer {
     )) {
       return true;
     }
+    final segments = p.split(normalizedPath);
+    if (segments.contains('.dart_tool') || segments.contains('build')) {
+      return true;
+    }
+    if (_isGeneratedFile(normalizedPath)) return false;
+
     final relativePath = p.posix.joinAll(
       p.split(p.relative(normalizedPath, from: analysisRoot)),
     );
@@ -377,10 +384,7 @@ class DeadCodeAnalyzer {
       }
     }
 
-    final segments = p.split(normalizedPath);
-    if (segments.contains('.dart_tool') ||
-        segments.contains('build') ||
-        segments.contains('generated')) {
+    if (segments.contains('generated')) {
       return true;
     }
 
