@@ -1637,6 +1637,46 @@ class Example extends Base {
       expect(redirectingConstructor.halsteadVolume, greaterThan(0));
     });
 
+    test('excludes closure bodies across all parts of a constructor', () async {
+      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+class Example {
+  Example()
+      : first = ((int n) => n + 100),
+        second = ((int n) {
+          final nested = () => 200;
+          return nested() * n;
+        }) {
+    final third = () => 300;
+    if (first(1) < second(2)) {
+      print(third());
+    }
+  }
+
+  final int Function(int) first;
+  final int Function(int) second;
+}
+''');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+      final functions = report.files.single.functions;
+      final constructor = functions.first;
+
+      expect(constructor.fullName, 'Example.new');
+      expect(constructor.linesOfCode, 8);
+      expect(
+        constructor.halsteadVolume,
+        closeTo(19 * math.log(12) / math.ln2, 1e-9),
+      );
+      expect(functions.skip(1).map((function) => function.linesOfCode), [
+        1,
+        4,
+        1,
+        1,
+      ]);
+    });
+
     test('counts for-in loops once', () async {
       File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
 void iterate(List<int> values) {
