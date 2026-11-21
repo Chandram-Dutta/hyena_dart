@@ -1,11 +1,11 @@
-## [Unreleased]
+## [3.2.0] - 2026-11-21
 
 ### Fixed
-- Treat files with a leading generated-code header as generated: preserve their references without reporting their declarations or complexity.
-- Keep instance field initializer dependencies reachable when their class is instantiated, without retaining initializers of unused classes or unused static fields.
-- Honor `pubspec_overrides.yaml` workspace lists, including nested members and empty overrides, when discovering workspace packages.
-- Respect package language versions and per-file language overrides when computing complexity metrics instead of skipping valid older Dart syntax.
-- Do not report enhanced enum constructors as unused when invoked by reachable enum constants.
+- Treat files with a leading generated-code header as generated: preserve their references without reporting their declarations or complexity. ([#33](https://github.com/Chandram-Dutta/hyena_dart/pull/33))
+- Keep instance field initializer dependencies reachable when their class is instantiated, without retaining initializers of unused classes or unused static fields. ([#34](https://github.com/Chandram-Dutta/hyena_dart/pull/34))
+- Honor `pubspec_overrides.yaml` workspace lists, including nested members and empty overrides, when discovering workspace packages. ([#32](https://github.com/Chandram-Dutta/hyena_dart/pull/32))
+- Respect package language versions and per-file language overrides when computing complexity metrics instead of skipping valid older Dart syntax. ([#35](https://github.com/Chandram-Dutta/hyena_dart/pull/35))
+- Do not report enhanced enum constructors as unused when invoked by reachable enum constants. ([#30](https://github.com/Chandram-Dutta/hyena_dart/pull/30))
 - Keep const constructors used only as annotations, such as `@Foo()` or `@Foo.named()`, reachable when the annotated declaration is live. ([#31](https://github.com/Chandram-Dutta/hyena_dart/pull/31))
 
 ## [3.1.0] - 2026-11-21
