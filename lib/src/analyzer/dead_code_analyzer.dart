@@ -18,6 +18,7 @@ import '../models/skipped_file.dart';
 import 'ast_visitors/declaration_visitor.dart';
 import 'ast_visitors/member_override.dart';
 import 'ast_visitors/reference_visitor.dart';
+import 'generated_file.dart';
 
 /// Resolves a single Dart file. Used by [DeadCodeAnalyzer] and replaceable in
 /// tests to simulate analyzer failures.
@@ -106,6 +107,7 @@ class DeadCodeAnalyzer {
     final normalizedExcludedPaths = excludedPaths
         .map((path) => p.normalize(p.absolute(path)))
         .toList();
+    final generatedFiles = GeneratedFiles();
     final dartFiles =
         (await _collectDartFiles(
             absTarget,
@@ -114,6 +116,7 @@ class DeadCodeAnalyzer {
               file,
               analysisRoot: analysisRoot,
               excludedPaths: normalizedExcludedPaths,
+              generatedFiles: generatedFiles,
             );
           }).toList()
           ..sort();
@@ -139,7 +142,7 @@ class DeadCodeAnalyzer {
     final skippedFiles = <SkippedFile>[];
     var analyzedFileCount = 0;
     for (final file in dartFiles) {
-      final isGenerated = _isGeneratedFile(file);
+      final isGenerated = generatedFiles.contains(file);
       final SomeResolvedUnitResult result;
       try {
         result = await _resolveUnit(
@@ -203,7 +206,7 @@ class DeadCodeAnalyzer {
     );
 
     for (final MapEntry(key: file, value: unit) in parsedUnits.entries) {
-      if (_isGeneratedFile(file)) {
+      if (generatedFiles.contains(file)) {
         try {
           _collectGeneratedReferences(
             unit,
@@ -297,14 +300,6 @@ class DeadCodeAnalyzer {
         _ => 'unexpected result ${result.runtimeType}',
       };
 
-  /// Whether [filePath] is code-generator output (json_serializable, freezed,
-  /// mockito, ...). Such files are analyzed for references only; their own
-  /// declarations are never reported.
-  static bool _isGeneratedFile(String filePath) =>
-      filePath.endsWith('.g.dart') ||
-      filePath.endsWith('.freezed.dart') ||
-      filePath.endsWith('.mocks.dart');
-
   /// Treats everything referenced from a generated [unit] as live.
   ///
   /// Generated declarations are not tracked, so they cannot act as graph
@@ -358,6 +353,7 @@ class DeadCodeAnalyzer {
     String filePath, {
     required String analysisRoot,
     required List<String> excludedPaths,
+    required GeneratedFiles generatedFiles,
   }) {
     final normalizedPath = p.normalize(p.absolute(filePath));
     if (excludedPaths.any(
@@ -370,7 +366,7 @@ class DeadCodeAnalyzer {
     if (segments.contains('.dart_tool') || segments.contains('build')) {
       return true;
     }
-    if (_isGeneratedFile(normalizedPath)) return false;
+    if (generatedFiles.contains(normalizedPath)) return false;
 
     final relativePath = p.posix.joinAll(
       p.split(p.relative(normalizedPath, from: analysisRoot)),

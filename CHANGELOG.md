@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Treat files with a leading generated-code header as generated: preserve their references without reporting their declarations or complexity.
 - Do not report enhanced enum constructors as unused when invoked by reachable enum constants.
 - Keep const constructors used only as annotations, such as `@Foo()` or `@Foo.named()`, reachable when the annotated declaration is live. ([#31](https://github.com/Chandram-Dutta/hyena_dart/pull/31))
 
