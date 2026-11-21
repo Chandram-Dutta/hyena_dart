@@ -183,22 +183,27 @@ class ComplexityAnalyzer {
         ),
       );
     }
-    final ParseStringResult result;
+    final ParsedUnitResult parsed;
+    final ParseStringResult? overridden;
     try {
-      final parsed = session.getParsedUnit(filePath);
-      if (parsed is! ParsedUnitResult) {
+      final result = session.getParsedUnit(filePath);
+      if (result is! ParsedUnitResult) {
         throw _SkipFile('The analyzer could not parse this file.');
       }
-      result = parseString(
-        content: content,
-        path: filePath,
-        featureSet: parsed.unit.featureSet,
-        throwIfDiagnostics: false,
-      );
+      parsed = result;
+      overridden = content == parsed.content
+          ? null
+          : parseString(
+              content: content,
+              path: filePath,
+              featureSet: parsed.unit.featureSet,
+              throwIfDiagnostics: false,
+            );
     } on ArgumentError catch (error) {
       throw _SkipFile(singleLineReason('Could not parse: ${error.message}'));
     }
-    final errors = result.errors
+    final lineInfo = overridden?.lineInfo ?? parsed.lineInfo;
+    final errors = (overridden?.errors ?? parsed.diagnostics)
         .where(
           (diagnostic) =>
               diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
@@ -206,7 +211,7 @@ class ComplexityAnalyzer {
         .toList();
     if (errors.isNotEmpty) {
       final first = errors.first;
-      final line = result.lineInfo.getLocation(first.offset).lineNumber;
+      final line = lineInfo.getLocation(first.offset).lineNumber;
       throw _SkipFile(
         singleLineReason(
           '${errors.length} syntax error${errors.length == 1 ? '' : 's'}'
@@ -215,12 +220,8 @@ class ComplexityAnalyzer {
       );
     }
 
-    final complexityVisitor = ComplexityVisitor(
-      filePath,
-      result.lineInfo,
-      content,
-    );
-    result.unit.accept(complexityVisitor);
+    final complexityVisitor = ComplexityVisitor(filePath, lineInfo, content);
+    (overridden?.unit ?? parsed.unit).accept(complexityVisitor);
 
     final lines = const LineSplitter().convert(content);
     final lineStats = _countLines(lines);

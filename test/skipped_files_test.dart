@@ -141,6 +141,55 @@ void callsHelper() => helper();
   });
 
   group('ComplexityAnalyzer skipped files', () {
+    test('handles empty and invalid injected source', () async {
+      final root = await _createPackage({
+        'identity.dart': 'void original() {}',
+      });
+      for (final source in ['', 'void broken( {']) {
+        final report = await ComplexityAnalyzer(
+          AnalyzerConfig(),
+          readSource: (path) async => path == _lib(root, 'identity.dart')
+              ? source
+              : File(path).readAsString(),
+        ).analyze(root);
+
+        if (source.isEmpty) {
+          expect(report.skippedFiles, isEmpty);
+          expect(
+            report.files
+                .singleWhere(
+                  (file) => file.filePath == _lib(root, 'identity.dart'),
+                )
+                .functions,
+            isEmpty,
+          );
+        } else {
+          expect(report.skippedFiles.single.reason, contains('syntax error'));
+        }
+      }
+    });
+
+    test('analyzes injected source with a language version override', () async {
+      final root = await _createPackage({
+        'identity.dart': 'void original() {}',
+      });
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+        readSource: (path) async => path == _lib(root, 'identity.dart')
+            ? '// @dart=3.0\nint identity({final int value = 1}) => value;'
+            : File(path).readAsString(),
+      ).analyze(root);
+
+      expect(report.skippedFiles, isEmpty);
+      final metrics = report.files
+          .singleWhere((file) => file.filePath == _lib(root, 'identity.dart'))
+          .functions
+          .single;
+      expect(metrics.name, 'identity');
+      expect(metrics.cyclomaticComplexity, 1);
+      expect(metrics.parameterCount, 1);
+    });
+
     test('respects a per-file language version override', () async {
       final root = await _createPackage({
         'identity.dart': '''
