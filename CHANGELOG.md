@@ -1,6 +1,7 @@
-## Unreleased
+## [Unreleased]
 
 ### Fixed
+- Do not report enhanced enum constructors as unused when invoked by reachable enum constants.
 - Keep const constructors used only as annotations, such as `@Foo()` or `@Foo.named()`, reachable when the annotated declaration is live. ([#31](https://github.com/Chandram-Dutta/hyena_dart/pull/31))
 
 ## [3.1.0] - 2026-11-21
