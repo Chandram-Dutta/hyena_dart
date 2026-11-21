@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/analysis_context.dart';
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
+import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/error/error.dart';
@@ -66,6 +68,7 @@ class ComplexityAnalyzer {
     );
     final fileMetrics = <FileMetrics>[];
     final skippedFiles = <SkippedFile>[];
+    final featureSets = <(FeatureSet, String?), FeatureSet>{};
 
     for (final file in dartFiles) {
       if (_shouldExclude(
@@ -77,7 +80,12 @@ class ComplexityAnalyzer {
       }
 
       try {
-        final metrics = await _analyzeFile(file);
+        final featureSet = _featureSetFor(
+          collection.contextFor(file),
+          file,
+          featureSets,
+        );
+        final metrics = await _analyzeFile(file, featureSet);
         if (metrics != null) fileMetrics.add(metrics);
       } on _SkipFile catch (skip) {
         skippedFiles.add(SkippedFile(filePath: file, reason: skip.reason));
@@ -98,6 +106,23 @@ class ComplexityAnalyzer {
       maxParameters: config.maxParameters,
       skippedFiles: skippedFiles,
     );
+  }
+
+  FeatureSet _featureSetFor(
+    AnalysisContext context,
+    String file,
+    Map<(FeatureSet, String?), FeatureSet> cache,
+  ) {
+    final package = context.contextRoot.workspace.packages.packageForPath(file);
+    final features = context
+        .getAnalysisOptionsForFile(
+          context.contextRoot.resourceProvider.getFile(file),
+        )
+        .contextFeatures;
+    return cache.putIfAbsent((features, package?.rootFolder.path), () {
+      final version = package?.languageVersion;
+      return version == null ? features : features.restrictToVersion(version);
+    });
   }
 
   Future<List<String>> _collectDartFiles(String targetPath) async {
@@ -164,7 +189,10 @@ class ComplexityAnalyzer {
     return false;
   }
 
-  Future<FileMetrics?> _analyzeFile(String filePath) async {
+  Future<FileMetrics?> _analyzeFile(
+    String filePath,
+    FeatureSet featureSet,
+  ) async {
     final String content;
     try {
       content = await _readSource(filePath);
@@ -183,6 +211,7 @@ class ComplexityAnalyzer {
       result = parseString(
         content: content,
         path: filePath,
+        featureSet: featureSet,
         throwIfDiagnostics: false,
       );
     } on ArgumentError catch (error) {
