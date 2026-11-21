@@ -1,13 +1,18 @@
-## [Unreleased]
+## [3.1.0] - 2026-11-21
 
 ### Added
-- CLI JSON reports include `schemaVersion: 1` and a published JSON Schema at `schema/report.schema.json` for single-package and workspace reports.
-- Page through all `hyena_analyze` MCP findings with `offset`, `limit`, and `summary.nextOffset`, including findings within a single file.
-- Apply CLI-written baselines with the MCP tool's workspace-relative `baseline` input; summaries report hidden findings in `baselinedFindings` and totals after suppression.
+- CLI JSON reports include `schemaVersion: 1` and a published JSON Schema at `schema/report.schema.json` for single-package and workspace reports. ([#21](https://github.com/Chandram-Dutta/hyena_dart/pull/21))
+- Page through all `hyena_analyze` MCP findings with `offset`, `limit`, and `summary.nextOffset`, including findings within a single file. ([#25](https://github.com/Chandram-Dutta/hyena_dart/pull/25))
+- Apply CLI-written baselines with the MCP tool's workspace-relative `baseline` input; summaries report hidden findings in `baselinedFindings` and totals after suppression. ([#25](https://github.com/Chandram-Dutta/hyena_dart/pull/25))
+
+### Changed
+- Speed up complexity scans with nested functions by avoiding repeated AST walks. ([#19](https://github.com/Chandram-Dutta/hyena_dart/pull/19))
 
 ### Fixed
-- Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings.
-- Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument other than literal `false`.
+- Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings. ([#20](https://github.com/Chandram-Dutta/hyena_dart/pull/20))
+- Keep enum constants live when referenced through the enum's `values` property. ([#22](https://github.com/Chandram-Dutta/hyena_dart/pull/22))
+- Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument other than literal `false`. ([#24](https://github.com/Chandram-Dutta/hyena_dart/pull/24))
+- Keep overloaded operators live when used through operator syntax, including compound assignments and increment/decrement expressions. ([#26](https://github.com/Chandram-Dutta/hyena_dart/pull/26))
 
 ## [3.0.1] - 2026-11-21
 
