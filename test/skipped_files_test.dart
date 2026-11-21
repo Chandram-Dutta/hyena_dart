@@ -141,6 +141,17 @@ void callsHelper() => helper();
   });
 
   group('ComplexityAnalyzer skipped files', () {
+    test('uses latest syntax without a package config', () async {
+      final root = await _createPackage({
+        'identity.dart': 'int identity({final int value = 1}) => value;',
+      });
+
+      final report = await ComplexityAnalyzer(AnalyzerConfig()).analyze(root);
+
+      expect(report.skippedFiles.single.filePath, _lib(root, 'identity.dart'));
+      expect(report.skippedFiles.single.reason, contains('syntax error'));
+    });
+
     test('handles empty and invalid injected source', () async {
       final root = await _createPackage({
         'identity.dart': 'void original() {}',

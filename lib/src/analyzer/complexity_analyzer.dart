@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
+import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/analysis/results.dart';
-import 'package:analyzer/dart/analysis/session.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/error/error.dart';
 import 'package:glob/glob.dart';
@@ -66,6 +66,7 @@ class ComplexityAnalyzer {
     );
     final fileMetrics = <FileMetrics>[];
     final skippedFiles = <SkippedFile>[];
+    final featureSets = <(FeatureSet, String?), FeatureSet>{};
 
     for (final file in dartFiles) {
       if (_shouldExclude(
@@ -77,9 +78,25 @@ class ComplexityAnalyzer {
       }
 
       try {
-        fileMetrics.add(
-          await _analyzeFile(file, collection.contextFor(file).currentSession),
+        final context = collection.contextFor(file);
+        final package = context.contextRoot.workspace.packages.packageForPath(
+          file,
         );
+        final features = context
+            .getAnalysisOptionsForFile(
+              context.contextRoot.resourceProvider.getFile(file),
+            )
+            .contextFeatures;
+        final featureSet = featureSets.putIfAbsent(
+          (features, package?.rootFolder.path),
+          () {
+            final version = package?.languageVersion;
+            return version == null
+                ? features
+                : features.restrictToVersion(version);
+          },
+        );
+        fileMetrics.add(await _analyzeFile(file, featureSet));
       } on _SkipFile catch (skip) {
         skippedFiles.add(SkippedFile(filePath: file, reason: skip.reason));
       } catch (error) {
@@ -169,7 +186,7 @@ class ComplexityAnalyzer {
 
   Future<FileMetrics> _analyzeFile(
     String filePath,
-    AnalysisSession session,
+    FeatureSet featureSet,
   ) async {
     final String content;
     try {
@@ -183,27 +200,19 @@ class ComplexityAnalyzer {
         ),
       );
     }
-    final ParsedUnitResult parsed;
-    final ParseStringResult? overridden;
+    final ParseStringResult result;
     try {
-      final result = session.getParsedUnit(filePath);
-      if (result is! ParsedUnitResult) {
-        throw _SkipFile('The analyzer could not parse this file.');
-      }
-      parsed = result;
-      overridden = content == parsed.content
-          ? null
-          : parseString(
-              content: content,
-              path: filePath,
-              featureSet: parsed.unit.featureSet,
-              throwIfDiagnostics: false,
-            );
+      result = parseString(
+        content: content,
+        path: filePath,
+        featureSet: featureSet,
+        throwIfDiagnostics: false,
+      );
     } on ArgumentError catch (error) {
       throw _SkipFile(singleLineReason('Could not parse: ${error.message}'));
     }
-    final lineInfo = overridden?.lineInfo ?? parsed.lineInfo;
-    final errors = (overridden?.errors ?? parsed.diagnostics)
+    final lineInfo = result.lineInfo;
+    final errors = result.errors
         .where(
           (diagnostic) =>
               diagnostic.diagnosticCode.severity == DiagnosticSeverity.ERROR,
@@ -221,7 +230,7 @@ class ComplexityAnalyzer {
     }
 
     final complexityVisitor = ComplexityVisitor(filePath, lineInfo, content);
-    (overridden?.unit ?? parsed.unit).accept(complexityVisitor);
+    result.unit.accept(complexityVisitor);
 
     final lines = const LineSplitter().convert(content);
     final lineStats = _countLines(lines);
