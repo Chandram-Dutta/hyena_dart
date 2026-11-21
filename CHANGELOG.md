@@ -8,6 +8,7 @@
 ### Fixed
 - Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings.
 - Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument other than literal `false`.
+- Keep getters and fields read only through object patterns (`case Point(:final x)`, `final Point(:x) = p`, nested record destructuring) out of dead-code findings.
 
 ## [3.0.1] - 2026-11-21
 
