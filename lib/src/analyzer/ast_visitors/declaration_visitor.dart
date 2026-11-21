@@ -76,8 +76,28 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     return parentName != null && entryPoints.contains('$parentName.$name');
   }
 
+  bool _isVmEntryPointPragma(Annotation annotation) {
+    if (annotation.name.toSource().split('.').last != 'pragma') return false;
+    final element = annotation.element;
+    if (element != null &&
+        (element is! ConstructorElement ||
+            element.enclosingElement.name != 'pragma' ||
+            element.library.uri.toString() != 'dart:core')) {
+      return false;
+    }
+    final arguments = annotation.arguments?.arguments;
+    if (arguments == null || arguments.isEmpty) return false;
+    final name = arguments.first;
+    if (name is! StringLiteral || name.stringValue != 'vm:entry-point') {
+      return false;
+    }
+    final condition = arguments.length > 1 ? arguments[1] : null;
+    return condition is! BooleanLiteral || condition.value;
+  }
+
   bool _hasEntryPointAnnotation(AnnotatedNode node) {
     return node.metadata.any((annotation) {
+      if (_isVmEntryPointPragma(annotation)) return true;
       final fullName = annotation.name.toSource();
       final shortName = fullName.split('.').last;
       return entryPointAnnotations.any(

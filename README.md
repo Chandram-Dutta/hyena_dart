@@ -397,6 +397,11 @@ containers also retain their public members. The lists are empty by default;
 add only entry points actually used by a framework, generator, serializer,
 router, dependency-injection system, or plugin runtime.
 
+Declarations annotated with `@pragma('vm:entry-point')` (including forms with a
+second argument other than literal `false`) are reachability roots without
+configuration. Their transitive dependencies are retained too; other pragmas do
+not create roots.
+
 You can also add the configuration to your existing `analysis_options.yaml`:
 
 ```yaml
@@ -419,8 +424,15 @@ Colored terminal output with summary and details.
 ### JSON
 Machine-readable format for CI/CD integration:
 
+Every CLI JSON report starts with `schemaVersion: 1`. The published
+[JSON Schema](schema/report.schema.json) describes single-package and workspace
+reports, including dead-code-only, complexity-only, and combined analyses.
+Additive changes keep the version; field renames, removals, or type changes bump
+it. Consumers should allow additional properties.
+
 ```json
 {
+  "schemaVersion": 1,
   "targetPath": "lib",
   "duration": "205ms",
   "deadCode": {
