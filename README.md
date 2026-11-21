@@ -208,13 +208,22 @@ resolving its local Hyena dependency, while the server root remains `.`:
 ```
 
 The workspace root is a startup argument chosen by the user, not a tool
-argument chosen by the model. Tool calls accept only a relative `path` and a
-`checks` value of `both`, `dead-code`, or `complexity`.
+argument chosen by the model. Tool calls accept a relative `path`, a
+`checks` value of `both`, `dead-code`, or `complexity`, an `offset` (integer,
+default 0), a `limit` (1–200, default 200), and an optional `baseline` JSON
+file path relative to the workspace root. Baselines written by the CLI's
+`--write-baseline` hide known findings before paging; baseline files must exist
+inside the workspace, including after resolving symlinks.
 
 Each request is limited to 10,000 Dart files and 50 MiB of Dart source, returns
 at most 200 findings with bounded text fields, and is terminated after two
-minutes. The server processes only one analysis at a time; narrow the target
-path if a result is truncated.
+minutes. The server processes only one analysis at a time. Findings are sorted
+by path, line, and rule ID. When `summary.truncated` is true, repeat the same
+request with `offset: summary.nextOffset` to get the next page (even within a
+single file). Keep sources unchanged while paging. The summary includes
+`offset`, `limit`, and post-baseline `totalFindings`; `nextOffset` is absent on
+the last page. An offset past the end returns an empty page. When a baseline
+is given, `summary.baselinedFindings` reports how many findings it hid.
 
 Per-request cancellation is not supported because `dart_mcp` 0.5.x does not
 expose JSON-RPC request IDs to tool handlers. Disconnecting the client stops

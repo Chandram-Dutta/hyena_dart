@@ -38,19 +38,37 @@ base class HyenaMcpServer extends MCPServer with ToolsSupport {
   FutureOr<CallToolResult> _analyze(CallToolRequest request) async {
     final arguments = request.arguments ?? const <String, Object?>{};
     try {
+      for (final key in ['path', 'checks', 'baseline']) {
+        if (arguments.containsKey(key) && arguments[key] is! String) {
+          throw McpAnalysisException('$key must be a string.');
+        }
+      }
+      for (final key in ['offset', 'limit']) {
+        if (arguments.containsKey(key) && arguments[key] is! int) {
+          throw McpAnalysisException('$key must be an integer.');
+        }
+      }
       final result = await analysisService.analyze(
         targetPath: arguments['path'] as String? ?? '.',
         checks: arguments['checks'] as String? ?? 'both',
+        offset: arguments['offset'] as int? ?? 0,
+        limit: arguments['limit'] as int?,
+        baseline: arguments['baseline'] as String?,
       );
       final summary = result['summary'] as Map<String, Object?>;
       final findingCount = summary['totalFindings'] as int;
       final returnedCount = summary['returnedFindings'] as int;
       final truncated = summary['truncated'] as bool;
-      final text = truncated
-          ? 'Hyena found $findingCount findings and returned the first '
-                '$returnedCount in structuredContent.'
-          : 'Hyena found $findingCount findings. Full results are in '
-                'structuredContent.';
+      final offset = summary['offset'] as int;
+      var text = truncated
+          ? 'Hyena found $findingCount findings and returned findings '
+                '${offset + 1}–${offset + returnedCount}. Call hyena_analyze '
+                'again with offset ${summary['nextOffset']} to get the next page.'
+          : 'Hyena found $findingCount findings and returned $returnedCount. '
+                'Results are in structuredContent.';
+      if (summary['baselinedFindings'] case final int count) {
+        text += ' The baseline hid $count findings.';
+      }
 
       return CallToolResult(
         content: [TextContent(text: text)],
@@ -93,6 +111,18 @@ final Tool _analyzeTool = Tool(
         values: const ['both', 'dead-code', 'complexity'],
         defaultValue: 'both',
       ),
+      'offset': Schema.fromMap({'type': 'integer', 'minimum': 0, 'default': 0}),
+      'limit': Schema.fromMap({
+        'type': 'integer',
+        'minimum': 1,
+        'maximum': 200,
+        'default': 200,
+      }),
+      'baseline': Schema.string(
+        description: 'Baseline JSON file relative to the workspace root.',
+        minLength: 1,
+        maxLength: 4096,
+      ),
     },
     additionalProperties: false,
   ),
@@ -119,6 +149,10 @@ final ObjectSchema _outputSchema = Schema.object(
         'totalFindings': Schema.int(minimum: 0),
         'returnedFindings': Schema.int(minimum: 0),
         'truncated': Schema.bool(),
+        'offset': Schema.int(minimum: 0),
+        'limit': Schema.int(minimum: 1, maximum: 200),
+        'nextOffset': Schema.int(minimum: 0),
+        'baselinedFindings': Schema.int(minimum: 0),
         'skippedFiles': Schema.int(minimum: 0),
         'deadCode': Schema.object(
           properties: {
@@ -148,7 +182,13 @@ final ObjectSchema _outputSchema = Schema.object(
           additionalProperties: false,
         ),
       },
-      required: ['totalFindings', 'returnedFindings', 'truncated'],
+      required: [
+        'totalFindings',
+        'returnedFindings',
+        'truncated',
+        'offset',
+        'limit',
+      ],
       additionalProperties: false,
     ),
     'findings': Schema.list(

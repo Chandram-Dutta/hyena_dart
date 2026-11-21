@@ -10,6 +10,131 @@ import 'package:test/test.dart';
 
 void main() {
   group('MCP analysis safety', () {
+    test(
+      'pages all findings within one file and handles offsets past end',
+      () async {
+        final project = await _createProject();
+        addTearDown(() => project.delete(recursive: true));
+        final service = await McpAnalysisService.create(
+          project.path,
+          limits: const McpAnalysisLimits(maxFindings: 1),
+        );
+        final all = <Object?>[];
+        var offset = 0;
+        int? total;
+        while (true) {
+          final result = await service.analyze(
+            checks: 'complexity',
+            offset: offset,
+          );
+          final summary = result['summary'] as Map;
+          total ??= summary['totalFindings'] as int;
+          expect(summary['offset'], offset);
+          expect(summary['limit'], 1);
+          all.addAll(result['findings'] as List);
+          if (summary['truncated'] == false) {
+            expect(summary.containsKey('nextOffset'), isFalse);
+            break;
+          }
+          offset = summary['nextOffset'] as int;
+        }
+        expect(total, greaterThan(1));
+        expect(all.length, total);
+        expect(all.map(jsonEncode).toSet().length, total);
+        final empty = await service.analyze(offset: total + 10);
+        expect(empty['findings'], isEmpty);
+        expect((empty['summary'] as Map)['truncated'], isFalse);
+        expect((empty['summary'] as Map).containsKey('nextOffset'), isFalse);
+      },
+    );
+
+    test('rejects invalid pagination inputs', () async {
+      final project = await _createProject();
+      addTearDown(() => project.delete(recursive: true));
+      final service = await McpAnalysisService.create(project.path);
+      for (final value in [-1]) {
+        await expectLater(
+          service.analyze(offset: value),
+          throwsA(isA<McpAnalysisException>()),
+        );
+      }
+      for (final value in [0, -1, 201]) {
+        await expectLater(
+          service.analyze(limit: value),
+          throwsA(isA<McpAnalysisException>()),
+        );
+      }
+    });
+
+    test(
+      'applies real baselines including suppressed complexity and new findings',
+      () async {
+        final project = await _createProject();
+        addTearDown(() => project.delete(recursive: true));
+        final original = await const AnalysisRunner().analyze(project.path);
+        await FindingBaseline.fromResult(
+          original,
+        ).write(p.join(project.path, 'baseline.json'));
+        final service = await McpAnalysisService.create(project.path);
+        final before = await service.analyze();
+        final hidden = (before['summary'] as Map)['totalFindings'];
+        final empty = await service.analyze(baseline: 'baseline.json');
+        expect(empty['findings'], isEmpty);
+        expect((empty['summary'] as Map)['baselinedFindings'], hidden);
+        expect((empty['summary'] as Map)['totalFindings'], 0);
+        File(
+          p.join(project.path, 'lib', 'new.dart'),
+        ).writeAsStringSync('void newFunction() {}');
+        final updated = await service.analyze(baseline: 'baseline.json');
+        expect((updated['summary'] as Map)['baselinedFindings'], hidden);
+        expect(updated['findings'], isNotEmpty);
+        expect(
+          (updated['findings'] as List).cast<Map>().every(
+            (f) => f['path'] == 'lib/new.dart',
+          ),
+          isTrue,
+        );
+        expect(
+          (before['summary'] as Map).containsKey('baselinedFindings'),
+          isFalse,
+        );
+      },
+    );
+
+    test('rejects unsafe, missing, and malformed baselines', () async {
+      final project = await _createProject();
+      addTearDown(() => project.delete(recursive: true));
+      final service = await McpAnalysisService.create(project.path);
+      File(p.join(project.path, 'bad.json')).writeAsStringSync('{');
+      for (final baseline in [
+        '../outside.json',
+        '/outside.json',
+        'missing.json',
+        'bad.json',
+        'lib',
+        '',
+        'a' * 4097,
+        'bad\u0000.json',
+      ]) {
+        await expectLater(
+          service.analyze(baseline: baseline),
+          throwsA(isA<McpAnalysisException>()),
+        );
+      }
+      if (!Platform.isWindows) {
+        final outside = await Directory.systemTemp.createTemp(
+          'hyena_baseline_',
+        );
+        addTearDown(() => outside.delete(recursive: true));
+        final file = File(p.join(outside.path, 'baseline.json'))
+          ..writeAsStringSync('{}');
+        await Link(p.join(project.path, 'link.json')).create(file.path);
+        await expectLater(
+          service.analyze(baseline: 'link.json'),
+          throwsA(isA<McpAnalysisException>()),
+        );
+      }
+    });
     test('returns bounded structured findings with relative paths', () async {
       final project = await _createProject();
       addTearDown(() => project.delete(recursive: true));
@@ -315,6 +440,53 @@ hyena:
       expect(structured, isNotNull);
       expect(tool.outputSchema!.validate(structured), isEmpty);
       expect(structured!['target'], 'lib');
+
+      final original = await const AnalysisRunner().analyze(
+        p.join(project.path, 'lib'),
+      );
+      await FindingBaseline.fromResult(
+        original,
+      ).write(p.join(project.path, 'baseline.json'));
+      final pagedBaseline = await connection.callTool(
+        CallToolRequest(
+          name: tool.name,
+          arguments: {
+            'path': 'lib',
+            'offset': 1,
+            'limit': 1,
+            'baseline': 'baseline.json',
+          },
+        ),
+      );
+      expect(pagedBaseline.isError, isNot(isTrue));
+      expect(
+        tool.outputSchema!.validate(pagedBaseline.structuredContent),
+        isEmpty,
+      );
+      final baselineSummary =
+          pagedBaseline.structuredContent!['summary'] as Map;
+      expect(baselineSummary['offset'], 1);
+      expect(baselineSummary['limit'], 1);
+      expect(baselineSummary['totalFindings'], 0);
+      expect(baselineSummary['baselinedFindings'], greaterThan(0));
+      for (final arguments in [
+        {'offset': '1'},
+        {'offset': 1.5},
+        {'offset': true},
+        {'limit': false},
+        {'limit': 1.5},
+        {'limit': '1'},
+        {'offset': -1},
+        {'limit': 201},
+        {'baseline': 42},
+        {'baseline': '../outside.json'},
+        {'baseline': 'missing.json'},
+      ]) {
+        final invalidInput = await connection.callTool(
+          CallToolRequest(name: tool.name, arguments: arguments),
+        );
+        expect(invalidInput.isError, isTrue);
+      }
 
       final escaped = await connection.callTool(
         CallToolRequest(
