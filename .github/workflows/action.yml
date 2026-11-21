@@ -1,0 +1,46 @@
+name: GitHub Action
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    name: Test action.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Create sample package
+        shell: bash
+        run: |
+          mkdir -p sample/lib
+          printf 'name: sample\nenvironment:\n  sdk: ^3.11.0\n' > sample/pubspec.yaml
+          printf 'void main() {}\n\nvoid unusedHelper() {}\n' > sample/lib/main.dart
+      - id: hyena
+        uses: ./
+        continue-on-error: true
+        with:
+          working-directory: sample
+          path: lib
+          fail-on: dead-code
+          upload: "false"
+      - name: Check results
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.hyena.outcome }}
+          EXIT_CODE: ${{ steps.hyena.outputs.exit-code }}
+          SARIF: ${{ steps.hyena.outputs.sarif-file }}
+        run: |
+          test "$OUTCOME" = failure
+          test "$EXIT_CODE" = 1
+          grep -q '"uri": "sample/lib/main.dart"' "$SARIF"
+          grep -q 'Unused function unusedHelper' "$SARIF"

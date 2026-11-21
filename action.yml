@@ -1,0 +1,104 @@
+name: Hyena Dart
+description: Find dead code and complex functions in Dart and Flutter code, shown inline on pull requests through GitHub code scanning.
+author: Chandram Dutta
+branding:
+  icon: search
+  color: orange
+
+inputs:
+  path:
+    description: File or directory to analyze, relative to `working-directory`.
+    default: .
+  working-directory:
+    description: Package (or workspace) root to run Hyena from, relative to the repository root.
+    default: .
+  version:
+    description: hyena_dart version or version constraint to install from pub.dev.
+    default: ">=3.0.0 <4.0.0"
+  setup-dart:
+    description: Install the Dart SDK with dart-lang/setup-dart. Set to false when Dart or Flutter is already on PATH.
+    default: "true"
+  sdk:
+    description: Dart SDK channel or version for setup-dart.
+    default: stable
+  pub-get:
+    description: Run `dart pub get` in `working-directory` before analyzing. Set to false for Flutter projects and run `flutter pub get` yourself.
+    default: "true"
+  config:
+    description: Path to a Hyena config file, relative to `working-directory`.
+    default: ""
+  baseline:
+    description: Path to a Hyena baseline file, relative to `working-directory`. Baselined findings are not reported.
+    default: ""
+  fail-on:
+    description: Comma-separated categories (dead-code, complexity) that fail the step when found. Results are uploaded first.
+    default: ""
+  args:
+    description: Extra arguments passed to `hyena_dart analyze`, split on whitespace.
+    default: ""
+  upload:
+    description: "Upload the SARIF report to GitHub code scanning. Requires the `security-events: write` permission."
+    default: "true"
+  category:
+    description: Code scanning category, to keep runs for several packages apart.
+    default: hyena_dart
+  sarif-file:
+    description: Where to write the SARIF report. Defaults to a file in the runner's temp directory.
+    default: ""
+
+outputs:
+  sarif-file:
+    description: Path of the SARIF report.
+    value: ${{ steps.analyze.outputs.sarif-file }}
+  exit-code:
+    description: hyena_dart exit code (0 ok, 1 findings matched `fail-on`).
+    value: ${{ steps.analyze.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - if: inputs.setup-dart == 'true'
+      uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      with:
+        sdk: ${{ inputs.sdk }}
+
+    - name: Install hyena_dart
+      shell: bash
+      env:
+        HYENA_VERSION: ${{ inputs.version }}
+      run: dart pub global activate hyena_dart "$HYENA_VERSION"
+
+    - if: inputs.pub-get == 'true'
+      name: Resolve dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: dart pub get
+
+    - id: analyze
+      name: Run hyena_dart
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        HYENA_PATH: ${{ inputs.path }}
+        HYENA_WORKDIR: ${{ inputs.working-directory }}
+        HYENA_CONFIG: ${{ inputs.config }}
+        HYENA_BASELINE: ${{ inputs.baseline }}
+        HYENA_FAIL_ON: ${{ inputs.fail-on }}
+        HYENA_ARGS: ${{ inputs.args }}
+        HYENA_SARIF: ${{ inputs.sarif-file }}
+      run: bash "$GITHUB_ACTION_PATH/tool/github_action/analyze.sh"
+
+    - if: inputs.upload == 'true' && steps.analyze.outputs.sarif-file != ''
+      uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+      with:
+        sarif_file: ${{ steps.analyze.outputs.sarif-file }}
+        category: ${{ inputs.category }}
+
+    - if: steps.analyze.outputs.exit-code == '1'
+      name: Fail on findings
+      shell: bash
+      env:
+        HYENA_FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        echo "::error::hyena_dart found $HYENA_FAIL_ON findings."
+        exit 1
