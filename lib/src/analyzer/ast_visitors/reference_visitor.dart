@@ -162,10 +162,11 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitConstructorDeclaration(ConstructorDeclaration node) {
-    _visitInScope(
-      node.declaredFragment?.element,
-      () => super.visitConstructorDeclaration(node),
-    );
+    final element = node.declaredFragment?.element;
+    _visitInScope(element, () {
+      _recordElement(element?.superConstructor);
+      super.visitConstructorDeclaration(node);
+    });
   }
 
   @override

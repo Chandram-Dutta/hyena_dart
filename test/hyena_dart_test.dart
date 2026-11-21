@@ -831,6 +831,64 @@ void main() => Example.used();
       expect(constructors, isNot(contains('Example.used')));
     });
 
+    test('follows super calls only from reachable constructors', () async {
+      final libPath = await makeFixture('''
+class ImplicitBase {
+  ImplicitBase();
+  ImplicitBase.unused();
+}
+
+class ImplicitChild extends ImplicitBase {
+  ImplicitChild();
+}
+
+class ExplicitBase {
+  ExplicitBase(int value);
+}
+
+class ExplicitChild extends ExplicitBase {
+  ExplicitChild() : super(1);
+}
+
+class ForwardedBase {
+  ForwardedBase({required int value});
+}
+
+class ForwardedChild extends ForwardedBase {
+  ForwardedChild({required super.value});
+}
+
+class UnusedBase {
+  UnusedBase();
+}
+
+class UnusedChild extends UnusedBase {
+  UnusedChild() : super();
+}
+
+void main() {
+  ImplicitChild();
+  ExplicitChild();
+  ForwardedChild(value: 7);
+}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedConstructors = report.unusedEntities
+          .where((entity) => entity.type == EntityType.constructor)
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(report.skippedFiles, isEmpty);
+      expect(unusedConstructors, {
+        'ImplicitBase.unused',
+        'UnusedBase.new',
+        'UnusedChild.new',
+      });
+    });
+
     test('normalizes dot and trailing-separator target paths', () async {
       final libPath = await makeFixture('''
 void unused() {}
