@@ -10,6 +10,8 @@ import '../../models/complexity_metrics.dart';
 import '../source_suppression.dart';
 import 'ast_names.dart';
 
+typedef _SourceSpan = ({int start, int end});
+
 /// Collects [FunctionMetrics] for every function-like declaration in a
 /// compilation unit.
 class ComplexityVisitor extends RecursiveAstVisitor<void> {
@@ -234,7 +236,8 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
       node.accept(nestingCounter);
     }
 
-    final loc = _countLinesOfCode(executableNodes);
+    final nestedBodies = _nestedFunctionBodies(executableNodes);
+    final loc = _countLinesOfCode(executableNodes, nestedBodies);
     final paramCount = parameters?.parameters.length ?? 0;
     final location = lineInfo.getLocation(offset);
 
@@ -246,7 +249,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
       linesOfCode: loc,
       maxNestingLevel: nestingCounter.maxLevel,
       parameterCount: paramCount,
-      halsteadVolume: _calculateHalsteadVolume(executableNodes),
+      halsteadVolume: _calculateHalsteadVolume(executableNodes, nestedBodies),
       parentClass: parentClass,
       fingerprintName: fingerprintName,
       suppressedRules: suppressedRules,
@@ -269,25 +272,27 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     });
   }
 
-  int _countLinesOfCode(List<AstNode> nodes) {
+  int _countLinesOfCode(List<AstNode> nodes, List<_SourceSpan> nestedBodies) {
     final codeLines = <int>{};
-    final nestedBodies = _nestedFunctionBodies(nodes);
     for (final node in nodes) {
-      final nodeSource = source.substring(node.offset, node.end);
-      final sourceUnits = nodeSource.codeUnits.toList();
-      for (final nestedBody in nestedBodies) {
-        final start = math.max(nestedBody.offset, node.offset) - node.offset;
-        final end = math.min(nestedBody.end, node.end) - node.offset;
-        for (var index = start; index < end; index++) {
-          if (sourceUnits[index] != 10 && sourceUnits[index] != 13) {
-            sourceUnits[index] = 32;
+      final offset = node.offset;
+      final nodeEnd = node.end;
+      var nodeSource = source.substring(offset, nodeEnd);
+      if (nestedBodies.isNotEmpty) {
+        final sourceUnits = nodeSource.codeUnits.toList();
+        for (final nestedBody in nestedBodies) {
+          final start = math.max(nestedBody.start, offset) - offset;
+          final end = math.min(nestedBody.end, nodeEnd) - offset;
+          for (var index = start; index < end; index++) {
+            if (sourceUnits[index] != 10 && sourceUnits[index] != 13) {
+              sourceUnits[index] = 32;
+            }
           }
         }
+        nodeSource = String.fromCharCodes(sourceUnits);
       }
-      final firstLine = lineInfo.getLocation(node.offset).lineNumber;
-      final lines = const LineSplitter().convert(
-        String.fromCharCodes(sourceUnits),
-      );
+      final firstLine = lineInfo.getLocation(offset).lineNumber;
+      final lines = const LineSplitter().convert(nodeSource);
       for (var index = 0; index < lines.length; index++) {
         if (lines[index].trim().isNotEmpty) {
           codeLines.add(firstLine + index);
@@ -297,19 +302,29 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     return codeLines.length;
   }
 
-  double _calculateHalsteadVolume(List<AstNode> nodes) {
+  double _calculateHalsteadVolume(
+    List<AstNode> nodes,
+    List<_SourceSpan> nestedBodies,
+  ) {
     final uniqueOperators = <String>{};
     final uniqueOperands = <String>{};
     var operatorCount = 0;
     var operandCount = 0;
-    final nestedBodies = _nestedFunctionBodies(nodes);
+    // Advance through body ranges in the same source order as the tokens.
+    var nestedIndex = 0;
 
     for (final node in nodes) {
       var token = node.beginToken;
+      final endToken = node.endToken;
       while (true) {
-        final belongsToNestedBody = nestedBodies.any(
-          (body) => token.offset >= body.offset && token.offset < body.end,
-        );
+        final offset = token.offset;
+        while (nestedIndex < nestedBodies.length &&
+            nestedBodies[nestedIndex].end <= offset) {
+          nestedIndex++;
+        }
+        final belongsToNestedBody =
+            nestedIndex < nestedBodies.length &&
+            nestedBodies[nestedIndex].start <= offset;
         if (!belongsToNestedBody && _isOperand(token)) {
           uniqueOperands.add(token.lexeme);
           operandCount++;
@@ -317,7 +332,7 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
           uniqueOperators.add(token.lexeme);
           operatorCount++;
         }
-        if (identical(token, node.endToken)) break;
+        if (identical(token, endToken)) break;
         final next = token.next;
         if (next == null) break;
         token = next;
@@ -330,12 +345,13 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
     return length * (math.log(vocabulary) / math.ln2);
   }
 
-  List<FunctionBody> _nestedFunctionBodies(List<AstNode> nodes) {
+  List<_SourceSpan> _nestedFunctionBodies(List<AstNode> nodes) {
     final collector = _NestedFunctionBodyCollector();
     for (final node in nodes) {
       node.accept(collector);
     }
-    return collector.bodies;
+    return collector.bodies
+      ..sort((left, right) => left.start.compareTo(right.start));
   }
 
   bool _isOperand(Token token) {
@@ -367,11 +383,12 @@ class ComplexityVisitor extends RecursiveAstVisitor<void> {
 }
 
 class _NestedFunctionBodyCollector extends RecursiveAstVisitor<void> {
-  final List<FunctionBody> bodies = [];
+  final List<_SourceSpan> bodies = [];
 
   @override
   void visitFunctionExpression(FunctionExpression node) {
-    bodies.add(node.body);
+    final body = node.body;
+    bodies.add((start: body.offset, end: body.end));
   }
 }
 
