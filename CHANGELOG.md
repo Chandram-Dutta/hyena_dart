@@ -8,6 +8,7 @@
 ### Fixed
 - Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings.
 - Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument other than literal `false`.
+- Do not report enhanced enum constructors as unused when invoked by reachable enum constants.
 
 ## [3.0.1] - 2026-11-21
 
