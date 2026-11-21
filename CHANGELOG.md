@@ -1,3 +1,8 @@
+## [Unreleased]
+
+### Fixed
+- Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings.
+
 ## [3.0.1] - 2026-11-21
 
 ### Added
