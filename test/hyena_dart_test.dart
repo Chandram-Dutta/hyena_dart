@@ -502,6 +502,78 @@ void main() {
       expect(unusedNames, isNot(contains('_dynamicHelper')));
     });
 
+    test('keeps operators used through operator syntax reachable', () async {
+      final libPath = await makeFixture('''
+class Vec {
+  final int x;
+  const Vec(this.x);
+
+  Vec operator +(Vec other) => Vec(_plus(x, other.x));
+  Vec operator -(Vec other) => Vec(_minus(x, other.x));
+  Vec operator ~() => Vec(_invert(x));
+  bool operator <(Vec other) => _lessThan(x, other.x);
+  int operator [](int index) => _read(index);
+  void operator []=(int index, int value) => _write(index, value);
+  int call(int value) => _call(value);
+  Vec operator *(Vec other) => Vec(_times(x, other.x));
+
+  static int _plus(int a, int b) => a + b;
+  static int _minus(int a, int b) => a - b;
+  static int _invert(int a) => ~a;
+  static bool _lessThan(int a, int b) => a < b;
+  static int _read(int index) => index;
+  static void _write(int index, int value) {}
+  static int _call(int value) => value;
+  static int _times(int a, int b) => a * b;
+}
+
+void main() {
+  var v = const Vec(1) + const Vec(2);
+  v -= const Vec(1);
+  print(~v);
+  if (v case < const Vec(3)) print(v[0]);
+  v[0] = 1;
+  print(v(2));
+}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, {'Vec.*', 'Vec._times'});
+    });
+
+    test(
+      'keeps a callable object\'s call method reachable when torn off',
+      () async {
+        final libPath = await makeFixture('''
+class Callable {
+  int call(int value) => _helper(value);
+  static int _helper(int value) => value;
+}
+
+void main() {
+  final int Function(int) function = Callable();
+  print(function(1));
+}
+''');
+
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(ignoreExports: false),
+        ).analyze(libPath);
+        final unusedNames = report.unusedEntities
+            .map((entity) => entity.fullName)
+            .toSet();
+
+        expect(unusedNames, isNot(contains('Callable.call')));
+        expect(unusedNames, isNot(contains('Callable._helper')));
+      },
+    );
+
     test('reports unused explicit constructors', () async {
       final libPath = await makeFixture('''
 class Example {
