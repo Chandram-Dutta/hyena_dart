@@ -1,2 +1,2 @@
 /// The version of the hyena_dart package; matches `pubspec.yaml`.
-const hyenaVersion = '3.1.0';
+const hyenaVersion = '3.2.0';
