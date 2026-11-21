@@ -1,18 +1,28 @@
 ## [Unreleased]
 
+### Fixed
+- Do not report enhanced enum constructors as unused when invoked by reachable enum constants.
+
+## [3.1.0] - 2026-11-21
+
 ### Added
-- `--fail-on-skipped` on all analysis commands exits `2` if any file is skipped
-- SARIF reports include invocation status and one warning notification per skipped file, with its reason and relative file location
-- CLI JSON reports include `schemaVersion: 1` and a published JSON Schema at `schema/report.schema.json` for single-package and workspace reports.
-- Page through all `hyena_analyze` MCP findings with `offset`, `limit`, and `summary.nextOffset`, including findings within a single file.
-- Apply CLI-written baselines with the MCP tool's workspace-relative `baseline` input; summaries report hidden findings in `baselinedFindings` and totals after suppression.
+- `--fail-on-skipped` on all analysis commands exits `2` if any file is skipped. ([#23](https://github.com/Chandram-Dutta/hyena_dart/pull/23))
+- SARIF reports include invocation status and one warning notification per skipped file, with its reason and relative file location. ([#23](https://github.com/Chandram-Dutta/hyena_dart/pull/23))
+- CLI JSON reports include `schemaVersion: 1` and a published JSON Schema at `schema/report.schema.json` for single-package and workspace reports. ([#21](https://github.com/Chandram-Dutta/hyena_dart/pull/21))
+- Page through all `hyena_analyze` MCP findings with `offset`, `limit`, and `summary.nextOffset`, including findings within a single file. ([#25](https://github.com/Chandram-Dutta/hyena_dart/pull/25))
+- Apply CLI-written baselines with the MCP tool's workspace-relative `baseline` input; summaries report hidden findings in `baselinedFindings` and totals after suppression. ([#25](https://github.com/Chandram-Dutta/hyena_dart/pull/25))
+
+### Changed
+- Speed up complexity scans with nested functions by avoiding repeated AST walks. ([#19](https://github.com/Chandram-Dutta/hyena_dart/pull/19))
 
 ### Fixed
-- Runs with `--fail-on` now exit `2` when every file is skipped, instead of passing a finding gate without analyzing any files
-- Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings.
-- Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument other than literal `false`.
-- Keep getters and fields read only through object patterns (`case Point(:final x)`, `final Point(:x) = p`, nested record destructuring) out of dead-code findings.
-- Do not report enhanced enum constructors as unused when invoked by reachable enum constants.
+- Keep superclass constructors live when invoked by reachable constructors implicitly, through `super(...)`, or through `super.` parameters. ([#28](https://github.com/Chandram-Dutta/hyena_dart/pull/28))
+- Runs with `--fail-on` now exit `2` when every file is skipped, instead of passing a finding gate without analyzing any files. ([#23](https://github.com/Chandram-Dutta/hyena_dart/pull/23))
+- Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings. ([#20](https://github.com/Chandram-Dutta/hyena_dart/pull/20))
+- Keep enum constants live when referenced through the enum's `values` property. ([#22](https://github.com/Chandram-Dutta/hyena_dart/pull/22))
+- Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument other than literal `false`. ([#24](https://github.com/Chandram-Dutta/hyena_dart/pull/24))
+- Keep overloaded operators live when used through operator syntax, including compound assignments and increment/decrement expressions. ([#26](https://github.com/Chandram-Dutta/hyena_dart/pull/26))
+- Keep getters and fields read only through object patterns (`case Point(:final x)`, `final Point(:x) = p`, nested record destructuring) out of dead-code findings. ([#29](https://github.com/Chandram-Dutta/hyena_dart/pull/29))
 
 ## [3.0.1] - 2026-11-21
 
