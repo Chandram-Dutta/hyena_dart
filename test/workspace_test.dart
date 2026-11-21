@@ -53,6 +53,115 @@ void main() {
       },
     );
 
+    test('workspace overrides replace missing checkout members', () async {
+      await Directory(
+        p.join(workspace.path, 'packages', 'second'),
+      ).delete(recursive: true);
+      File(
+        p.join(workspace.path, 'pubspec_overrides.yaml'),
+      ).writeAsStringSync('workspace: [packages/first]\n');
+
+      final result = await const AnalysisRunner().analyze(
+        workspace.path,
+        includeDeadCode: false,
+      );
+
+      expect(result.packageAnalyses.map((analysis) => analysis.packageName), [
+        'workspace_root',
+        'first_package',
+      ]);
+    });
+
+    for (final value in ['[]', 'null']) {
+      test('workspace override $value removes all members', () async {
+        File(
+          p.join(workspace.path, 'pubspec_overrides.yaml'),
+        ).writeAsStringSync('workspace: $value\n');
+        final result = await const AnalysisRunner().analyze(
+          workspace.path,
+          includeDeadCode: false,
+        );
+        expect(result.packageAnalyses.map((analysis) => analysis.packageName), [
+          'workspace_root',
+        ]);
+      });
+    }
+
+    test('nested workspace overrides replace member workspace lists', () async {
+      File(
+        p.join(workspace.path, 'packages', 'first', 'pubspec.yaml'),
+      ).writeAsStringSync(
+        'name: first_package\nresolution: workspace\nworkspace: [missing]\n',
+      );
+      File(
+        p.join(workspace.path, 'packages', 'first', 'pubspec_overrides.yaml'),
+      ).writeAsStringSync('workspace: []\n');
+      final result = await const AnalysisRunner().analyze(
+        workspace.path,
+        includeDeadCode: false,
+      );
+      expect(result.packageAnalyses, hasLength(3));
+    });
+
+    test('override without workspace preserves the pubspec list', () async {
+      File(
+        p.join(workspace.path, 'pubspec_overrides.yaml'),
+      ).writeAsStringSync('dependency_overrides: {}\n');
+      final result = await const AnalysisRunner().analyze(
+        workspace.path,
+        includeDeadCode: false,
+      );
+      expect(result.packageAnalyses, hasLength(3));
+    });
+
+    test('rejects malformed workspace overrides', () async {
+      File(
+        p.join(workspace.path, 'pubspec_overrides.yaml'),
+      ).writeAsStringSync('workspace: invalid\n');
+      await expectLater(
+        const AnalysisRunner().analyze(workspace.path, includeDeadCode: false),
+        throwsFormatException,
+      );
+    });
+
+    test('workspace overrides can introduce a workspace', () async {
+      File(
+        p.join(workspace.path, 'pubspec.yaml'),
+      ).writeAsStringSync('name: workspace_root\n');
+      File(
+        p.join(workspace.path, 'pubspec_overrides.yaml'),
+      ).writeAsStringSync('workspace: [packages/first]\n');
+      final result = await const AnalysisRunner().analyze(
+        workspace.path,
+        includeDeadCode: false,
+      );
+      expect(result.packageAnalyses.map((analysis) => analysis.packageName), [
+        'workspace_root',
+        'first_package',
+      ]);
+    });
+
+    test('empty overrides preserve the pubspec workspace', () async {
+      File(
+        p.join(workspace.path, 'pubspec_overrides.yaml'),
+      ).writeAsStringSync('');
+      final result = await const AnalysisRunner().analyze(
+        workspace.path,
+        includeDeadCode: false,
+      );
+      expect(result.packageAnalyses, hasLength(3));
+    });
+
+    test('rejects non-map overrides', () async {
+      File(
+        p.join(workspace.path, 'pubspec_overrides.yaml'),
+      ).writeAsStringSync('[invalid]\n');
+      await expectLater(
+        const AnalysisRunner().analyze(workspace.path, includeDeadCode: false),
+        throwsFormatException,
+      );
+    });
+
     test('CLI emits package-scoped JSON for a workspace root', () async {
       final output = <String>[];
       final exitCode = await runZoned(
