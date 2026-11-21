@@ -490,7 +490,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: Chandram-Dutta/hyena_dart@main
+      - uses: Chandram-Dutta/hyena_dart@v3.0.1
         with:
           path: lib
 ```
