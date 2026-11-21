@@ -81,7 +81,6 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       env:
         HYENA_PATH: ${{ inputs.path }}
-        HYENA_WORKDIR: ${{ inputs.working-directory }}
         HYENA_CONFIG: ${{ inputs.config }}
         HYENA_BASELINE: ${{ inputs.baseline }}
         HYENA_FAIL_ON: ${{ inputs.fail-on }}
