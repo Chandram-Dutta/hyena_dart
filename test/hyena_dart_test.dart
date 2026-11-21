@@ -474,6 +474,89 @@ void main() {
       expect(names, isNot(contains('Bar.counter')));
     });
 
+    for (final patternCase in <String, String>{
+      'switch shorthand': '''
+  switch (p) {
+    case Point(:final x): print(x);
+  }
+''',
+      'if-case explicit field': '''
+  if (p case Point(y: var b)) print(b);
+''',
+      'destructuring shorthand': '''
+  final Point(:x) = p;
+  print(x);
+''',
+      'nested record destructuring': '''
+  final (Point(:x), y) = (p, 2);
+  print(x + y);
+''',
+      'extension getter': '''
+  if (p case Point(:final extra)) print(extra);
+''',
+    }.entries) {
+      test('pattern reads keep ${patternCase.key} reachable', () async {
+        final libPath = await makeFixture('''
+class Point {
+  int get x => helper();
+  final int y = 2;
+  int get unused => 3;
+}
+int helper() => 1;
+extension PointExtra on Point {
+  int get extra => helper();
+}
+void main() {
+  final p = Point();
+${patternCase.value}
+}
+''');
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(ignoreExports: false),
+        ).analyze(libPath);
+        final names = report.unusedEntities.map((e) => e.fullName).toSet();
+        final usesField = patternCase.key == 'if-case explicit field';
+        final usesExtension = patternCase.key == 'extension getter';
+        expect(report.skippedFiles, isEmpty);
+        expect(names, contains('Point.unused'));
+        expect(names.contains('Point.x'), usesField || usesExtension);
+        expect(names.contains('Point.y'), !usesField);
+        expect(names.contains('PointExtra'), !usesExtension);
+        expect(names.contains('PointExtra.extra'), !usesExtension);
+        expect(names.contains('helper'), usesField);
+      });
+    }
+
+    test(
+      'pattern reads do not root unreachable getters or namesakes',
+      () async {
+        final libPath = await makeFixture('''
+class Point {
+  int get x => 1;
+}
+class Other {
+  int get x => 2;
+}
+void unreachable(Point p) {
+  final Point(:x) = p;
+  print(x);
+}
+void main() {
+  final rec = (name: 'Ada', age: 37);
+  final (:name, :age) = rec;
+  print('\$name \$age');
+  if (rec case (name: var v, age: _)) print(v);
+}
+''');
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(ignoreExports: false),
+        ).analyze(libPath);
+        final names = report.unusedEntities.map((e) => e.fullName).toSet();
+        expect(report.skippedFiles, isEmpty);
+        expect(names, containsAll(['Point.x', 'Other.x', 'unreachable']));
+      },
+    );
+
     test('flags unused getter and setter, keeps used ones', () async {
       final libPath = await makeFixture('''
 class Holder {
