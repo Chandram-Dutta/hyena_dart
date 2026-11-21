@@ -18,5 +18,8 @@ disclosure and a fix when warranted.
 
 Hyena parses untrusted source repositories, but its CLI runs with the invoking
 user's filesystem permissions. The MCP server does not execute target code and
-confines requested targets to its configured workspace root; Dart analysis may
+confines requested targets and optional baseline JSON files to its configured
+workspace root, checking normalized and symlink-resolved paths. Pagination
+inputs are bounded integers and each response returns at most 200 findings.
+Baseline files are read only, never modified. Dart analysis may
 still read installed SDK and resolved dependency sources outside that root.
