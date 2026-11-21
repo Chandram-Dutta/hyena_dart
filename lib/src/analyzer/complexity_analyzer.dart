@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/analysis_context.dart';
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/analysis/results.dart';
@@ -78,23 +79,10 @@ class ComplexityAnalyzer {
       }
 
       try {
-        final context = collection.contextFor(file);
-        final package = context.contextRoot.workspace.packages.packageForPath(
+        final featureSet = _featureSetFor(
+          collection.contextFor(file),
           file,
-        );
-        final features = context
-            .getAnalysisOptionsForFile(
-              context.contextRoot.resourceProvider.getFile(file),
-            )
-            .contextFeatures;
-        final featureSet = featureSets.putIfAbsent(
-          (features, package?.rootFolder.path),
-          () {
-            final version = package?.languageVersion;
-            return version == null
-                ? features
-                : features.restrictToVersion(version);
-          },
+          featureSets,
         );
         fileMetrics.add(await _analyzeFile(file, featureSet));
       } on _SkipFile catch (skip) {
@@ -116,6 +104,23 @@ class ComplexityAnalyzer {
       maxParameters: config.maxParameters,
       skippedFiles: skippedFiles,
     );
+  }
+
+  FeatureSet _featureSetFor(
+    AnalysisContext context,
+    String file,
+    Map<(FeatureSet, String?), FeatureSet> cache,
+  ) {
+    final package = context.contextRoot.workspace.packages.packageForPath(file);
+    final features = context
+        .getAnalysisOptionsForFile(
+          context.contextRoot.resourceProvider.getFile(file),
+        )
+        .contextFeatures;
+    return cache.putIfAbsent((features, package?.rootFolder.path), () {
+      final version = package?.languageVersion;
+      return version == null ? features : features.restrictToVersion(version);
+    });
   }
 
   Future<List<String>> _collectDartFiles(String targetPath) async {
@@ -211,7 +216,6 @@ class ComplexityAnalyzer {
     } on ArgumentError catch (error) {
       throw _SkipFile(singleLineReason('Could not parse: ${error.message}'));
     }
-    final lineInfo = result.lineInfo;
     final errors = result.errors
         .where(
           (diagnostic) =>
@@ -220,7 +224,7 @@ class ComplexityAnalyzer {
         .toList();
     if (errors.isNotEmpty) {
       final first = errors.first;
-      final line = lineInfo.getLocation(first.offset).lineNumber;
+      final line = result.lineInfo.getLocation(first.offset).lineNumber;
       throw _SkipFile(
         singleLineReason(
           '${errors.length} syntax error${errors.length == 1 ? '' : 's'}'
@@ -229,7 +233,11 @@ class ComplexityAnalyzer {
       );
     }
 
-    final complexityVisitor = ComplexityVisitor(filePath, lineInfo, content);
+    final complexityVisitor = ComplexityVisitor(
+      filePath,
+      result.lineInfo,
+      content,
+    );
     result.unit.accept(complexityVisitor);
 
     final lines = const LineSplitter().convert(content);
