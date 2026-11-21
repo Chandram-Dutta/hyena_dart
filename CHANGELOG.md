@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Treat files with a leading generated-code header as generated: preserve their references without reporting their declarations or complexity.
 - Keep instance field initializer dependencies reachable when their class is instantiated, without retaining initializers of unused classes or unused static fields.
 - Honor `pubspec_overrides.yaml` workspace lists, including nested members and empty overrides, when discovering workspace packages.
 - Respect package language versions and per-file language overrides when computing complexity metrics instead of skipping valid older Dart syntax.

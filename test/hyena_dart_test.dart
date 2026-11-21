@@ -174,6 +174,35 @@ environment:
       }
     });
 
+    test('generated headers are reference-only, not later mentions', () async {
+      final target = await makeFixture(
+        '''
+class KeptByGenerated {}
+void main() {}
+// GENERATED CODE - DO NOT MODIFY BY HAND
+class StillUnused {}
+const laterString = 'GENERATED CODE - DO NOT MODIFY BY HAND';
+''',
+        additionalFiles: {
+          'foo.mapper.dart': '''
+// GENERATED CODE - DO NOT MODIFY BY HAND
+import 'lib.dart';
+class UnusedGenerated {}
+KeptByGenerated create() => KeptByGenerated();
+''',
+        },
+      );
+      final report = await DeadCodeAnalyzer(AnalyzerConfig()).analyze(target);
+      expect(report.unusedEntities.map((e) => e.name).toSet(), {
+        'StillUnused',
+        'laterString',
+      });
+      final complexity = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(target);
+      expect(complexity.files.map((f) => p.basename(f.filePath)), ['lib.dart']);
+    });
+
     group('enum values reachability', () {
       final cases = <String, (String, Set<String>)>{
         'iteration': (

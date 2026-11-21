@@ -15,6 +15,7 @@ import '../config/analyzer_config.dart';
 import '../models/complexity_metrics.dart';
 import '../models/skipped_file.dart';
 import 'ast_visitors/complexity_visitor.dart';
+import 'generated_file.dart';
 
 /// Reads the source text of a Dart file. Used by [ComplexityAnalyzer] and
 /// replaceable in tests to simulate unreadable files.
@@ -84,7 +85,8 @@ class ComplexityAnalyzer {
           file,
           featureSets,
         );
-        fileMetrics.add(await _analyzeFile(file, featureSet));
+        final metrics = await _analyzeFile(file, featureSet);
+        if (metrics != null) fileMetrics.add(metrics);
       } on _SkipFile catch (skip) {
         skippedFiles.add(SkippedFile(filePath: file, reason: skip.reason));
       } catch (error) {
@@ -173,9 +175,7 @@ class ComplexityAnalyzer {
       }
     }
 
-    if (normalizedPath.endsWith('.g.dart') ||
-        normalizedPath.endsWith('.freezed.dart') ||
-        normalizedPath.endsWith('.mocks.dart')) {
+    if (GeneratedFiles.hasGeneratedSuffix(normalizedPath)) {
       return true;
     }
 
@@ -189,7 +189,7 @@ class ComplexityAnalyzer {
     return false;
   }
 
-  Future<FileMetrics> _analyzeFile(
+  Future<FileMetrics?> _analyzeFile(
     String filePath,
     FeatureSet featureSet,
   ) async {
@@ -205,6 +205,7 @@ class ComplexityAnalyzer {
         ),
       );
     }
+    if (GeneratedFiles.hasGeneratedHeader(content)) return null;
     final ParseStringResult result;
     try {
       result = parseString(
