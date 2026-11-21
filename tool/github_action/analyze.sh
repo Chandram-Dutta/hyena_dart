@@ -14,7 +14,7 @@ args=(analyze "${HYENA_PATH:-.}" --format=sarif "--output=$sarif")
 [[ -n "${HYENA_CONFIG:-}" ]] && args+=("--config=$HYENA_CONFIG")
 [[ -n "${HYENA_BASELINE:-}" ]] && args+=("--baseline=$HYENA_BASELINE")
 [[ -n "${HYENA_FAIL_ON:-}" ]] && args+=("--fail-on=$HYENA_FAIL_ON")
-read -r -a extra <<< "${HYENA_ARGS:-}"
+read -r -d '' -a extra <<< "${HYENA_ARGS:-}" || true
 args+=(${extra[@]+"${extra[@]}"})
 
 dart pub global run hyena_dart "${args[@]}"
@@ -24,12 +24,6 @@ if [[ $code -ne 0 && $code -ne 1 ]]; then
   exit "$code"
 fi
 
-prefix="${HYENA_WORKDIR:-.}"
-prefix="${prefix#./}"
-prefix="${prefix%/}"
-if [[ -n "$prefix" && "$prefix" != "." ]]; then
-  escaped=$(printf '%s' "$prefix" | sed 's/[&#\\]/\\&/g')
-  sed "s#\"uri\": \"#\"uri\": \"$escaped/#" "$sarif" > "$sarif.tmp" &&
-    mv "$sarif.tmp" "$sarif"
-fi
+dart "$(dirname "$0")/rebase_sarif.dart" "$sarif" "${HYENA_PATH:-.}" \
+  "${GITHUB_WORKSPACE:-$PWD}" || exit 2
 echo "sarif-file=$sarif" >> "$GITHUB_OUTPUT"

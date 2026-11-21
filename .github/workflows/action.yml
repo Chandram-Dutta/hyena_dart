@@ -44,3 +44,29 @@ jobs:
           test "$EXIT_CODE" = 1
           grep -q '"uri": "sample/lib/main.dart"' "$SARIF"
           grep -q 'Unused function unusedHelper' "$SARIF"
+      - name: Resolve sample dependencies
+        shell: bash
+        working-directory: sample
+        run: dart pub get
+      - id: nested
+        uses: ./
+        continue-on-error: true
+        with:
+          path: sample/lib
+          pub-get: "false"
+          setup-dart: "false"
+          upload: "false"
+          sarif-file: nested.sarif
+          args: |
+            --no-complexity
+            --fail-on=dead-code
+      - name: Check nested target results
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.nested.outcome }}
+          EXIT_CODE: ${{ steps.nested.outputs.exit-code }}
+          SARIF: ${{ steps.nested.outputs.sarif-file }}
+        run: |
+          test "$OUTCOME" = failure
+          test "$EXIT_CODE" = 1
+          grep -q '"uri": "sample/lib/main.dart"' "$SARIF"
