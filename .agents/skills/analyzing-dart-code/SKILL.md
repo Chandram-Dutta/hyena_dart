@@ -34,8 +34,14 @@ Examples:
 - One file's complexity: `path: "lib/src/example.dart"`,
   `checks: "complexity"`
 
-If results are truncated, analyze a narrower directory or file. Do not try to
-bypass the MCP server's workspace, size, or time limits.
+Use `limit` (1–200, default 200) to choose the page size and `offset` (default
+0) to start within the sorted path/line/rule finding list. If results are
+truncated, repeat the same request with `offset: summary.nextOffset` until
+`nextOffset` is absent. Keep sources unchanged while paging. An optional
+`baseline` path, relative to the workspace root, loads a CLI-written baseline
+before paging; `summary.baselinedFindings` counts hidden findings and
+`summary.totalFindings` counts those remaining. Do not try to bypass the MCP
+server's workspace, size, or time limits.
 
 ## CLI fallback
 

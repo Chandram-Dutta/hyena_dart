@@ -291,6 +291,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitAssignmentExpression(AssignmentExpression node) {
+    _recordElement(node.element);
     _recordElement(node.readElement);
     _recordElement(node.writeElement);
     super.visitAssignmentExpression(node);
@@ -298,6 +299,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitPostfixExpression(PostfixExpression node) {
+    _recordElement(node.element);
     _recordElement(node.readElement);
     _recordElement(node.writeElement);
     super.visitPostfixExpression(node);
@@ -305,9 +307,40 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitPrefixExpression(PrefixExpression node) {
+    _recordElement(node.element);
     _recordElement(node.readElement);
     _recordElement(node.writeElement);
     super.visitPrefixExpression(node);
+  }
+
+  @override
+  void visitBinaryExpression(BinaryExpression node) {
+    _recordElement(node.element);
+    super.visitBinaryExpression(node);
+  }
+
+  @override
+  void visitIndexExpression(IndexExpression node) {
+    _recordElement(node.element);
+    super.visitIndexExpression(node);
+  }
+
+  @override
+  void visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
+    _recordElement(node.element);
+    super.visitFunctionExpressionInvocation(node);
+  }
+
+  @override
+  void visitImplicitCallReference(ImplicitCallReference node) {
+    _recordElement(node.element);
+    super.visitImplicitCallReference(node);
+  }
+
+  @override
+  void visitRelationalPattern(RelationalPattern node) {
+    _recordElement(node.element);
+    super.visitRelationalPattern(node);
   }
 
   @override

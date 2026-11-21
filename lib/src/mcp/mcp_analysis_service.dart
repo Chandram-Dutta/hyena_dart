@@ -8,6 +8,7 @@ import '../analyzer/analysis_runner.dart';
 import '../models/analysis_finding.dart';
 import '../models/complexity_metrics.dart';
 import '../models/dead_code_report.dart';
+import '../models/finding_baseline.dart';
 import '../models/skipped_file.dart';
 
 const _maxPathLength = 4096;
@@ -88,7 +89,19 @@ class McpAnalysisService {
   Future<Map<String, Object?>> analyze({
     String targetPath = '.',
     String checks = 'both',
+    int offset = 0,
+    int? limit,
+    String? baseline,
   }) async {
+    if (offset < 0) {
+      throw const McpAnalysisException('Offset must be an integer >= 0.');
+    }
+    limit ??= limits.maxFindings;
+    if (limit < 1 || limit > limits.maxFindings) {
+      throw McpAnalysisException(
+        'Limit must be an integer from 1 to ${limits.maxFindings}.',
+      );
+    }
     if (!const {'both', 'dead-code', 'complexity'}.contains(checks)) {
       throw const McpAnalysisException(
         'Checks must be both, dead-code, or complexity.',
@@ -105,7 +118,24 @@ class McpAnalysisService {
     _cancellation = cancellation;
     try {
       final target = await _resolveTarget(targetPath);
-      return await _runWorker(target, checks, cancellation);
+      String? baselinePath;
+      if (baseline != null) {
+        try {
+          baselinePath = await _resolveTarget(baseline, baseline: true);
+        } on McpAnalysisException catch (error) {
+          throw McpAnalysisException('Invalid baseline: ${error.message}');
+        } on FileSystemException {
+          throw const McpAnalysisException('Baseline file could not be read.');
+        }
+      }
+      return await _runWorker(
+        target,
+        checks,
+        cancellation,
+        offset,
+        limit,
+        baselinePath,
+      );
     } finally {
       if (identical(_cancellation, cancellation)) _cancellation = null;
       _analysisInProgress = false;
@@ -120,34 +150,38 @@ class McpAnalysisService {
     }
   }
 
-  Future<String> _resolveTarget(String requestedPath) async {
+  Future<String> _resolveTarget(
+    String requestedPath, {
+    bool baseline = false,
+  }) async {
+    final label = baseline ? 'Baseline' : 'Target';
     if (requestedPath.isEmpty || requestedPath.contains('\u0000')) {
-      throw const McpAnalysisException(
-        'Target path must not be empty or contain NUL characters.',
+      throw McpAnalysisException(
+        '$label path must not be empty or contain NUL characters.',
       );
     }
     if (requestedPath.length > _maxPathLength) {
-      throw const McpAnalysisException(
-        'Target path exceeds the 4096 character safety limit.',
+      throw McpAnalysisException(
+        '$label path exceeds the 4096 character safety limit.',
       );
     }
     if (p.isAbsolute(requestedPath)) {
-      throw const McpAnalysisException(
-        'Target path must be relative to the configured workspace root.',
+      throw McpAnalysisException(
+        '$label path must be relative to the configured workspace root.',
       );
     }
 
     final candidate = p.normalize(p.join(rootPath, requestedPath));
     if (!_isWithinOrEqual(rootPath, candidate)) {
-      throw const McpAnalysisException(
-        'Target path is outside the configured workspace root.',
+      throw McpAnalysisException(
+        '$label path is outside the configured workspace root.',
       );
     }
 
     final type = await FileSystemEntity.type(candidate, followLinks: true);
     if (type != FileSystemEntityType.file &&
         type != FileSystemEntityType.directory) {
-      throw const McpAnalysisException('Target path does not exist.');
+      throw McpAnalysisException('$label path does not exist.');
     }
 
     final resolved = p.normalize(
@@ -156,11 +190,16 @@ class McpAnalysisService {
           : await Directory(candidate).resolveSymbolicLinks(),
     );
     if (!_isWithinOrEqual(rootPath, resolved)) {
-      throw const McpAnalysisException(
-        'Target path resolves outside the configured workspace root.',
+      throw McpAnalysisException(
+        '$label path resolves outside the configured workspace root.',
       );
     }
-    if (type == FileSystemEntityType.file && !resolved.endsWith('.dart')) {
+    if (baseline && type != FileSystemEntityType.file) {
+      throw const McpAnalysisException('Baseline path must be a file.');
+    }
+    if (!baseline &&
+        type == FileSystemEntityType.file &&
+        !resolved.endsWith('.dart')) {
       throw const McpAnalysisException(
         'Target file must be a Dart source file.',
       );
@@ -172,6 +211,9 @@ class McpAnalysisService {
     String targetPath,
     String checks,
     Completer<void> cancellation,
+    int offset,
+    int limit,
+    String? baselinePath,
   ) async {
     final responsePort = ReceivePort();
     Isolate? isolate;
@@ -184,9 +226,11 @@ class McpAnalysisService {
         rootPath,
         targetPath,
         checks,
-        limits.maxFindings,
+        limit,
         limits.maxDartFiles,
         limits.maxSourceBytes,
+        offset,
+        baselinePath,
       ]);
 
       final response = await Future.any<Object?>([
@@ -234,6 +278,8 @@ void _analysisWorker(List<Object?> message) async {
   final maxFindings = message[4] as int;
   final maxDartFiles = message[5] as int;
   final maxSourceBytes = message[6] as int;
+  final offset = message[7] as int;
+  final baselinePath = message[8] as String?;
 
   try {
     await _validateTargetContents(
@@ -246,6 +292,8 @@ void _analysisWorker(List<Object?> message) async {
       targetPath: targetPath,
       checks: checks,
       maxFindings: maxFindings,
+      offset: offset,
+      baselinePath: baselinePath,
     );
     sendPort.send(<String, Object?>{'result': result});
   } on McpAnalysisException catch (error) {
@@ -333,18 +381,35 @@ Future<Map<String, Object?>> _performAnalysis({
   required String targetPath,
   required String checks,
   required int maxFindings,
+  required int offset,
+  required String? baselinePath,
 }) async {
   final stopwatch = Stopwatch()..start();
 
   final includeDeadCode = checks == 'both' || checks == 'dead-code';
   final includeComplexity = checks == 'both' || checks == 'complexity';
-  final analysisResult = await const AnalysisRunner().analyze(
+  var analysisResult = await const AnalysisRunner().analyze(
     targetPath,
     searchBoundary: rootPath,
     includeDeadCode: includeDeadCode,
     includeComplexity: includeComplexity,
   );
   stopwatch.stop();
+
+  var baselinedFindings = 0;
+  if (baselinePath != null) {
+    try {
+      final baseline = await FindingBaseline.load(baselinePath);
+      final originalCount = AnalysisFinding.fromResult(analysisResult).length;
+      analysisResult = baseline.apply(analysisResult);
+      baselinedFindings =
+          originalCount - AnalysisFinding.fromResult(analysisResult).length;
+    } on FormatException catch (error) {
+      throw McpAnalysisException(error.message);
+    } on FileSystemException {
+      throw const McpAnalysisException('Baseline file could not be read.');
+    }
+  }
 
   final packageAnalyses = analysisResult.packageAnalyses.toList();
   final deadCodeReports = packageAnalyses
@@ -364,7 +429,9 @@ Future<Map<String, Object?>> _performAnalysis({
           if (lineComparison != 0) return lineComparison;
           return left.ruleId.compareTo(right.ruleId);
         });
-  final returnedFindings = findings.take(maxFindings).toList();
+  final returnedFindings = findings.skip(offset).take(maxFindings).toList();
+  final nextOffset = offset + returnedFindings.length;
+  final truncated = nextOffset < findings.length;
   final skippedFiles = <Map<String, Object?>>[
     for (final report in deadCodeReports)
       for (final skipped in report.skippedFiles)
@@ -377,7 +444,11 @@ Future<Map<String, Object?>> _performAnalysis({
   final summary = <String, Object?>{
     'totalFindings': findings.length,
     'returnedFindings': returnedFindings.length,
-    'truncated': findings.length > returnedFindings.length,
+    'truncated': truncated,
+    'offset': offset,
+    'limit': maxFindings,
+    if (truncated) 'nextOffset': nextOffset,
+    if (baselinePath != null) 'baselinedFindings': baselinedFindings,
     'skippedFiles': skippedFiles.length,
     if (includeDeadCode)
       'deadCode': <String, Object?>{
