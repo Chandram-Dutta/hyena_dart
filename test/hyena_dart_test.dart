@@ -865,6 +865,76 @@ void main() => annotated();
       );
     });
 
+    test('keeps instance field initializer dependencies live', () async {
+      final libPath = await makeFixture('''
+int sideEffect() => 1;
+int mutableEffect() => 2;
+int lateEffect() => 3;
+int deadEffect() => 4;
+int staticEffect() => 5;
+int typeOnlyEffect() => 6;
+
+class Helpers {
+  static int initialize() => 7;
+}
+
+class Live {
+  final unused = sideEffect();
+  var mutable = mutableEffect(), other = Helpers.initialize();
+  late final delayed = lateEffect();
+  static final lazy = staticEffect();
+}
+
+class Explicit {
+  Explicit.named();
+  final unused = sideEffect();
+}
+
+class Dead {
+  final unused = deadEffect();
+}
+
+class TypeOnly {
+  final unused = typeOnlyEffect();
+}
+
+void acceptsType(TypeOnly? value) {}
+
+void main() {
+  Live();
+  Explicit.named();
+  acceptsType(null);
+}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(report.skippedFiles, isEmpty);
+      expect(
+        unusedNames,
+        isNot(
+          contains(
+            anyOf(
+              'sideEffect',
+              'mutableEffect',
+              'lateEffect',
+              'Helpers.initialize',
+            ),
+          ),
+        ),
+      );
+      expect(
+        unusedNames,
+        containsAll(['deadEffect', 'staticEffect', 'typeOnlyEffect']),
+      );
+      expect(unusedNames, containsAll(['Live.unused', 'Explicit.unused']));
+    });
+
     test('follows super calls only from reachable constructors', () async {
       final libPath = await makeFixture('''
 class ImplicitBase {
