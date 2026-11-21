@@ -467,6 +467,55 @@ Baseline fingerprints use the rule, project- or workspace-relative path, symbol
 type, and full symbol name. Moving a declaration to another line does not
 invalidate its baseline entry.
 
+### GitHub code scanning
+
+The repository is also a GitHub Action. It runs Hyena, uploads the SARIF report
+to GitHub code scanning, and shows new findings as annotations on the lines a
+pull request changes:
+
+```yaml
+name: Hyena
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  hyena:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: Chandram-Dutta/hyena_dart@main
+        with:
+          path: lib
+```
+
+Inputs:
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `path` | `.` | File or directory to analyze, relative to `working-directory`. |
+| `working-directory` | `.` | Package or workspace root. Report paths are rebased onto the repository root. |
+| `version` | `>=3.0.0 <4.0.0` | hyena_dart version or constraint installed from pub.dev. |
+| `setup-dart` / `sdk` | `true` / `stable` | Install Dart with `dart-lang/setup-dart`. |
+| `pub-get` | `true` | Run `dart pub get` first. |
+| `config`, `baseline`, `fail-on` | | Passed to `--config`, `--baseline`, and `--fail-on`. With `fail-on`, the step fails after the report is uploaded. |
+| `args` | | Extra `analyze` arguments. |
+| `upload` | `true` | Upload to code scanning. Needs `security-events: write`. |
+| `category` | `hyena_dart` | Code scanning category, to keep several packages apart. |
+| `sarif-file` | temp file | Where the report is written; also the `sarif-file` output. |
+
+For a Flutter app, install Flutter (for example with `subosito/flutter-action`),
+run `flutter pub get`, and set `setup-dart: false` and `pub-get: false`. Code
+scanning is free for public repositories; private repositories need GitHub
+Advanced Security. Pull requests from forks cannot upload results, so set
+`upload: false` for them or skip the job.
+
 ## Exit codes
 
 `hyena_dart` uses these exit codes, so CI can tell real findings apart from a

@@ -6,3 +6,4 @@ SECURITY.md
 tool/
 test/
 benchmark/
+action.yml
