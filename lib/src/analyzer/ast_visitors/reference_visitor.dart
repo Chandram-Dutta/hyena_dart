@@ -338,6 +338,12 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   }
 
   @override
+  void visitPatternField(PatternField node) {
+    _recordElement(node.element);
+    super.visitPatternField(node);
+  }
+
+  @override
   void visitRelationalPattern(RelationalPattern node) {
     _recordElement(node.element);
     super.visitRelationalPattern(node);

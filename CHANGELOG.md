@@ -16,6 +16,7 @@
 - Keep enum constants live when referenced through the enum's `values` property. ([#22](https://github.com/Chandram-Dutta/hyena_dart/pull/22))
 - Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument other than literal `false`. ([#24](https://github.com/Chandram-Dutta/hyena_dart/pull/24))
 - Keep overloaded operators live when used through operator syntax, including compound assignments and increment/decrement expressions. ([#26](https://github.com/Chandram-Dutta/hyena_dart/pull/26))
+- Keep getters and fields read only through object patterns (`case Point(:final x)`, `final Point(:x) = p`, nested record destructuring) out of dead-code findings. ([#29](https://github.com/Chandram-Dutta/hyena_dart/pull/29))
 
 ## [3.0.1] - 2026-11-21
 
