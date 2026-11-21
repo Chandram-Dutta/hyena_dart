@@ -150,7 +150,9 @@ Upgrading Hyena's analyzer (`dart pub upgrade analyzer`) usually resolves this.
   `DeadCodeAnalyzer`, `ComplexityAnalyzer`, and reporter APIs. For display
   paths, use `package:path` (for example
   `p.relative(entity.filePath, from: projectRoot)`, where `projectRoot` is the
-  package or workspace root).
+  package or workspace root). `p.relative` uses native separators; to match
+  the `/`-separated paths in reports on Windows, use
+  `p.posix.joinAll(p.split(p.relative(entity.filePath, from: projectRoot)))`.
 - Exit codes: `0` ok, `1` findings tripped `--fail-on`, `2` tool error, `64`
   usage error. Tool errors used to exit `1`.
 - Broken or unresolvable non-generated files are now skipped with a
@@ -480,8 +482,9 @@ broken setup:
 A tool error takes precedence. If Hyena fails, it exits `2` even when findings
 would have tripped `--fail-on`.
 
-Dead-code analysis skips files with resolution or semantic errors; complexity
-analysis skips files with read or syntax errors. Both skip files when per-file
+Dead-code analysis skips files that fail to resolve or contain analyzer errors
+(including syntax errors); complexity analysis skips files with read or syntax
+errors. Both skip files when per-file
 analysis throws and continue analyzing the remaining files. For non-generated
 files, Hyena prints a `Warning: skipped <path>: <reason>` line to stderr and
 lists them under `skippedFiles` in JSON output. Skips do not directly cause a
@@ -495,7 +498,7 @@ resolution or reference collection are silently ignored without a warning or
 `skippedFiles` entry and may contribute no references. Declarations used only by
 these files can be reported as dead code. In CI, make sure generated code is up
 to date (for example, run `build_runner` first) and check stderr or the JSON
-`skippedFiles` arrays if a skipped file should fail the build.
+`skippedFiles` arrays if a skipped non-generated file should fail the build.
 
 `hyena_mcp` exits `64` for usage errors (such as a missing `--root`) and `2`
 when the server can't start (such as a `--root` directory that doesn't exist).
