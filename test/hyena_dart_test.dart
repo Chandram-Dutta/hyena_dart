@@ -331,7 +331,7 @@ class _$GeneratedButUnused {}
         expect(names, contains('TrulyDead'));
       });
 
-      test('user exclude patterns still drop generated files', () async {
+      test('excluded generated files still contribute references', () async {
         final names = await unusedNames(
           '''
 abstract class Repository {
@@ -352,8 +352,47 @@ class MockRepository implements Repository {
           },
           excludePatterns: ['**/*.mocks.dart'],
         );
-        expect(names, contains('Repository'));
+        expect(names, isNot(contains('Repository')));
         expect(names, isNot(contains('MockRepository')));
+      });
+
+      for (final isPart in [false, true]) {
+        test(
+          'excluded generated directory contributes references (part: $isPart)',
+          () async {
+            final names = await unusedNames(
+              '''
+${isPart ? "part 'gen/lib.g.dart';" : ''}
+int helper() => 1;
+int trulyDead() => 2;
+''',
+              {
+                'gen/lib.g.dart':
+                    '''
+${isPart ? "part of '../lib.dart';" : "import '../lib.dart';"}
+int generatedCaller() => helper();
+''',
+              },
+              excludePatterns: ['gen/**'],
+            );
+            expect(names, isNot(contains('helper')));
+            expect(names, contains('trulyDead'));
+            expect(names, isNot(contains('generatedCaller')));
+          },
+        );
+      }
+
+      test('excluded non-generated files still drop references', () async {
+        final names = await unusedNames(
+          'int helper() => 1;',
+          {
+            'gen/caller.dart':
+                "import '../lib.dart';\nint caller() => helper();",
+          },
+          excludePatterns: ['gen/**'],
+        );
+        expect(names, contains('helper'));
+        expect(names, isNot(contains('caller')));
       });
     });
 
