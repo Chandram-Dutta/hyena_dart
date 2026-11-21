@@ -141,6 +141,142 @@ void callsHelper() => helper();
   });
 
   group('ComplexityAnalyzer skipped files', () {
+    test('uses latest syntax without a package config', () async {
+      final root = await _createPackage({
+        'identity.dart': 'int identity({final int value = 1}) => value;',
+      });
+
+      final report = await ComplexityAnalyzer(AnalyzerConfig()).analyze(root);
+
+      expect(report.skippedFiles.single.filePath, _lib(root, 'identity.dart'));
+      expect(report.skippedFiles.single.reason, contains('syntax error'));
+    });
+
+    test('handles empty and invalid injected source', () async {
+      final root = await _createPackage({
+        'identity.dart': 'void original() {}',
+      });
+      for (final source in ['', 'void broken( {']) {
+        final report = await ComplexityAnalyzer(
+          AnalyzerConfig(),
+          readSource: (path) async => path == _lib(root, 'identity.dart')
+              ? source
+              : File(path).readAsString(),
+        ).analyze(root);
+
+        if (source.isEmpty) {
+          expect(report.skippedFiles, isEmpty);
+          expect(
+            report.files
+                .singleWhere(
+                  (file) => file.filePath == _lib(root, 'identity.dart'),
+                )
+                .functions,
+            isEmpty,
+          );
+        } else {
+          expect(report.skippedFiles.single.reason, contains('syntax error'));
+        }
+      }
+    });
+
+    test('analyzes injected source with a language version override', () async {
+      final root = await _createPackage({
+        'identity.dart': 'void original() {}',
+      });
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+        readSource: (path) async => path == _lib(root, 'identity.dart')
+            ? '// @dart=3.0\nint identity({final int value = 1}) => value;'
+            : File(path).readAsString(),
+      ).analyze(root);
+
+      expect(report.skippedFiles, isEmpty);
+      final metrics = report.files
+          .singleWhere((file) => file.filePath == _lib(root, 'identity.dart'))
+          .functions
+          .single;
+      expect(metrics.name, 'identity');
+      expect(metrics.cyclomaticComplexity, 1);
+      expect(metrics.parameterCount, 1);
+    });
+
+    test('respects a per-file language version override', () async {
+      final root = await _createPackage({
+        'identity.dart': '''
+// @dart=3.0
+int identity({final int value = 1}) => value;
+''',
+      });
+
+      final report = await ComplexityAnalyzer(AnalyzerConfig()).analyze(root);
+
+      expect(report.skippedFiles, isEmpty);
+      expect(
+        report.files
+            .singleWhere((file) => file.filePath == _lib(root, 'identity.dart'))
+            .functions
+            .single
+            .name,
+        'identity',
+      );
+    });
+
+    test('uses the package_config language version', () async {
+      final root = await _createPackage({
+        'identity.dart': 'int identity({final int value = 1}) => value;',
+      });
+      final packageConfig = File(
+        p.join(root, '.dart_tool', 'package_config.json'),
+      );
+      packageConfig.parent.createSync();
+      packageConfig.writeAsStringSync(
+        jsonEncode({
+          'configVersion': 2,
+          'packages': [
+            {
+              'name': 'hyena_skipped_fixture',
+              'rootUri': '../',
+              'packageUri': 'lib/',
+              'languageVersion': '3.0',
+            },
+          ],
+        }),
+      );
+
+      final report = await ComplexityAnalyzer(AnalyzerConfig()).analyze(root);
+
+      expect(report.skippedFiles, isEmpty);
+      expect(report.totalFunctions, 4);
+    });
+
+    test('uses the package language version for complexity metrics', () async {
+      final root = await _createPackage({
+        'identity.dart': 'int identity({final int value = 1}) => value;',
+      });
+      File(p.join(root, 'pubspec.yaml')).writeAsStringSync('''
+name: hyena_skipped_fixture
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+''');
+      final pubGet = await Process.run(Platform.resolvedExecutable, [
+        'pub',
+        'get',
+      ], workingDirectory: root);
+      expect(pubGet.exitCode, 0, reason: '${pubGet.stdout}\n${pubGet.stderr}');
+
+      final report = await ComplexityAnalyzer(AnalyzerConfig()).analyze(root);
+
+      expect(report.skippedFiles, isEmpty);
+      final metrics = report.files
+          .singleWhere((file) => file.filePath == _lib(root, 'identity.dart'))
+          .functions
+          .single;
+      expect(metrics.name, 'identity');
+      expect(metrics.cyclomaticComplexity, 1);
+      expect(metrics.parameterCount, 1);
+    });
+
     test('skips a file with syntax errors and keeps analyzing', () async {
       final root = await _createPackage({'broken.dart': 'void broken( {'});
 
