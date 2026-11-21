@@ -78,6 +78,13 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
 
   bool _isVmEntryPointPragma(Annotation annotation) {
     if (annotation.name.toSource().split('.').last != 'pragma') return false;
+    final element = annotation.element;
+    if (element != null &&
+        (element is! ConstructorElement ||
+            element.enclosingElement.name != 'pragma' ||
+            element.library.uri.toString() != 'dart:core')) {
+      return false;
+    }
     final arguments = annotation.arguments?.arguments;
     if (arguments == null || arguments.isEmpty) return false;
     final name = arguments.first;

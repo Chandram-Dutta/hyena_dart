@@ -643,6 +643,18 @@ void main() {}
       },
     );
 
+    test('does not treat user-defined pragmas as VM entry points', () async {
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(p.join('test', 'fixtures', 'user_defined_pragma.dart'));
+
+      expect(report.skippedFiles, isEmpty);
+      expect(
+        report.unusedEntities.map((entity) => entity.fullName),
+        containsAll(['unusedCallback', '_unusedHelper']),
+      );
+    });
+
     test('keeps configured framework entry points and dependencies', () async {
       final libPath = await makeFixture('''
 void _routeDependency() {}
