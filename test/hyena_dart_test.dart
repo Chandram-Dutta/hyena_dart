@@ -527,7 +527,19 @@ class Vec {
   static int _times(int a, int b) => a * b;
 }
 
+class Counter {
+  final int value;
+  const Counter(this.value);
+
+  Counter operator +(int step) => Counter(_step(value, step));
+
+  static int _step(int value, int step) => value + step;
+}
+
 void main() {
+  var counter = const Counter(0);
+  counter++;
+  print(counter.value);
   var v = const Vec(1) + const Vec(2);
   v -= const Vec(1);
   print(~v);
@@ -569,8 +581,9 @@ void main() {
             .map((entity) => entity.fullName)
             .toSet();
 
-        expect(unusedNames, isNot(contains('Callable.call')));
-        expect(unusedNames, isNot(contains('Callable._helper')));
+        expect(report.skippedFiles, isEmpty);
+        expect(report.totalDeclarations, 3);
+        expect(unusedNames, isEmpty);
       },
     );
 
