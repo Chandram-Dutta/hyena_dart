@@ -1,3 +1,8 @@
+## [Unreleased]
+
+### Fixed
+- Do not report enhanced enum constructors as unused when invoked by reachable enum constants.
+
 ## [3.1.0] - 2026-11-21
 
 ### Added

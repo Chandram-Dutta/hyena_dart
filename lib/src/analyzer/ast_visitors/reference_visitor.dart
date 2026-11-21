@@ -136,10 +136,10 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitEnumConstantDeclaration(EnumConstantDeclaration node) {
-    _visitInScope(
-      node.declaredFragment?.element,
-      () => super.visitEnumConstantDeclaration(node),
-    );
+    _visitInScope(node.declaredFragment?.element, () {
+      _recordElement(node.constructorElement);
+      super.visitEnumConstantDeclaration(node);
+    });
   }
 
   @override

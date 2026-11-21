@@ -228,6 +228,47 @@ enum Mode {
       }
     });
 
+    test('follows enum constants to their constructors', () async {
+      final libPath = await makeFixture('''
+enum Choice {
+  first(7);
+
+  const Choice(this.code);
+  final int code;
+}
+
+enum Named {
+  first.named(7),
+  second.unused(8);
+
+  const Named.named(this.code);
+  const Named.unused(this.code);
+  final int code;
+}
+
+enum NoArgs {
+  first;
+
+  const NoArgs();
+}
+
+void main() {
+  print(Choice.first.code);
+  print(Named.first.code);
+  print(NoArgs.first);
+}
+''');
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      expect(
+        report.unusedEntities
+            .where((entity) => entity.type == EntityType.constructor)
+            .map((entity) => entity.fullName),
+        unorderedEquals(['Named.unused']),
+      );
+    });
+
     test('detects same-named method on unused class', () async {
       final libPath = await makeFixture('''
 class Used {
