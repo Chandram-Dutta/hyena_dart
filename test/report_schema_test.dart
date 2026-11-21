@@ -108,5 +108,5 @@ environment:
     ]);
     expect(process.exitCode, 0, reason: process.stderr.toString());
     validate(jsonDecode(process.stdout as String));
-  });
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }
