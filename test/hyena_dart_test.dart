@@ -174,6 +174,60 @@ environment:
       }
     });
 
+    group('enum values reachability', () {
+      final cases = <String, (String, Set<String>)>{
+        'iteration': (
+          'void main() { for (final m in Mode.values) { print(m.name); } }',
+          {},
+        ),
+        'byName': ('void main() { print(Mode.values.byName("a")); }', {}),
+        'prefixed import': (
+          'import "mode.dart" as modes; '
+              'void main() { print(modes.Mode.values.byName("a")); }',
+          {},
+        ),
+        'inside enum': ('void main() { Mode.show(); }', {}),
+        'type and one constant': (
+          'void main() { Mode m = Mode.a; print(m); }',
+          {'Mode.b'},
+        ),
+        'type only': (
+          'void main() { Mode? m; print(m); }',
+          {'Mode.a', 'Mode.b'},
+        ),
+        'unreachable values reference': (
+          'void unused() { print(Mode.values); } void main() {}',
+          {'Mode.a', 'Mode.b'},
+        ),
+      };
+
+      for (final entry in cases.entries) {
+        test(entry.key, () async {
+          final enumSource = '''
+enum Mode {
+  a, b;
+  static void show() { print(Mode.values); }
+}
+''';
+          final prefixed = entry.key == 'prefixed import';
+          final libPath = await makeFixture(
+            '${prefixed ? '' : enumSource}\n${entry.value.$1}',
+            additionalFiles: prefixed ? {'mode.dart': enumSource} : {},
+          );
+          final report = await DeadCodeAnalyzer(
+            AnalyzerConfig(ignoreExports: false),
+          ).analyze(libPath);
+          expect(
+            report.unusedEntities
+                .where((e) => e.type == EntityType.enumValue)
+                .map((e) => e.fullName)
+                .toSet(),
+            entry.value.$2,
+          );
+        });
+      }
+    });
+
     test('detects same-named method on unused class', () async {
       final libPath = await makeFixture('''
 class Used {
@@ -331,7 +385,7 @@ class _$GeneratedButUnused {}
         expect(names, contains('TrulyDead'));
       });
 
-      test('user exclude patterns still drop generated files', () async {
+      test('excluded generated files still contribute references', () async {
         final names = await unusedNames(
           '''
 abstract class Repository {
@@ -352,8 +406,47 @@ class MockRepository implements Repository {
           },
           excludePatterns: ['**/*.mocks.dart'],
         );
-        expect(names, contains('Repository'));
+        expect(names, isNot(contains('Repository')));
         expect(names, isNot(contains('MockRepository')));
+      });
+
+      for (final isPart in [false, true]) {
+        test(
+          'excluded generated directory contributes references (part: $isPart)',
+          () async {
+            final names = await unusedNames(
+              '''
+${isPart ? "part 'gen/lib.g.dart';" : ''}
+int helper() => 1;
+int trulyDead() => 2;
+''',
+              {
+                'gen/lib.g.dart':
+                    '''
+${isPart ? "part of '../lib.dart';" : "import '../lib.dart';"}
+int generatedCaller() => helper();
+''',
+              },
+              excludePatterns: ['gen/**'],
+            );
+            expect(names, isNot(contains('helper')));
+            expect(names, contains('trulyDead'));
+            expect(names, isNot(contains('generatedCaller')));
+          },
+        );
+      }
+
+      test('excluded non-generated files still drop references', () async {
+        final names = await unusedNames(
+          'int helper() => 1;',
+          {
+            'gen/caller.dart':
+                "import '../lib.dart';\nint caller() => helper();",
+          },
+          excludePatterns: ['gen/**'],
+        );
+        expect(names, contains('helper'));
+        expect(names, isNot(contains('caller')));
       });
     });
 
@@ -501,6 +594,91 @@ void main() {
       expect(unusedNames, isNot(contains('DynamicTarget.dynamicCall')));
       expect(unusedNames, isNot(contains('_dynamicHelper')));
     });
+
+    test('keeps operators used through operator syntax reachable', () async {
+      final libPath = await makeFixture('''
+class Vec {
+  final int x;
+  const Vec(this.x);
+
+  Vec operator +(Vec other) => Vec(_plus(x, other.x));
+  Vec operator -(Vec other) => Vec(_minus(x, other.x));
+  Vec operator ~() => Vec(_invert(x));
+  bool operator <(Vec other) => _lessThan(x, other.x);
+  int operator [](int index) => _read(index);
+  void operator []=(int index, int value) => _write(index, value);
+  int call(int value) => _call(value);
+  Vec operator *(Vec other) => Vec(_times(x, other.x));
+
+  static int _plus(int a, int b) => a + b;
+  static int _minus(int a, int b) => a - b;
+  static int _invert(int a) => ~a;
+  static bool _lessThan(int a, int b) => a < b;
+  static int _read(int index) => index;
+  static void _write(int index, int value) {}
+  static int _call(int value) => value;
+  static int _times(int a, int b) => a * b;
+}
+
+class Counter {
+  final int value;
+  const Counter(this.value);
+
+  Counter operator +(int step) => Counter(_step(value, step));
+
+  static int _step(int value, int step) => value + step;
+}
+
+void main() {
+  var counter = const Counter(0);
+  counter++;
+  print(counter.value);
+  var v = const Vec(1) + const Vec(2);
+  v -= const Vec(1);
+  print(~v);
+  if (v case < const Vec(3)) print(v[0]);
+  v[0] = 1;
+  print(v(2));
+}
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, {'Vec.*', 'Vec._times'});
+    });
+
+    test(
+      'keeps a callable object\'s call method reachable when torn off',
+      () async {
+        final libPath = await makeFixture('''
+class Callable {
+  int call(int value) => _helper(value);
+  static int _helper(int value) => value;
+}
+
+void main() {
+  final int Function(int) function = Callable();
+  print(function(1));
+}
+''');
+
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(ignoreExports: false),
+        ).analyze(libPath);
+        final unusedNames = report.unusedEntities
+            .map((entity) => entity.fullName)
+            .toSet();
+
+        expect(report.skippedFiles, isEmpty);
+        expect(report.totalDeclarations, 3);
+        expect(unusedNames, isEmpty);
+      },
+    );
 
     test('reports unused explicit constructors', () async {
       final libPath = await makeFixture('''
@@ -1670,6 +1848,46 @@ class Example extends Base {
       expect(redirectingConstructor.cyclomaticComplexity, 1);
       expect(redirectingConstructor.linesOfCode, 1);
       expect(redirectingConstructor.halsteadVolume, greaterThan(0));
+    });
+
+    test('excludes closure bodies across all parts of a constructor', () async {
+      File(p.join(fixture.path, 'sample.dart')).writeAsStringSync('''
+class Example {
+  Example()
+      : first = ((int n) => n + 100),
+        second = ((int n) {
+          final nested = () => 200;
+          return nested() * n;
+        }) {
+    final third = () => 300;
+    if (first(1) < second(2)) {
+      print(third());
+    }
+  }
+
+  final int Function(int) first;
+  final int Function(int) second;
+}
+''');
+
+      final report = await ComplexityAnalyzer(
+        AnalyzerConfig(),
+      ).analyze(fixture.path);
+      final functions = report.files.single.functions;
+      final constructor = functions.first;
+
+      expect(constructor.fullName, 'Example.new');
+      expect(constructor.linesOfCode, 8);
+      expect(
+        constructor.halsteadVolume,
+        closeTo(19 * math.log(12) / math.ln2, 1e-9),
+      );
+      expect(functions.skip(1).map((function) => function.linesOfCode), [
+        1,
+        4,
+        1,
+        1,
+      ]);
     });
 
     test('counts for-in loops once', () async {

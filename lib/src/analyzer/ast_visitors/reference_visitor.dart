@@ -48,7 +48,14 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     if (element == null) return;
     _recordElementAndExtension(element);
     if (element is PropertyAccessorElement) {
-      _recordElementAndExtension(element.variable);
+      _recordElement(element.variable);
+    } else if (element is FieldElement && element.isOriginEnumValues) {
+      final enclosing = element.enclosingElement;
+      if (enclosing is EnumElement) {
+        for (final field in enclosing.fields) {
+          if (field.isEnumConstant) _recordElementAndExtension(field);
+        }
+      }
     }
   }
 
@@ -284,6 +291,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitAssignmentExpression(AssignmentExpression node) {
+    _recordElement(node.element);
     _recordElement(node.readElement);
     _recordElement(node.writeElement);
     super.visitAssignmentExpression(node);
@@ -291,6 +299,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitPostfixExpression(PostfixExpression node) {
+    _recordElement(node.element);
     _recordElement(node.readElement);
     _recordElement(node.writeElement);
     super.visitPostfixExpression(node);
@@ -298,9 +307,40 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitPrefixExpression(PrefixExpression node) {
+    _recordElement(node.element);
     _recordElement(node.readElement);
     _recordElement(node.writeElement);
     super.visitPrefixExpression(node);
+  }
+
+  @override
+  void visitBinaryExpression(BinaryExpression node) {
+    _recordElement(node.element);
+    super.visitBinaryExpression(node);
+  }
+
+  @override
+  void visitIndexExpression(IndexExpression node) {
+    _recordElement(node.element);
+    super.visitIndexExpression(node);
+  }
+
+  @override
+  void visitFunctionExpressionInvocation(FunctionExpressionInvocation node) {
+    _recordElement(node.element);
+    super.visitFunctionExpressionInvocation(node);
+  }
+
+  @override
+  void visitImplicitCallReference(ImplicitCallReference node) {
+    _recordElement(node.element);
+    super.visitImplicitCallReference(node);
+  }
+
+  @override
+  void visitRelationalPattern(RelationalPattern node) {
+    _recordElement(node.element);
+    super.visitRelationalPattern(node);
   }
 
   @override
