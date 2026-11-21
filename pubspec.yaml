@@ -1,6 +1,8 @@
 name: hyena_dart
 description: A Flutter/Dart codebase analyzer for dead code detection and complexity metrics.
 version: 3.0.0
+homepage: https://hyenadart.onlychan.xyz
+documentation: https://hyenadart.onlychan.xyz/docs/
 repository: https://github.com/Chandram-Dutta/hyena_dart
 issue_tracker: https://github.com/Chandram-Dutta/hyena_dart/issues
 
