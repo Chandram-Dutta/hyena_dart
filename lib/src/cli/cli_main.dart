@@ -6,14 +6,15 @@ import 'cli_runner.dart';
 
 /// Process exit codes used by the `hyena_dart` and `hyena_mcp` executables.
 abstract final class HyenaExitCode {
-  /// Analysis completed and no finding tripped `--fail-on`.
+  /// No finding tripped `--fail-on` and no skipped-file gate failed.
   static const int ok = 0;
 
   /// Analysis completed and findings matched a `--fail-on` category.
   static const int findings = 1;
 
   /// Hyena could not complete: bad configuration, unreadable or invalid
-  /// paths, analysis failures, or unexpected internal errors.
+  /// paths, analysis failures, or unexpected internal errors. Also returned
+  /// for skips with `--fail-on-skipped`, or an all-skipped `--fail-on` run.
   static const int toolError = 2;
 
   /// Invalid command-line usage (unknown command or flag, bad option value).

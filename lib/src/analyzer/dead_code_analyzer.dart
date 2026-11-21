@@ -137,6 +137,7 @@ class DeadCodeAnalyzer {
     // reported, but their references still keep other code alive.
     final brokenUnits = <String, CompilationUnit>{};
     final skippedFiles = <SkippedFile>[];
+    var analyzedFileCount = 0;
     for (final file in dartFiles) {
       final isGenerated = _isGeneratedFile(file);
       final SomeResolvedUnitResult result;
@@ -241,6 +242,7 @@ class DeadCodeAnalyzer {
         continue;
       }
       allDeclarations.addAll(declarationVisitor.declarations);
+      analyzedFileCount++;
       elementKeyToEntity.addAll(declarationVisitor.elementKeyToEntity);
       rootElementKeys.addAll(declarationVisitor.liveElementKeys);
 
@@ -279,6 +281,7 @@ class DeadCodeAnalyzer {
       rootElementKeys: rootElementKeys,
       unresolvedMemberNames: unresolvedMemberNames,
       skippedFiles: skippedFiles,
+      analyzedFileCount: analyzedFileCount,
       duration: stopwatch.elapsed,
     );
   }
@@ -657,6 +660,7 @@ class DeadCodeAnalyzer {
       return DeadCodeReport(
         unusedEntities: unused,
         totalDeclarations: analysis.declarations.length,
+        analyzedFileCount: analysis.analyzedFileCount,
         skippedFiles: analysis.skippedFiles,
       );
     }).toList();
@@ -712,6 +716,7 @@ class _DeadCodeAnalysis {
   final Set<String> rootElementKeys;
   final Set<String> unresolvedMemberNames;
   final List<SkippedFile> skippedFiles;
+  final int analyzedFileCount;
   final Duration duration;
 
   const _DeadCodeAnalysis({
@@ -723,6 +728,7 @@ class _DeadCodeAnalysis {
     required this.rootElementKeys,
     required this.unresolvedMemberNames,
     required this.skippedFiles,
+    required this.analyzedFileCount,
     required this.duration,
   });
 }

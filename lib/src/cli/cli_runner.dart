@@ -88,6 +88,11 @@ abstract class BaseAnalysisCommand extends Command<int> {
       allowed: ['dead-code', 'complexity'],
       splitCommas: true,
     );
+    argParser.addFlag(
+      'fail-on-skipped',
+      help: 'Return exit code 2 if any file could not be analyzed',
+      negatable: false,
+    );
   }
 
   /// Returns the single positional target path, defaulting to `.`.
@@ -169,10 +174,22 @@ abstract class BaseAnalysisCommand extends Command<int> {
     }
   }
 
-  /// Returns [HyenaExitCode.findings] if [result] has findings in a
-  /// `--fail-on` category, else [HyenaExitCode.ok].
+  /// Returns a tool error for rejected skips, otherwise the finding gate code.
   int resultExitCode(AnalysisResult result, ArgResults results) {
     final failOn = (results['fail-on'] as List<String>).toSet();
+    if (results['fail-on-skipped'] as bool && result.skippedFiles.isNotEmpty) {
+      stderr.writeln(
+        'Analysis failed: --fail-on-skipped was set and files were skipped.',
+      );
+      return HyenaExitCode.toolError;
+    }
+    if (failOn.isNotEmpty && result.allFilesSkipped) {
+      stderr.writeln(
+        'Analysis failed: every file was skipped; --fail-on cannot pass '
+        'without analyzing any files.',
+      );
+      return HyenaExitCode.toolError;
+    }
     if (failOn.isEmpty) return HyenaExitCode.ok;
     return AnalysisFinding.fromResult(
           result,
