@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../models/analysis_finding.dart';
 import '../models/analysis_result.dart';
+import '../models/analysis_path.dart';
 import 'reporter.dart';
 
 /// Renders the findings in an [AnalysisResult] as a SARIF 2.1.0 log, for
@@ -20,6 +21,11 @@ class SarifReporter implements Reporter {
   @override
   Future<String> generate(AnalysisResult result) async {
     final findings = AnalysisFinding.fromResult(result);
+    final rootPath = analysisRootForTarget(result.targetPath);
+    final skippedFiles = <String, String>{};
+    for (final skipped in result.skippedFiles) {
+      skippedFiles.putIfAbsent(skipped.filePath, () => skipped.reason);
+    }
     final sarif = <String, Object>{
       r'$schema': 'https://json.schemastore.org/sarif-2.1.0.json',
       'version': '2.1.0',
@@ -33,6 +39,29 @@ class SarifReporter implements Reporter {
             },
           },
           'results': findings.map(_result).toList(),
+          'invocations': [
+            {
+              'executionSuccessful': !result.allFilesSkipped,
+              'toolExecutionNotifications': [
+                for (final entry in skippedFiles.entries)
+                  {
+                    'level': 'warning',
+                    'message': {'text': entry.value},
+                    'locations': [
+                      {
+                        'physicalLocation': {
+                          'artifactLocation': {
+                            'uri': Uri(
+                              path: relativeAnalysisPath(entry.key, rootPath),
+                            ).toString(),
+                          },
+                        },
+                      },
+                    ],
+                  },
+              ],
+            },
+          ],
         },
       ],
     };

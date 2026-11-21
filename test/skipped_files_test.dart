@@ -210,6 +210,35 @@ void callsHelper() => helper();
   });
 
   group('AnalysisRunner skipped files', () {
+    test(
+      'counts empty analyzed files and preserves counts through baselines',
+      () async {
+        final root = await _createPackage({
+          'lib.dart': '',
+          'broken.dart': 'void broken( {',
+        });
+        final result = await const AnalysisRunner().analyze(root);
+        expect(result.deadCodeReport!.analyzedFileCount, 1);
+        expect(result.allFilesSkipped, isFalse);
+        expect(
+          FindingBaseline.fromResult(result).apply(result).allFilesSkipped,
+          isFalse,
+        );
+        final workspace = AnalysisResult(
+          targetPath: root,
+          duration: Duration.zero,
+          packageResults: [result],
+        );
+        expect(workspace.allFilesSkipped, isFalse);
+        final json =
+            jsonDecode(await SarifReporter().generate(workspace)) as Map;
+        expect(
+          json['runs'][0]['invocations'][0]['executionSuccessful'],
+          isTrue,
+        );
+      },
+    );
+
     test('reports skips from both analyzers without aborting', () async {
       final root = await _createPackage({'broken.dart': 'void broken( {'});
 
@@ -295,6 +324,40 @@ void callsHelper() => helper();
       final deadCode = json['deadCode'] as Map<String, dynamic>;
       expect(deadCode['unusedEntities'], isEmpty);
       expect(json['complexity'] as Map, contains('files'));
+    });
+
+    test('SARIF reports skipped files as execution warnings', () async {
+      final json =
+          jsonDecode(await SarifReporter().generate(resultWith(skipped)))
+              as Map;
+      final invocation =
+          ((json['runs'] as List).single['invocations'] as List).single;
+      expect(invocation['executionSuccessful'], isFalse);
+      for (final notification in invocation['toolExecutionNotifications']) {
+        expect(notification['level'], 'warning');
+        expect(notification['message']['text'], skipped.single.reason);
+        expect(
+          notification['locations'][0]['physicalLocation']['artifactLocation']['uri'],
+          'lib/broken.dart',
+        );
+      }
+      expect(invocation['toolExecutionNotifications'], hasLength(1));
+      final workspace = AnalysisResult(
+        targetPath: root,
+        duration: Duration.zero,
+        packageResults: [resultWith(skipped)],
+      );
+      expect(workspace.allFilesSkipped, isTrue);
+    });
+
+    test('SARIF marks a run without skips successful', () async {
+      final json =
+          jsonDecode(await SarifReporter().generate(resultWith(const [])))
+              as Map;
+      final invocation =
+          ((json['runs'] as List).single['invocations'] as List).single;
+      expect(invocation['executionSuccessful'], isTrue);
+      expect(invocation['toolExecutionNotifications'], isEmpty);
     });
 
     test('json reporter emits an empty list when nothing is skipped', () async {

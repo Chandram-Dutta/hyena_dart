@@ -28,6 +28,49 @@ void main() {
   });
 
   group('hyena CLI', () {
+    for (final command in ['analyze', 'dead-code', 'complexity']) {
+      test('$command fails on skips when requested', () async {
+        File(source).writeAsStringSync('void broken( {');
+        final result = await _runCli([command, source, '--fail-on-skipped']);
+        expect(result.exitCode, HyenaExitCode.toolError);
+      });
+
+      test('$command accepts --fail-on-skipped without skips', () async {
+        final result = await _runCli([command, source, '--fail-on-skipped']);
+        expect(result.exitCode, HyenaExitCode.ok, reason: result.errors);
+      });
+
+      test(
+        '$command fails a finding gate when every file is skipped',
+        () async {
+          File(source).writeAsStringSync('void broken( {');
+          final result = await _runCli([
+            command,
+            source,
+            '--fail-on=dead-code,complexity',
+          ]);
+          expect(result.exitCode, HyenaExitCode.toolError);
+        },
+      );
+
+      test('$command allows partial skips with a clean finding gate', () async {
+        File(source).writeAsStringSync('void broken( {');
+        File(p.join(fixture.path, 'empty.dart')).writeAsStringSync('');
+        final result = await _runCli([
+          command,
+          fixture.path,
+          '--fail-on=dead-code,complexity',
+        ]);
+        expect(result.exitCode, HyenaExitCode.ok, reason: result.errors);
+        final strict = await _runCli([
+          command,
+          fixture.path,
+          '--fail-on-skipped',
+        ]);
+        expect(strict.exitCode, HyenaExitCode.toolError);
+      });
+    }
+
     test('exits 0 for a successful run without --fail-on', () async {
       final result = await _runCli(['complexity', source, '--threshold=0']);
       expect(result.exitCode, HyenaExitCode.ok, reason: result.errors);

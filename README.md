@@ -260,6 +260,7 @@ dart run hyena_dart analyze <path> [options]
 | `--baseline` | - | Suppress findings recorded in a baseline file | - |
 | `--write-baseline` | - | Write current findings to a baseline file | - |
 | `--fail-on` | - | Exit 1 for `dead-code`, `complexity`, or both | - |
+| `--fail-on-skipped` | - | Exit 2 if any file is skipped | `false` |
 | `--dead-code` | - | Include dead code analysis | `true` |
 | `--complexity` | - | Include complexity analysis | `true` |
 | `--ignore-exports` | - | Preserve exported public APIs from dead-code findings | `false` |
@@ -292,6 +293,7 @@ dart run hyena_dart dead-code <path> [options]
 | `--baseline` | - | Suppress findings recorded in a baseline file | - |
 | `--write-baseline` | - | Write current findings to a baseline file | - |
 | `--fail-on` | - | Exit 1 when dead-code findings remain | - |
+| `--fail-on-skipped` | - | Exit 2 if any file is skipped | `false` |
 | `--ignore-exports` | - | Preserve exported public APIs from dead-code findings | `false` |
 | `--ignore-private` | - | Ignore private entities | `false` |
 
@@ -319,6 +321,7 @@ dart run hyena_dart complexity <path> [options]
 | `--baseline` | - | Suppress findings recorded in a baseline file | - |
 | `--write-baseline` | - | Write current findings to a baseline file | - |
 | `--fail-on` | - | Exit 1 when complexity findings remain | - |
+| `--fail-on-skipped` | - | Exit 2 if any file is skipped | `false` |
 | `--threshold` | `-t` | Cyclomatic complexity threshold for warnings | `20` |
 
 **Examples:**
@@ -438,6 +441,10 @@ Visual report with styled cards, tables, color-coded metrics, and
 project-relative source paths.
 
 ### SARIF
+SARIF includes an invocation with `executionSuccessful` (false when every file
+was skipped) and one `toolExecutionNotifications` warning per skipped file,
+including its reason and relative artifact URI.
+
 SARIF 2.1 output for code-scanning systems:
 
 ```bash
@@ -536,9 +543,11 @@ Dead-code analysis skips files that fail to resolve or contain analyzer errors
 errors. Both skip files when per-file
 analysis throws and continue analyzing the remaining files. For non-generated
 files, Hyena prints a `Warning: skipped <path>: <reason>` line to stderr and
-lists them under `skippedFiles` in JSON output. Skips do not directly cause a
-tool-error exit, but can change the findings and therefore the exit code
-selected by `--fail-on`.
+lists them under `skippedFiles` in JSON output. Set `--fail-on-skipped` to exit
+`2` if any file is skipped. Even without that flag, a non-empty `--fail-on`
+exits `2` when every file was skipped: a finding gate cannot pass without any
+files being analyzed. Partial skips otherwise keep the normal finding-based
+exit code. Both skipped-file gates print an explanation on stderr.
 
 Dead-code analysis preserves references from resolvable files with errors on a
 best-effort basis. Non-generated files that cannot be resolved or read, or
@@ -547,7 +556,7 @@ resolution or reference collection are silently ignored without a warning or
 `skippedFiles` entry and may contribute no references. Declarations used only by
 these files can be reported as dead code. In CI, make sure generated code is up
 to date (for example, run `build_runner` first) and check stderr or the JSON
-`skippedFiles` arrays if a skipped non-generated file should fail the build.
+`skippedFiles` arrays, or use `--fail-on-skipped` to fail the build on skips.
 
 `hyena_mcp` exits `64` for usage errors (such as a missing `--root`) and `2`
 when the server can't start (such as a `--root` directory that doesn't exist).

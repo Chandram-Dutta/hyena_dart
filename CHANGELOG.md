@@ -1,3 +1,12 @@
+## [Unreleased]
+
+### Added
+- `--fail-on-skipped` on all analysis commands exits `2` if any file is skipped
+- SARIF reports include invocation status and one warning notification per skipped file, with its reason and relative file location
+
+### Fixed
+- Runs with `--fail-on` now exit `2` when every file is skipped, instead of passing a finding gate without analyzing any files
+
 ## [3.0.1] - 2026-11-21
 
 ### Added

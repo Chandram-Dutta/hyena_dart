@@ -171,6 +171,12 @@
             "threshold": 1
           }
         }
+      ],
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": []
+        }
       ]
     }
   ]
