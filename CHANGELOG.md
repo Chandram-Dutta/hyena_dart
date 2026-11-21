@@ -11,6 +11,7 @@
 - Speed up complexity scans with nested functions by avoiding repeated AST walks. ([#19](https://github.com/Chandram-Dutta/hyena_dart/pull/19))
 
 ### Fixed
+- Keep superclass constructors live when invoked by reachable constructors implicitly, through `super(...)`, or through `super.` parameters. ([#28](https://github.com/Chandram-Dutta/hyena_dart/pull/28))
 - Runs with `--fail-on` now exit `2` when every file is skipped, instead of passing a finding gate without analyzing any files. ([#23](https://github.com/Chandram-Dutta/hyena_dart/pull/23))
 - Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings. ([#20](https://github.com/Chandram-Dutta/hyena_dart/pull/20))
 - Keep enum constants live when referenced through the enum's `values` property. ([#22](https://github.com/Chandram-Dutta/hyena_dart/pull/22))
