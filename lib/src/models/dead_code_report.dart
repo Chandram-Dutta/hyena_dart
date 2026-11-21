@@ -10,6 +10,9 @@ class DeadCodeReport {
   /// Number of declarations that were considered.
   final int totalDeclarations;
 
+  /// Number of non-generated files successfully analyzed, including empty files.
+  final int analyzedFileCount;
+
   /// When the analysis was performed.
   final DateTime analyzedAt;
 
@@ -25,6 +28,7 @@ class DeadCodeReport {
   DeadCodeReport({
     required this.unusedEntities,
     required this.totalDeclarations,
+    this.analyzedFileCount = 0,
     DateTime? analyzedAt,
     this.skippedFiles = const [],
   }) : analyzedAt = analyzedAt ?? DateTime.now();
