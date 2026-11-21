@@ -3,6 +3,9 @@
 ### Added
 - CLI JSON reports include `schemaVersion: 1` and a published JSON Schema at `schema/report.schema.json` for single-package and workspace reports.
 
+### Fixed
+- Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings.
+
 ## [3.0.1] - 2026-11-21
 
 ### Added
