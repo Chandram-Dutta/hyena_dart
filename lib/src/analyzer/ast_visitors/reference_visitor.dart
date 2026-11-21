@@ -29,13 +29,23 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   final Set<String> rootElementKeys = {};
   String? _currentDeclarationKey;
 
+  String? _declarationKey(Element? element) {
+    final key = elementKey(element);
+    if (key != null &&
+        element is ConstructorElement &&
+        element.isOriginImplicitDefault) {
+      return '$key\u0000constructor';
+    }
+    return key;
+  }
+
   void _visitInScope(
     Element? element,
     void Function() visit, {
     bool isRoot = false,
   }) {
     final previousDeclarationKey = _currentDeclarationKey;
-    final key = elementKey(element);
+    final key = _declarationKey(element);
     if (key != null) {
       _currentDeclarationKey = key;
       if (isRoot) rootElementKeys.add(key);
@@ -60,7 +70,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   }
 
   void _recordElementAndExtension(Element element) {
-    _recordElementKey(elementKey(element));
+    _recordElementKey(_declarationKey(element));
     final enclosing = element.enclosingElement;
     if (enclosing is ExtensionElement) {
       _recordElementKey(elementKey(enclosing));
@@ -191,6 +201,18 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   void visitVariableDeclaration(VariableDeclaration node) {
     final element = node.declaredFragment?.element;
     if (element is FieldElement || element is TopLevelVariableElement) {
+      if (element is FieldElement &&
+          !element.isStatic &&
+          node.initializer != null) {
+        final enclosing = element.enclosingElement;
+        if (enclosing is InterfaceElement) {
+          for (final constructor in enclosing.constructors) {
+            if (!constructor.isFactory) {
+              _visitInScope(constructor, () => node.initializer!.accept(this));
+            }
+          }
+        }
+      }
       final declaration = node.parent?.parent;
       _visitInScope(
         element,

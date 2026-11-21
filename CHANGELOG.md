@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Fixed
+- Keep instance field initializer dependencies reachable when their class is instantiated, without retaining initializers of unused classes or unused static fields.
 - Honor `pubspec_overrides.yaml` workspace lists, including nested members and empty overrides, when discovering workspace packages.
 - Do not report enhanced enum constructors as unused when invoked by reachable enum constants.
 - Keep const constructors used only as annotations, such as `@Foo()` or `@Foo.named()`, reachable when the annotated declaration is live. ([#31](https://github.com/Chandram-Dutta/hyena_dart/pull/31))
