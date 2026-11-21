@@ -628,7 +628,7 @@ void main() {}
         ).analyze(p.join('test', 'fixtures', 'vm_entry_points.dart'));
 
         expect(report.skippedFiles, isEmpty);
-        expect(report.totalDeclarations, 16);
+        expect(report.totalDeclarations, 19);
         expect(
           report.unusedEntities.map((entity) => entity.fullName),
           unorderedEquals([
@@ -636,6 +636,8 @@ void main() {}
             'inlineControl',
             '_inlineHelper',
             'emptyPragmaControl',
+            'disabledControl',
+            '_disabledHelper',
           ]),
         );
       },

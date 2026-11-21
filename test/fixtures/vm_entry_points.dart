@@ -34,3 +34,11 @@ void _inlineHelper() {}
 
 @pragma('')
 void emptyPragmaControl() {}
+
+@pragma('vm:entry-point', false)
+void disabledControl() => _disabledHelper();
+
+void _disabledHelper() {}
+
+@pragma('vm:entry-point', true)
+void enabledCallback() {}

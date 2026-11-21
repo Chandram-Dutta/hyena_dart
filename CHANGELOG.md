@@ -1,7 +1,7 @@
 ## [Unreleased]
 
 ### Fixed
-- Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument.
+- Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument other than literal `false`.
 
 ## [3.0.1] - 2026-11-21
 

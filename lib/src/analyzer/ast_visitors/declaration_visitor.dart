@@ -76,19 +76,23 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     return parentName != null && entryPoints.contains('$parentName.$name');
   }
 
+  bool _isVmEntryPointPragma(Annotation annotation) {
+    if (annotation.name.toSource().split('.').last != 'pragma') return false;
+    final arguments = annotation.arguments?.arguments;
+    if (arguments == null || arguments.isEmpty) return false;
+    final name = arguments.first;
+    if (name is! StringLiteral || name.stringValue != 'vm:entry-point') {
+      return false;
+    }
+    final condition = arguments.length > 1 ? arguments[1] : null;
+    return condition is! BooleanLiteral || condition.value;
+  }
+
   bool _hasEntryPointAnnotation(AnnotatedNode node) {
     return node.metadata.any((annotation) {
+      if (_isVmEntryPointPragma(annotation)) return true;
       final fullName = annotation.name.toSource();
       final shortName = fullName.split('.').last;
-      if (shortName == 'pragma') {
-        final arguments = annotation.arguments?.arguments;
-        if (arguments != null && arguments.isNotEmpty) {
-          final name = arguments.first;
-          if (name is StringLiteral && name.stringValue == 'vm:entry-point') {
-            return true;
-          }
-        }
-      }
       return entryPointAnnotations.any(
         (configured) => configured.contains('.')
             ? configured == fullName
