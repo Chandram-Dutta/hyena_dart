@@ -1,3 +1,15 @@
+## [3.0.1] - 2026-11-21
+
+### Added
+- GitHub Action: add `uses: Chandram-Dutta/hyena_dart@v3.0.1` to a workflow to run Hyena, upload its SARIF report to GitHub code scanning, and see dead-code and complexity findings inline on pull requests. It supports `working-directory`, nested package paths, config and baseline files, `fail-on` (the report is uploaded before the step fails), and Flutter projects. See "GitHub code scanning" in the README.
+
+### Changed
+- pubspec `homepage` and `documentation` point to https://hyenadart.onlychan.xyz
+- Tagged releases also create a GitHub release with notes from this changelog
+
+### Documentation
+- Align the README and contributor docs with 3.0.0 behavior (skipped files, CLI flags, report formats, MCP)
+
 ## [3.0.0] - 2026-11-11
 
 ### Breaking changes
