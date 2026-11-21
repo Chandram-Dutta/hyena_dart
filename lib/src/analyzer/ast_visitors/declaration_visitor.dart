@@ -80,6 +80,15 @@ class DeclarationVisitor extends RecursiveAstVisitor<void> {
     return node.metadata.any((annotation) {
       final fullName = annotation.name.toSource();
       final shortName = fullName.split('.').last;
+      if (shortName == 'pragma') {
+        final arguments = annotation.arguments?.arguments;
+        if (arguments != null && arguments.isNotEmpty) {
+          final name = arguments.first;
+          if (name is StringLiteral && name.stringValue == 'vm:entry-point') {
+            return true;
+          }
+        }
+      }
       return entryPointAnnotations.any(
         (configured) => configured.contains('.')
             ? configured == fullName

@@ -385,6 +385,10 @@ containers also retain their public members. The lists are empty by default;
 add only entry points actually used by a framework, generator, serializer,
 router, dependency-injection system, or plugin runtime.
 
+Declarations annotated with `@pragma('vm:entry-point')` (including forms with a
+second argument) are always reachability roots, without configuration. Their
+transitive dependencies are retained too; other pragmas do not create roots.
+
 You can also add the configuration to your existing `analysis_options.yaml`:
 
 ```yaml

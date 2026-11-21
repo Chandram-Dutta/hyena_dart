@@ -620,6 +620,27 @@ void main() {}
       expect(unusedNames, isNot(contains('_intentionalDependency')));
     });
 
+    test(
+      'keeps VM entry points and transitive dependencies by default',
+      () async {
+        final report = await DeadCodeAnalyzer(
+          AnalyzerConfig(),
+        ).analyze(p.join('test', 'fixtures', 'vm_entry_points.dart'));
+
+        expect(report.skippedFiles, isEmpty);
+        expect(report.totalDeclarations, 16);
+        expect(
+          report.unusedEntities.map((entity) => entity.fullName),
+          unorderedEquals([
+            'unusedControl',
+            'inlineControl',
+            '_inlineHelper',
+            'emptyPragmaControl',
+          ]),
+        );
+      },
+    );
+
     test('keeps configured framework entry points and dependencies', () async {
       final libPath = await makeFixture('''
 void _routeDependency() {}
