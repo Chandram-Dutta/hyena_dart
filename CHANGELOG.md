@@ -1,11 +1,14 @@
 ## [Unreleased]
 
 ### Added
+- `--fail-on-skipped` on all analysis commands exits `2` if any file is skipped
+- SARIF reports include invocation status and one warning notification per skipped file, with its reason and relative file location
 - CLI JSON reports include `schemaVersion: 1` and a published JSON Schema at `schema/report.schema.json` for single-package and workspace reports.
 - Page through all `hyena_analyze` MCP findings with `offset`, `limit`, and `summary.nextOffset`, including findings within a single file.
 - Apply CLI-written baselines with the MCP tool's workspace-relative `baseline` input; summaries report hidden findings in `baselinedFindings` and totals after suppression.
 
 ### Fixed
+- Runs with `--fail-on` now exit `2` when every file is skipped, instead of passing a finding gate without analyzing any files
 - Keep references from generated files when excluded by configuration, while continuing to omit their declarations from dead-code findings.
 - Treat `@pragma('vm:entry-point')` declarations and their transitive dependencies as live by default, including forms with a second argument other than literal `false`.
 

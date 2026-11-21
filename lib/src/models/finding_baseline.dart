@@ -100,6 +100,7 @@ class FindingBaseline {
                 )
                 .toList(),
             totalDeclarations: deadCodeReport.totalDeclarations,
+            analyzedFileCount: deadCodeReport.analyzedFileCount,
             analyzedAt: deadCodeReport.analyzedAt,
             skippedFiles: deadCodeReport.skippedFiles,
           );

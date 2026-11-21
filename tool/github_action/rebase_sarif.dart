@@ -27,7 +27,13 @@ void main(List<String> args) {
   final file = File(sarifPath);
   final sarif = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
   for (final run in sarif['runs'] as List) {
-    for (final result in (run as Map)['results'] as List? ?? const []) {
+    final entries = [
+      ...(run as Map)['results'] as List? ?? const [],
+      for (final invocation in run['invocations'] as List? ?? const [])
+        ...(invocation as Map)['toolExecutionNotifications'] as List? ??
+            const [],
+    ];
+    for (final result in entries) {
       for (final location
           in (result as Map)['locations'] as List? ?? const []) {
         final artifact =
