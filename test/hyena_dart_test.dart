@@ -174,6 +174,60 @@ environment:
       }
     });
 
+    group('enum values reachability', () {
+      final cases = <String, (String, Set<String>)>{
+        'iteration': (
+          'void main() { for (final m in Mode.values) { print(m.name); } }',
+          {},
+        ),
+        'byName': ('void main() { print(Mode.values.byName("a")); }', {}),
+        'prefixed import': (
+          'import "mode.dart" as modes; '
+              'void main() { print(modes.Mode.values.byName("a")); }',
+          {},
+        ),
+        'inside enum': ('void main() { Mode.show(); }', {}),
+        'type and one constant': (
+          'void main() { Mode m = Mode.a; print(m); }',
+          {'Mode.b'},
+        ),
+        'type only': (
+          'void main() { Mode? m; print(m); }',
+          {'Mode.a', 'Mode.b'},
+        ),
+        'unreachable values reference': (
+          'void unused() { print(Mode.values); } void main() {}',
+          {'Mode.a', 'Mode.b'},
+        ),
+      };
+
+      for (final entry in cases.entries) {
+        test(entry.key, () async {
+          final enumSource = '''
+enum Mode {
+  a, b;
+  static void show() { print(Mode.values); }
+}
+''';
+          final prefixed = entry.key == 'prefixed import';
+          final libPath = await makeFixture(
+            '${prefixed ? '' : enumSource}\n${entry.value.$1}',
+            additionalFiles: prefixed ? {'mode.dart': enumSource} : {},
+          );
+          final report = await DeadCodeAnalyzer(
+            AnalyzerConfig(ignoreExports: false),
+          ).analyze(libPath);
+          expect(
+            report.unusedEntities
+                .where((e) => e.type == EntityType.enumValue)
+                .map((e) => e.fullName)
+                .toSet(),
+            entry.value.$2,
+          );
+        });
+      }
+    });
+
     test('detects same-named method on unused class', () async {
       final libPath = await makeFixture('''
 class Used {
