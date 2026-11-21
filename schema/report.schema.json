@@ -1,0 +1,408 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Chandram-Dutta/hyena_dart/main/schema/report.schema.json",
+  "title": "Hyena CLI JSON report",
+  "type": "object",
+  "required": [
+    "schemaVersion"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/$defs/analysis"
+    }
+  ],
+  "$defs": {
+    "analysis": {
+      "type": "object",
+      "required": [
+        "targetPath",
+        "duration"
+      ],
+      "properties": {
+        "targetPath": {
+          "type": "string"
+        },
+        "duration": {
+          "type": "string",
+          "pattern": "^[0-9]+ms$"
+        },
+        "package": {
+          "type": "string"
+        },
+        "workspace": {
+          "$ref": "#/$defs/workspace"
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/analysis"
+          },
+          "minItems": 1
+        },
+        "deadCode": {
+          "$ref": "#/$defs/deadCode"
+        },
+        "complexity": {
+          "$ref": "#/$defs/complexity"
+        }
+      },
+      "additionalProperties": true,
+      "anyOf": [
+        {
+          "required": [
+            "deadCode"
+          ]
+        },
+        {
+          "required": [
+            "complexity"
+          ]
+        },
+        {
+          "required": [
+            "workspace",
+            "packages"
+          ]
+        }
+      ],
+      "dependentRequired": {
+        "workspace": [
+          "packages"
+        ],
+        "packages": [
+          "workspace"
+        ]
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "required": [
+        "packageCount"
+      ],
+      "properties": {
+        "packageCount": {
+          "type": "integer"
+        },
+        "deadCode": {
+          "type": "object",
+          "required": [
+            "totalDeclarations",
+            "unusedDeclarations"
+          ],
+          "properties": {
+            "totalDeclarations": {
+              "type": "integer"
+            },
+            "unusedDeclarations": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": true
+        },
+        "complexity": {
+          "type": "object",
+          "required": [
+            "files",
+            "functions",
+            "lines",
+            "thresholdViolations"
+          ],
+          "properties": {
+            "files": {
+              "type": "integer"
+            },
+            "functions": {
+              "type": "integer"
+            },
+            "lines": {
+              "type": "integer"
+            },
+            "thresholdViolations": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "skippedFile": {
+      "type": "object",
+      "required": [
+        "filePath",
+        "reason"
+      ],
+      "properties": {
+        "filePath": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "entity": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "filePath",
+        "line",
+        "column",
+        "isPublic"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "filePath": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "column": {
+          "type": "integer"
+        },
+        "isPublic": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "deadCode": {
+      "type": "object",
+      "required": [
+        "analyzedAt",
+        "summary",
+        "unusedEntities",
+        "skippedFiles"
+      ],
+      "properties": {
+        "analyzedAt": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "object",
+          "required": [
+            "totalDeclarations",
+            "unusedCount",
+            "deadCodePercentage"
+          ],
+          "properties": {
+            "totalDeclarations": {
+              "type": "integer"
+            },
+            "unusedCount": {
+              "type": "integer"
+            },
+            "deadCodePercentage": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "unusedEntities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entity"
+          }
+        },
+        "skippedFiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/skippedFile"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "function": {
+      "type": "object",
+      "required": [
+        "name",
+        "filePath",
+        "line",
+        "cyclomaticComplexity",
+        "linesOfCode",
+        "maxNestingLevel",
+        "parameterCount",
+        "halsteadVolume",
+        "maintainabilityIndex"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "filePath": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "cyclomaticComplexity": {
+          "type": "integer"
+        },
+        "linesOfCode": {
+          "type": "integer"
+        },
+        "maxNestingLevel": {
+          "type": "integer"
+        },
+        "parameterCount": {
+          "type": "integer"
+        },
+        "halsteadVolume": {
+          "type": "string"
+        },
+        "maintainabilityIndex": {
+          "type": "string"
+        },
+        "suppressedRules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "file": {
+      "type": "object",
+      "required": [
+        "filePath",
+        "totalLines",
+        "codeLines",
+        "commentLines",
+        "blankLines",
+        "averageCyclomaticComplexity",
+        "maxCyclomaticComplexity",
+        "functions"
+      ],
+      "properties": {
+        "filePath": {
+          "type": "string"
+        },
+        "totalLines": {
+          "type": "integer"
+        },
+        "codeLines": {
+          "type": "integer"
+        },
+        "commentLines": {
+          "type": "integer"
+        },
+        "blankLines": {
+          "type": "integer"
+        },
+        "averageCyclomaticComplexity": {
+          "type": "string"
+        },
+        "maxCyclomaticComplexity": {
+          "type": "integer"
+        },
+        "functions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/function"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "complexity": {
+      "type": "object",
+      "required": [
+        "analyzedAt",
+        "thresholds",
+        "summary",
+        "files",
+        "skippedFiles"
+      ],
+      "properties": {
+        "analyzedAt": {
+          "type": "string"
+        },
+        "thresholds": {
+          "type": "object",
+          "required": [
+            "cyclomaticComplexity",
+            "maxNestingLevel",
+            "maxParameters"
+          ],
+          "properties": {
+            "cyclomaticComplexity": {
+              "type": "integer"
+            },
+            "maxNestingLevel": {
+              "type": "integer"
+            },
+            "maxParameters": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": true
+        },
+        "summary": {
+          "type": "object",
+          "required": [
+            "totalFiles",
+            "totalFunctions",
+            "totalLines",
+            "highComplexityFunctions",
+            "highNestingFunctions",
+            "highParameterFunctions",
+            "thresholdViolations"
+          ],
+          "properties": {
+            "totalFiles": {
+              "type": "integer"
+            },
+            "totalFunctions": {
+              "type": "integer"
+            },
+            "totalLines": {
+              "type": "integer"
+            },
+            "highComplexityFunctions": {
+              "type": "integer"
+            },
+            "highNestingFunctions": {
+              "type": "integer"
+            },
+            "highParameterFunctions": {
+              "type": "integer"
+            },
+            "thresholdViolations": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": true
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/file"
+          }
+        },
+        "skippedFiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/skippedFile"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

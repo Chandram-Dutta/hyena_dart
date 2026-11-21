@@ -1,3 +1,8 @@
+## [Unreleased]
+
+### Added
+- CLI JSON reports include `schemaVersion: 1` and a published JSON Schema at `schema/report.schema.json` for single-package and workspace reports.
+
 ## [3.0.1] - 2026-11-21
 
 ### Added

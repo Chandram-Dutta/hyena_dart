@@ -5,6 +5,9 @@ import 'reporter.dart';
 
 /// Renders an [AnalysisResult] as JSON, using [AnalysisResult.toJson].
 class JsonReporter implements Reporter {
+  /// Version of the CLI JSON report contract.
+  static const schemaVersion = 1;
+
   /// Whether to indent the output with two spaces.
   final bool prettyPrint;
 
@@ -16,6 +19,9 @@ class JsonReporter implements Reporter {
     final encoder = prettyPrint
         ? const JsonEncoder.withIndent('  ')
         : const JsonEncoder();
-    return encoder.convert(result.toJson());
+    return encoder.convert({
+      'schemaVersion': schemaVersion,
+      ...result.toJson(),
+    });
   }
 }
