@@ -48,7 +48,14 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
     if (element == null) return;
     _recordElementAndExtension(element);
     if (element is PropertyAccessorElement) {
-      _recordElementAndExtension(element.variable);
+      _recordElement(element.variable);
+    } else if (element is FieldElement && element.isOriginEnumValues) {
+      final enclosing = element.enclosingElement;
+      if (enclosing is EnumElement) {
+        for (final field in enclosing.fields) {
+          if (field.isEnumConstant) _recordElementAndExtension(field);
+        }
+      }
     }
   }
 
