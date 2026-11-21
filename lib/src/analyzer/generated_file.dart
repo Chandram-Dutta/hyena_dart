@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:analyzer/dart/analysis/features.dart';
+import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/token.dart';
-// ignore: implementation_imports
-import 'package:analyzer/src/dart/scanner/scanner.dart';
 
 /// Shared generated-source classification for the analyzers.
 class GeneratedFiles {
@@ -39,24 +37,12 @@ class GeneratedFiles {
 
   /// Matches only standalone markers in comments before the first Dart token.
   static bool hasGeneratedHeader(String source) {
-    final features = FeatureSet.latestLanguageVersion();
-    final scanner =
-        Scanner(
-            inputText: source.startsWith('\uFEFF')
-                ? source.substring(1)
-                : source,
-            reportError: (_) {},
-          )
-          ..configureFeatures(
-            featureSetForOverriding: features,
-            featureSet: features,
-          )
-          ..preserveComments = true;
-    var firstToken = scanner.tokenize();
-    // Scanner errors are prepended, including errors from a truncated head.
-    while (firstToken.type == TokenType.BAD_INPUT) {
-      firstToken = firstToken.next!;
-    }
+    final result = parseString(
+      content: source.startsWith('\uFEFF') ? source.substring(1) : source,
+      throwIfDiagnostics: false,
+    );
+    final firstToken =
+        result.unit.scriptTag?.endToken.next ?? result.unit.beginToken;
     for (
       Token? token = firstToken.precedingComments;
       token != null;
