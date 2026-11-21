@@ -193,7 +193,7 @@ class _Workspace {
     if (!await pubspec.exists()) return null;
 
     final rootYaml = _loadPubspec(pubspec);
-    if (rootYaml['workspace'] == null) return null;
+    if (!rootYaml.containsKey('workspace')) return null;
 
     final rootPath = p.normalize(await target.resolveSymbolicLinks());
     final packages = <_WorkspacePackage>[];
@@ -262,6 +262,18 @@ class _Workspace {
     final yaml = loadYaml(file.readAsStringSync());
     if (yaml is! YamlMap) {
       throw FormatException('${file.path} must contain a YAML map.');
+    }
+    final overridesFile = File(
+      p.join(file.parent.path, 'pubspec_overrides.yaml'),
+    );
+    if (overridesFile.existsSync()) {
+      final overrides = loadYaml(overridesFile.readAsStringSync());
+      if (overrides != null && overrides is! YamlMap) {
+        throw FormatException('${overridesFile.path} must contain a YAML map.');
+      }
+      if (overrides is YamlMap && overrides.containsKey('workspace')) {
+        return YamlMap.wrap({...yaml, 'workspace': overrides['workspace']});
+      }
     }
     return yaml;
   }
