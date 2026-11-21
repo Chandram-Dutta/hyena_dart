@@ -144,7 +144,7 @@ Typical steps:
 
 ## Testing guidance
 
-Current tests are unit tests in `test/`.
+Tests in `test/` include unit tests and CLI/MCP integration tests.
 
 When adding new behavior:
 
@@ -155,9 +155,9 @@ When adding new behavior:
 
 ---
 
-## Release process (manual today)
+## Release process
 
-This repository currently has no release automation. Versioning is controlled via:
+Version tags trigger `.github/workflows/publish.yml`, which verifies the release before publishing to pub.dev. Versioning is controlled via:
 
 - `pubspec.yaml` version
 - `CHANGELOG.md`
@@ -168,7 +168,7 @@ This repository currently has no release automation. Versioning is controlled vi
 
 ### `dart analyze` fails with SDK constraint errors
 
-- Ensure you are using Dart SDK `^3.10.3` (see `pubspec.yaml`).
+- Ensure you are using Dart SDK `^3.11.0` (see `pubspec.yaml`).
 
 ### Analyzer can’t resolve imports in a target repo
 

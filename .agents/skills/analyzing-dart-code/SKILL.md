@@ -1,7 +1,7 @@
 ---
 name: analyzing-dart-code
 description: "Analyzes Dart and Flutter projects for dead code and complexity with Hyena. Use when reviewing maintainability, finding unused declarations, or checking complexity before and after code changes."
-compatibility: "Requires Dart 3.10.3 or later and resolved package dependencies."
+compatibility: "Requires Dart 3.11.0 or later and resolved package dependencies."
 mcpServers:
   hyena:
     command: dart
