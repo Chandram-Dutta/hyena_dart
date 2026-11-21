@@ -831,6 +831,40 @@ void main() => Example.used();
       expect(constructors, isNot(contains('Example.used')));
     });
 
+    test('keeps const constructors used only as annotations', () async {
+      final libPath = await makeFixture('''
+class Marker {
+  const Marker();
+  const Marker.named();
+  const Marker.unused();
+  const Marker.onDeadCode();
+}
+
+@Marker()
+@Marker.named()
+void annotated() {}
+
+@Marker.onDeadCode()
+void deadAnnotated() {}
+
+void main() => annotated();
+''');
+
+      final report = await DeadCodeAnalyzer(
+        AnalyzerConfig(ignoreExports: false),
+      ).analyze(libPath);
+      final unusedNames = report.unusedEntities
+          .map((entity) => entity.fullName)
+          .toSet();
+
+      expect(unusedNames, isNot(contains('Marker.new')));
+      expect(unusedNames, isNot(contains('Marker.named')));
+      expect(
+        unusedNames,
+        containsAll(['Marker.unused', 'Marker.onDeadCode', 'deadAnnotated']),
+      );
+    });
+
     test('follows super calls only from reachable constructors', () async {
       final libPath = await makeFixture('''
 class ImplicitBase {
