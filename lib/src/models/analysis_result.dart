@@ -66,6 +66,8 @@ class AnalysisResult {
       packageAnalyses.every(
         (result) =>
             (result.deadCodeReport?.analyzedFileCount ?? 0) == 0 &&
+            (result.deadCodeReport?.totalDeclarations ?? 0) == 0 &&
+            (result.deadCodeReport?.unusedEntities.isEmpty ?? true) &&
             (result.complexityReport?.totalFiles ?? 0) == 0,
       );
 

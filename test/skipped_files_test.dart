@@ -210,6 +210,22 @@ void callsHelper() => helper();
   });
 
   group('AnalysisRunner skipped files', () {
+    test('manual declaration-bearing reports are not all skipped', () {
+      final result = AnalysisResult(
+        targetPath: '/project',
+        duration: Duration.zero,
+        deadCodeReport: DeadCodeReport(
+          unusedEntities: const [],
+          totalDeclarations: 1,
+          skippedFiles: const [
+            SkippedFile(filePath: '/project/broken.dart', reason: 'broken'),
+          ],
+        ),
+      );
+      expect(result.deadCodeReport!.analyzedFileCount, 0);
+      expect(result.allFilesSkipped, isFalse);
+    });
+
     test(
       'counts empty analyzed files and preserves counts through baselines',
       () async {
