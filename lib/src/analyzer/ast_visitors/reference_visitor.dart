@@ -362,6 +362,7 @@ class ReferenceVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitAnnotation(Annotation node) {
     references.add(node.name.name);
+    _recordElement(node.element);
     super.visitAnnotation(node);
   }
 
